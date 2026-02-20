@@ -6,11 +6,11 @@ A fidget game. Tap a colorful block – it breaks into shards. Sort the shards b
 
 ## Try it
 
-**Online:** [link coming once deployed]
+**Online:** https://lxkrmr.github.io/knack
 
 **Locally:**
 ```bash
-git clone https://github.com/lxkrmr/knack
+git clone https://github.com/lxkrmr/knack.git
 cd knack
 python3 -m http.server 8080
 # open http://localhost:8080
