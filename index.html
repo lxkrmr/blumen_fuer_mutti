@@ -2,272 +2,65 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>knack!</title>
+  <link rel="icon" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d1117">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="knack!">
   <style>
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-    }
-
-    :root {
-      --blue:    #58a6ff;
-      --orange:  #f0883e;
-      --purple:  #bc8cff;
-      --bg:      #0d1117;
-      --border:  #30363d;
-      --text:    #c9d1d9;
-      --text-dim:#6e7681;
-    }
-
-    html, body {
-      height: 100%;
-      /* slightly lighter bg outside the phone frame on desktop */
-      background: #1c2128;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
+      background: #0d1117;
+      min-height: 100dvh;
       display: flex;
-      justify-content: center;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-
-    #app {
-      width: 100%;
-      max-width: 430px;
-      height: 100dvh;
-      background: var(--bg);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      position: relative;
-    }
-
-    /* ── Header ─────────────────────────────────────────── */
-    #header {
-      display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 18px 20px 10px;
-      flex-shrink: 0;
-    }
-
-    #title {
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: 0.04em;
-      color: #f0f6fc;
-    }
-
-    #lang-btn {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--text-dim);
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-family: inherit;
-      cursor: pointer;
-      transition: border-color 0.15s, color 0.15s;
-    }
-    #lang-btn:hover { border-color: var(--blue); color: var(--text); }
-
-    /* ── Gem area ───────────────────────────────────────── */
-    #gem-area {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 0 14px;
-      flex-shrink: 0;
-    }
-
-    #gem-svg {
-      width: 70px;
-      height: 70px;
-      transition: filter 0.4s;
-      filter: drop-shadow(0 0 5px rgba(88,166,255,0.25));
-    }
-
-    #gem-svg.complete {
-      animation: gem-pulse 0.7s ease;
-      filter: drop-shadow(0 0 20px rgba(255,255,255,0.75));
-    }
-
-    @keyframes gem-pulse {
-      0%, 100% { transform: scale(1); }
-      45%       { transform: scale(1.18); }
-    }
-
-    #gem-label {
-      font-size: 11px;
-      color: var(--text-dim);
-      letter-spacing: 0.05em;
-    }
-
-    /* ── Play area ──────────────────────────────────────── */
-    #play-area {
-      flex: 1;
-      position: relative;
-      min-height: 0;
-    }
-
-    /* ── Block ──────────────────────────────────────────── */
-    #block {
-      width: 112px;
-      height: 112px;
-      border-radius: 22px;
-      cursor: pointer;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      /* base transform; animation overrides */
-      transform: translate(-50%, -50%);
-    }
-
-    /* subtle inner highlight */
-    #block::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%);
-    }
-
-    #block:active {
-      transform: translate(-50%, -50%) scale(0.92);
-    }
-
-    #block.hidden { display: none; }
-
-    @keyframes block-enter {
-      from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
-      to   { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
-    }
-    #block.enter {
-      animation: block-enter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-    }
-
-    /* ── Shards ─────────────────────────────────────────── */
-    .shard {
-      position: absolute;
-      width: 72px;
-      height: 72px;
-      cursor: pointer;
-      left: 50%;
-      top: 50%;
-      /* actual position via transform, set by JS */
-      transition: filter 0.15s;
-    }
-
-    .shard.selected {
-      filter: brightness(1.55) drop-shadow(0 0 10px currentColor);
-    }
-
-    .shard.sorting {
-      transition: transform 0.2s ease-in, opacity 0.2s ease-in !important;
-      opacity: 0 !important;
-    }
-
-    @keyframes shard-shake {
-      0%, 100% { margin-left: 0; }
-      20%       { margin-left: -9px; }
-      40%       { margin-left:  9px; }
-      60%       { margin-left: -6px; }
-      80%       { margin-left:  6px; }
-    }
-    .shard.shake { animation: shard-shake 0.32s ease; }
-
-    /* ── Bins ───────────────────────────────────────────── */
-    #bins {
-      display: flex;
       justify-content: center;
-      gap: 14px;
-      padding: 10px 20px 26px;
-      flex-shrink: 0;
+      user-select: none;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .bin {
-      flex: 1;
-      max-width: 110px;
-      height: 96px;
-      border-radius: 14px;
-      border: 2px solid;
+    canvas {
+      display: block;
+      border-radius: 12px;
+      box-shadow: 0 0 0 1px #30363d;
+      width: min(430px, 100vw, calc(100dvh * 430 / 932));
+      height: auto;
+      aspect-ratio: 430 / 932;
       cursor: pointer;
-      position: relative;
-      overflow: hidden;
-      transition: transform 0.1s;
-    }
-    .bin:active { transform: scale(0.94); }
-
-    .bin-fill {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 0%;
-      transition: height 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
-      opacity: 0.4;
-    }
-
-    @keyframes bin-flash {
-      0%   { opacity: 0.4; }
-      35%  { opacity: 0.85; }
-      100% { opacity: 0.4; }
-    }
-    .bin.just-filled .bin-fill {
-      animation: bin-flash 0.55s ease;
     }
   </style>
 </head>
 <body>
-<div id="app">
 
-  <div id="header">
-    <div id="title">knack!</div>
-    <button id="lang-btn">EN</button>
-  </div>
-
-  <!-- Gem grows facet by facet as bins fill -->
-  <div id="gem-area">
-    <svg id="gem-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <!--
-        Hexagonal gem, 6 triangular facets from center.
-        Vertices: top(50,8) · TR(88,29) · BR(88,71) · bot(50,92) · BL(12,71) · TL(12,29)
-        Center: (50,50)
-      -->
-      <polygon id="f0" points="50,8  88,29 50,50"/>  <!-- top-right  -->
-      <polygon id="f1" points="88,29 88,71 50,50"/>  <!-- right      -->
-      <polygon id="f2" points="88,71 50,92 50,50"/>  <!-- bot-right  -->
-      <polygon id="f3" points="50,92 12,71 50,50"/>  <!-- bot-left   -->
-      <polygon id="f4" points="12,71 12,29 50,50"/>  <!-- left       -->
-      <polygon id="f5" points="12,29 50,8  50,50"/>  <!-- top-left   -->
-      <!-- outline -->
-      <polygon points="50,8 88,29 88,71 50,92 12,71 12,29"
-               fill="none" stroke="#30363d" stroke-width="2"/>
-    </svg>
-    <div id="gem-label"></div>
-  </div>
-
-  <!-- Shards and the current block live here (position: absolute) -->
-  <div id="play-area">
-    <div id="block"></div>
-  </div>
-
-  <!-- Three color bins at the bottom -->
-  <div id="bins"></div>
-
-</div>
+<canvas id="game" width="430" height="932"></canvas>
 
 <script>
-// ── i18n ──────────────────────────────────────────────────────────────────────
+// ── Canvas setup ───────────────────────────────────────────────────────────
+const canvas = document.getElementById('game');
+const ctx    = canvas.getContext('2d');
+const W = 430, H = 932;
+
+const DPR = Math.min(window.devicePixelRatio || 1, 3);
+canvas.width  = W * DPR;
+canvas.height = H * DPR;
+ctx.scale(DPR, DPR);
+
+function canvasCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  const src  = e.changedTouches ? e.changedTouches[0] : e;
+  return {
+    x: (src.clientX - rect.left) * (W / rect.width),
+    y: (src.clientY - rect.top)  * (H / rect.height),
+  };
+}
+
+// ── i18n ──────────────────────────────────────────────────────────────────
 const STRINGS = {
   de: {
     lang_toggle: 'EN',
@@ -289,131 +82,107 @@ function t(key, ...args) {
   return typeof v === 'function' ? v(...args) : v;
 }
 
-// ── Colors ────────────────────────────────────────────────────────────────────
-// GitHub Dark Colorblind palette – blue/orange/purple, never green/red
+// ── Colors ─────────────────────────────────────────────────────────────────
 const COLORS = [
   { id: 'blue',   hex: '#58a6ff' },
   { id: 'orange', hex: '#f0883e' },
   { id: 'purple', hex: '#bc8cff' },
 ];
 
-// Facet colors cycle through the 3 colors (6 facets total)
-const FACET_COLORS = [
-  '#58a6ff', '#f0883e', '#bc8cff',
-  '#58a6ff', '#f0883e', '#bc8cff',
+// Each gem facet cycles through the 3 colors
+const FACET_COLORS = ['#58a6ff', '#f0883e', '#bc8cff', '#58a6ff', '#f0883e', '#bc8cff'];
+
+const BG       = '#0d1117';
+const BORDER   = '#30363d';
+const TEXT_HI  = '#f0f6fc';
+const TEXT_DIM = '#6e7681';
+
+// ── Shard shapes ───────────────────────────────────────────────────────────
+// Normalized [0–1] polygon coordinates – scaled to SHARD_SIZE at draw time
+const SHARD_POLYS = [
+  [[.5,0],[1,.3],[.85,1],[.15,1],[0,.3]],
+  [[.2,0],[1,.15],[.9,.9],[0,.75]],
+  [[.5,.05],[1,.45],[.65,1],[.05,.75],[0,.2]],
+  [[0,.2],[.55,0],[1,.4],[.8,1],[.1,.85]],
+  [[.1,0],[.95,.1],[1,.85],[.5,1],[0,.6]],
+  [[.3,0],[1,.25],[.85,.95],[0,.85]],
 ];
 
-// ── Shard shapes ──────────────────────────────────────────────────────────────
-// Irregular polygon clip-paths give shards a broken-stone feel
-const SHARD_SHAPES = [
-  'polygon(50% 0%, 100% 30%, 85% 100%, 15% 100%, 0% 30%)',
-  'polygon(20% 0%, 100% 15%, 90% 90%, 0% 75%)',
-  'polygon(50% 5%, 100% 45%, 65% 100%, 5% 75%, 0% 20%)',
-  'polygon(0% 20%, 55% 0%, 100% 40%, 80% 100%, 10% 85%)',
-  'polygon(10% 0%, 95% 10%, 100% 85%, 50% 100%, 0% 60%)',
-  'polygon(30% 0%, 100% 25%, 85% 95%, 0% 85%)',
-];
+// ── Layout ─────────────────────────────────────────────────────────────────
+const HEADER_H  = 70;
+const GEM_H     = 130;
+const BIN_H     = 96,  BIN_W = 90, BIN_GAP = 16, BIN_R = 12;
+const BIN_Y     = H - 36 - BIN_H;                      // 800
+const BIN_TOTAL = 3 * BIN_W + 2 * BIN_GAP;             // 302
+const BIN_LEFT  = (W - BIN_TOTAL) / 2;                 // 64
+const PLAY_Y    = HEADER_H + GEM_H;                    // 200
+const PLAY_H    = BIN_Y - PLAY_Y - 20;                 // 580
+const PLAY_CX   = W / 2;                               // 215
+const PLAY_CY   = PLAY_Y + PLAY_H / 2;                 // 490
+const GEM_CX    = W / 2;
+const GEM_CY    = HEADER_H + GEM_H / 2 - 10;           // 125
+const GEM_R     = 38;
 
-// Landing zones for shards: offset (px) from play-area center
+// Shard landing zones – offsets from play-area center
 const SHARD_ZONES = [
-  { x: -88, y: -65 },
-  { x:  88, y: -55 },
-  { x:   0, y:  85 },
+  { dx: -95, dy: -80 },
+  { dx:  95, dy: -65 },
+  { dx:   0, dy: 100 },
 ];
 
-function jitter(v, range = 22) {
-  return v + (Math.random() - 0.5) * range;
+const SHARD_SIZE   = 80;
+const BLOCK_SIZE   = 112;
+const BLOCK_R      = 22;
+
+// ── Game constants ─────────────────────────────────────────────────────────
+const SHARDS_PER_BLOCK = 3;
+const BIN_CAPACITY     = 4;
+const GEM_FACETS       = 6;
+
+// ── Easing ────────────────────────────────────────────────────────────────
+function easeOutBack(t) {
+  const c1 = 1.70158, c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+}
+function lerp(a, b, t)  { return a + (b - a) * t; }
+function clamp(t, a, b) { return Math.max(a, Math.min(b, t)); }
+function clamp01(t)     { return clamp(t, 0, 1); }
+
+// ── Haptics ───────────────────────────────────────────────────────────────
+function haptic(pattern) {
+  if (navigator.vibrate) navigator.vibrate(pattern);
 }
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-const SHARDS_PER_BLOCK = 3;
-const BIN_CAPACITY     = 4;  // shards needed to fill a bin
-const GEM_FACETS       = 6;  // facets to complete a gem
-
-// ── State ─────────────────────────────────────────────────────────────────────
+// ── Game state ────────────────────────────────────────────────────────────
 let shardIdCounter = 0;
 
 const state = {
   phase:    'block',   // 'block' | 'shards'
   block:    null,      // { color }
-  shards:   [],        // [{ id, color, x, y, el }]
+  shards:   [],        // see spawnShards()
   selected: null,      // shard id or null
   bins:     COLORS.map(c => ({ color: c, count: 0 })),
   gem:      { filled: 0 },
 };
 
-// ── DOM refs ──────────────────────────────────────────────────────────────────
-const blockEl  = document.getElementById('block');
-const playArea = document.getElementById('play-area');
-const binsEl   = document.getElementById('bins');
-const gemSvg   = document.getElementById('gem-svg');
-const gemLabel = document.getElementById('gem-label');
-const langBtn  = document.getElementById('lang-btn');
+// ── Animation state ───────────────────────────────────────────────────────
+let blockEnterStart = 0;
+const binFillAnim   = [0, 0, 0];   // lerps toward bin.count / BIN_CAPACITY
+const binFlashAt    = [0, 0, 0];   // timestamp of last bin-full event
+const facetAnim     = Array(GEM_FACETS).fill(0.1);
+let gemCompleteAt   = 0;
 
-// ── Haptics ───────────────────────────────────────────────────────────────────
-function haptic(pattern) {
-  if (navigator.vibrate) navigator.vibrate(pattern);
+// ── Game logic ────────────────────────────────────────────────────────────
+function jitter(v, range = 22) {
+  return v + (Math.random() - 0.5) * range;
 }
 
-// ── Render: bins ──────────────────────────────────────────────────────────────
-function renderBins() {
-  binsEl.innerHTML = '';
-  state.bins.forEach((bin, i) => {
-    const pct = (bin.count / BIN_CAPACITY) * 100;
-
-    const div = document.createElement('div');
-    div.className = 'bin';
-    div.style.borderColor = bin.color.hex + '70';
-    div.dataset.binIndex = i;
-
-    const fill = document.createElement('div');
-    fill.className = 'bin-fill';
-    fill.style.background = bin.color.hex;
-
-    div.appendChild(fill);
-    binsEl.appendChild(div);
-
-    // Trigger CSS transition after first paint
-    requestAnimationFrame(() => {
-      fill.style.height = pct + '%';
-    });
-  });
-}
-
-// Re-animate only a single bin's fill (after sorting a shard)
-function updateBinFill(binIndex) {
-  const binEl = binsEl.children[binIndex];
-  if (!binEl) return;
-  const fill = binEl.querySelector('.bin-fill');
-  if (!fill) return;
-  const pct = (state.bins[binIndex].count / BIN_CAPACITY) * 100;
-  fill.style.height = pct + '%';
-}
-
-// ── Render: gem ───────────────────────────────────────────────────────────────
-function renderGem() {
-  for (let i = 0; i < GEM_FACETS; i++) {
-    const el = document.getElementById('f' + i);
-    el.setAttribute('fill', FACET_COLORS[i]);
-    el.setAttribute('opacity', i < state.gem.filled ? '0.85' : '0.1');
-  }
-  gemLabel.textContent = t('gem_label', state.gem.filled, GEM_FACETS);
-}
-
-// ── Block ──────────────────────────────────────────────────────────────────────
 function spawnBlock() {
-  state.phase    = 'block';
-  state.shards   = [];
-  state.selected = null;
-
-  const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-  state.block = { color };
-
-  blockEl.style.background = color.hex;
-  blockEl.style.boxShadow  = `0 0 28px ${color.hex}44`;
-  blockEl.classList.remove('hidden', 'enter');
-  void blockEl.offsetWidth;          // reflow to restart animation
-  blockEl.classList.add('enter');
+  state.phase         = 'block';
+  state.shards        = [];
+  state.selected      = null;
+  state.block         = { color: COLORS[Math.floor(Math.random() * COLORS.length)] };
+  blockEnterStart     = performance.now();
 }
 
 function breakBlock() {
@@ -421,62 +190,45 @@ function breakBlock() {
   haptic(14);
 
   state.phase = 'shards';
-  blockEl.classList.add('hidden');
-
+  const now   = performance.now();
   const color = state.block.color;
+  const zones = [...SHARD_ZONES].sort(() => Math.random() - 0.5);
 
-  SHARD_ZONES.forEach((zone) => {
-    const id    = shardIdCounter++;
-    const x     = jitter(zone.x);
-    const y     = jitter(zone.y);
-    const shape = SHARD_SHAPES[Math.floor(Math.random() * SHARD_SHAPES.length)];
-
-    const el = document.createElement('div');
-    el.className     = 'shard';
-    el.dataset.shardId = id;
-    el.style.clipPath  = shape;
-    el.style.background = color.hex;
-    el.style.boxShadow  = `0 2px 10px ${color.hex}55`;
-
-    // Start at center, scale 0
-    el.style.transform  = `translate(calc(-50% + 0px), calc(-50% + 0px)) scale(0.3)`;
-    el.style.opacity    = '0';
-    el.style.transition = 'none';
-    playArea.appendChild(el);
-
-    // Next frame: fly to landing zone
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      el.style.transition =
-        `transform 0.42s cubic-bezier(0.34, 1.45, 0.64, 1),
-         opacity   0.22s ease`;
-      el.style.transform =
-        `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(1)`;
-      el.style.opacity = '1';
-    }));
-
-    state.shards.push({ id, color, x, y, el });
+  zones.slice(0, SHARDS_PER_BLOCK).forEach(zone => {
+    state.shards.push({
+      id:         shardIdCounter++,
+      color,
+      poly:       SHARD_POLYS[Math.floor(Math.random() * SHARD_POLYS.length)],
+      targetX:    PLAY_CX + jitter(zone.dx),
+      targetY:    PLAY_CY + jitter(zone.dy),
+      flyStart:   now,
+      phase:      'flying',   // 'flying' | 'idle' | 'selected' | 'sorting'
+      sortStart:  0,
+      shakeStart: 0,
+    });
   });
 }
 
-// ── Shard interaction ─────────────────────────────────────────────────────────
 function selectShard(id) {
   haptic(8);
 
-  // Deselect previous
-  if (state.selected !== null) {
-    const prev = state.shards.find(s => s.id === state.selected);
-    if (prev) prev.el.classList.remove('selected');
-  }
-
   if (state.selected === id) {
-    // Tap same shard again → deselect
+    // Tap same shard → deselect
+    const s = state.shards.find(s => s.id === id);
+    if (s) s.phase = 'idle';
     state.selected = null;
     return;
   }
 
+  // Deselect previous
+  if (state.selected !== null) {
+    const prev = state.shards.find(s => s.id === state.selected);
+    if (prev) prev.phase = 'idle';
+  }
+
   state.selected = id;
   const shard = state.shards.find(s => s.id === id);
-  if (shard) shard.el.classList.add('selected');
+  if (shard) shard.phase = 'selected';
 }
 
 function trySortShard(binIndex) {
@@ -484,127 +236,350 @@ function trySortShard(binIndex) {
 
   const shard = state.shards.find(s => s.id === state.selected);
   if (!shard) return;
-  const bin = state.bins[binIndex];
 
-  if (shard.color.id !== bin.color.id) {
-    // Wrong bin: gentle shake, no penalty
+  if (shard.color.id !== state.bins[binIndex].color.id) {
     haptic([8, 30, 8]);
-    shard.el.classList.remove('shake');
-    void shard.el.offsetWidth;
-    shard.el.classList.add('shake');
+    shard.shakeStart = performance.now();
     return;
   }
 
   // ✓ Correct sort
   haptic(12);
-  state.selected = null;
-
-  shard.el.classList.remove('selected');
-  shard.el.classList.add('sorting');
+  shard.phase     = 'sorting';
+  shard.sortStart = performance.now();
+  state.selected  = null;
 
   setTimeout(() => {
-    shard.el.remove();
     state.shards = state.shards.filter(s => s.id !== shard.id);
+    state.bins[binIndex].count++;
 
-    bin.count++;
-
-    if (bin.count >= BIN_CAPACITY) {
+    if (state.bins[binIndex].count >= BIN_CAPACITY) {
       onBinFilled(binIndex);
-    } else {
-      updateBinFill(binIndex);
     }
-
-    // All shards sorted → next block
     if (state.shards.length === 0) {
-      setTimeout(spawnBlock, 380);
+      setTimeout(spawnBlock, 350);
     }
   }, 230);
 }
 
-// ── Bin filled ────────────────────────────────────────────────────────────────
 function onBinFilled(binIndex) {
   haptic([18, 10, 18]);
-
   state.bins[binIndex].count = 0;
+  binFlashAt[binIndex] = performance.now();
+  // binFillAnim stays near 1.0 and drains naturally toward 0
 
-  // Flash the filled bin, then reset fill bar
-  const binEl = binsEl.children[binIndex];
-  if (binEl) {
-    binEl.classList.add('just-filled');
-    const fill = binEl.querySelector('.bin-fill');
-    if (fill) fill.style.height = '100%';  // show full briefly
-    setTimeout(() => {
-      binEl.classList.remove('just-filled');
-      updateBinFill(binIndex);              // back to 0%
-    }, 560);
-  }
-
-  // Gem gets a facet
   state.gem.filled++;
-
-  if (state.gem.filled >= GEM_FACETS) {
-    onGemComplete();
-  } else {
-    renderGem();
-  }
+  if (state.gem.filled >= GEM_FACETS) onGemComplete();
 }
 
-// ── Gem complete ──────────────────────────────────────────────────────────────
 function onGemComplete() {
   haptic([25, 12, 25, 12, 40]);
-
-  state.gem.filled = GEM_FACETS;
-  renderGem();
-
-  gemSvg.classList.add('complete');
-  gemLabel.textContent = t('gem_done');
+  gemCompleteAt = performance.now();
 
   setTimeout(() => {
-    gemSvg.classList.remove('complete');
     state.gem.filled = 0;
-    renderGem();
+    gemCompleteAt    = 0;
   }, 1800);
 }
 
-// ── Language toggle ───────────────────────────────────────────────────────────
+// ── Shard animation helper ────────────────────────────────────────────────
+// Returns { x, y, scale, opacity } for the current frame
+function shardAnim(shard, now) {
+  if (shard.phase === 'flying') {
+    const t = clamp01((now - shard.flyStart) / 450);
+    const e = easeOutBack(t);
+    if (t >= 1) shard.phase = 'idle';
+    return {
+      x:       lerp(PLAY_CX, shard.targetX, e),
+      y:       lerp(PLAY_CY, shard.targetY, e),
+      scale:   clamp01(t * 2.5),
+      opacity: clamp01(t * 3),
+    };
+  }
+
+  if (shard.phase === 'sorting') {
+    const t = clamp01((now - shard.sortStart) / 220);
+    return { x: shard.targetX, y: shard.targetY, scale: lerp(1, 0.2, t), opacity: 1 - t };
+  }
+
+  // idle / selected – optional shake
+  let shakeX = 0;
+  if (shard.shakeStart) {
+    const st = clamp01((now - shard.shakeStart) / 350);
+    shakeX = Math.sin(st * Math.PI * 4.5) * 12 * (1 - st);
+    if (st >= 1) shard.shakeStart = 0;
+  }
+
+  return { x: shard.targetX + shakeX, y: shard.targetY, scale: 1, opacity: 1 };
+}
+
+// ── Hit testing ───────────────────────────────────────────────────────────
+// Point-in-polygon (ray casting) – works in logical canvas coordinates
+function pointInPoly(px, py, pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j];
+    if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function inRect(x, y, rx, ry, rw, rh) {
+  return x >= rx && x <= rx + rw && y >= ry && y <= ry + rh;
+}
+
+let langBtnBounds = null; // set during drawHeader each frame
+
+function hitTest(x, y, now) {
+  // Lang button
+  if (langBtnBounds) {
+    const b = langBtnBounds;
+    if (inRect(x, y, b.x, b.y, b.w, b.h)) return { type: 'lang' };
+  }
+
+  // Shards (reverse so topmost is checked first)
+  if (state.phase === 'shards') {
+    for (const shard of [...state.shards].reverse()) {
+      if (shard.phase === 'sorting') continue;
+      const a = shardAnim(shard, now);
+      const s = SHARD_SIZE * a.scale;
+      const pts = shard.poly.map(([nx, ny]) => [a.x + (nx - 0.5) * s, a.y + (ny - 0.5) * s]);
+      if (pointInPoly(x, y, pts)) return { type: 'shard', id: shard.id };
+    }
+  }
+
+  // Block
+  if (state.phase === 'block') {
+    const hw = BLOCK_SIZE / 2;
+    if (inRect(x, y, PLAY_CX - hw, PLAY_CY - hw, BLOCK_SIZE, BLOCK_SIZE)) {
+      return { type: 'block' };
+    }
+  }
+
+  // Bins
+  for (let i = 0; i < 3; i++) {
+    const bx = BIN_LEFT + i * (BIN_W + BIN_GAP);
+    if (inRect(x, y, bx, BIN_Y, BIN_W, BIN_H)) return { type: 'bin', index: i };
+  }
+
+  return null;
+}
+
+// ── Input ─────────────────────────────────────────────────────────────────
+let lastTouchEnd = 0;
+
+canvas.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  lastTouchEnd = Date.now();
+  handleTap(canvasCoords(e));
+}, { passive: false });
+
+canvas.addEventListener('click', (e) => {
+  if (Date.now() - lastTouchEnd < 500) return;
+  handleTap(canvasCoords(e));
+});
+
+function handleTap({ x, y }) {
+  const now = performance.now();
+  const hit = hitTest(x, y, now);
+  if (!hit) return;
+  switch (hit.type) {
+    case 'lang':  toggleLang();         break;
+    case 'block': breakBlock();         break;
+    case 'shard': selectShard(hit.id);  break;
+    case 'bin':   trySortShard(hit.index); break;
+  }
+}
+
 function toggleLang() {
   lang = lang === 'de' ? 'en' : 'de';
   localStorage.setItem('knack-lang', lang);
-  langBtn.textContent = t('lang_toggle');
-  renderGem();
 }
 
-// ── Event delegation ──────────────────────────────────────────────────────────
-blockEl.addEventListener('click', (e) => {
-  e.stopPropagation();
-  breakBlock();
-});
+// ── Draw functions ────────────────────────────────────────────────────────
+function drawHeader() {
+  // Title
+  ctx.fillStyle    = TEXT_HI;
+  ctx.font         = 'bold 22px system-ui';
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign    = 'left';
+  ctx.fillText('knack!', 22, 46);
 
-playArea.addEventListener('click', (e) => {
-  const shardEl = e.target.closest('.shard');
-  if (!shardEl) return;
-  const id = parseInt(shardEl.dataset.shardId, 10);
-  selectShard(id);
-});
+  // Lang button
+  const label = t('lang_toggle');
+  ctx.font     = '12px system-ui';
+  const tw     = ctx.measureText(label).width;
+  const bw = tw + 20, bh = 26, bx = W - bw - 20, by = 22;
+  langBtnBounds = { x: bx, y: by, w: bw, h: bh };
 
-binsEl.addEventListener('click', (e) => {
-  const binEl = e.target.closest('.bin');
-  if (!binEl) return;
-  const i = parseInt(binEl.dataset.binIndex, 10);
-  trySortShard(i);
-});
+  ctx.strokeStyle  = BORDER;
+  ctx.lineWidth    = 1;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, bw, bh, 6);
+  ctx.stroke();
 
-langBtn.addEventListener('click', toggleLang);
+  ctx.fillStyle    = TEXT_DIM;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, bx + 10, by + bh / 2);
+}
 
-// ── Boot ──────────────────────────────────────────────────────────────────────
+function drawGem(now) {
+  // Hexagon vertices – pointy-top orientation
+  const verts = Array.from({ length: 6 }, (_, i) => {
+    const a = (i * 60 - 90) * Math.PI / 180;
+    return [GEM_CX + GEM_R * Math.cos(a), GEM_CY + GEM_R * Math.sin(a)];
+  });
+
+  const isComplete = gemCompleteAt > 0 && now - gemCompleteAt < 1800;
+  const flash      = isComplete ? Math.sin(clamp01((now - gemCompleteAt) / 1800) * Math.PI) : 0;
+
+  if (flash > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 28 * flash; }
+
+  // Draw 6 facets
+  for (let i = 0; i < GEM_FACETS; i++) {
+    const target  = isComplete ? 0.85 : (i < state.gem.filled ? 0.85 : 0.1);
+    facetAnim[i] += (target - facetAnim[i]) * 0.08;
+
+    ctx.globalAlpha = facetAnim[i];
+    ctx.fillStyle   = FACET_COLORS[i];
+    ctx.beginPath();
+    ctx.moveTo(GEM_CX, GEM_CY);
+    ctx.lineTo(verts[i][0], verts[i][1]);
+    ctx.lineTo(verts[(i + 1) % 6][0], verts[(i + 1) % 6][1]);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur  = 0;
+
+  // Hexagon outline
+  ctx.strokeStyle = BORDER;
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  verts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
+  ctx.closePath();
+  ctx.stroke();
+
+  // Label
+  ctx.fillStyle    = TEXT_DIM;
+  ctx.font         = '11px system-ui';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(
+    isComplete ? t('gem_done') : t('gem_label', state.gem.filled, GEM_FACETS),
+    GEM_CX, GEM_CY + GEM_R + 20
+  );
+  ctx.textAlign = 'left';
+}
+
+function drawBlock(now) {
+  if (state.phase !== 'block' || !state.block) return;
+
+  const t  = clamp01((now - blockEnterStart) / 300);
+  const sc = easeOutBack(t);
+  const hw = BLOCK_SIZE / 2 * sc;
+  const r  = BLOCK_R * sc;
+
+  ctx.shadowColor = state.block.color.hex;
+  ctx.shadowBlur  = 24;
+  ctx.fillStyle   = state.block.color.hex;
+  ctx.beginPath();
+  ctx.roundRect(PLAY_CX - hw, PLAY_CY - hw, hw * 2, hw * 2, r);
+  ctx.fill();
+  ctx.shadowBlur  = 0;
+}
+
+function drawShards(now) {
+  for (const shard of state.shards) {
+    const a = shardAnim(shard, now);
+    if (a.opacity < 0.01) continue;
+
+    const s   = SHARD_SIZE * a.scale;
+    const pts = shard.poly.map(([nx, ny]) => [a.x + (nx - 0.5) * s, a.y + (ny - 0.5) * s]);
+
+    ctx.globalAlpha = a.opacity;
+    if (shard.phase === 'selected') { ctx.shadowColor = shard.color.hex; ctx.shadowBlur = 14; }
+
+    ctx.fillStyle = shard.color.hex;
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.shadowBlur  = 0;
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawBins(now) {
+  for (let i = 0; i < 3; i++) {
+    const bin  = state.bins[i];
+    const bx   = BIN_LEFT + i * (BIN_W + BIN_GAP);
+    const by   = BIN_Y;
+
+    // Animate fill level
+    const fillTarget   = bin.count / BIN_CAPACITY;
+    binFillAnim[i]    += (fillTarget - binFillAnim[i]) * 0.15;
+
+    // Flash factor (0–1) after bin fills
+    const flashAge    = binFlashAt[i] ? now - binFlashAt[i] : Infinity;
+    const flash       = flashAge < 600 ? 1 - flashAge / 600 : 0;
+
+    // Background
+    ctx.fillStyle = BG;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, BIN_W, BIN_H, BIN_R);
+    ctx.fill();
+
+    // Fill bar – clipped to bin shape
+    if (binFillAnim[i] > 0.005) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(bx, by, BIN_W, BIN_H, BIN_R);
+      ctx.clip();
+      ctx.globalAlpha = 0.4 + flash * 0.45;
+      ctx.fillStyle   = bin.color.hex;
+      const fillH     = binFillAnim[i] * BIN_H;
+      ctx.fillRect(bx, by + BIN_H - fillH, BIN_W, fillH);
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    // Border (glows on flash)
+    if (flash > 0) { ctx.shadowColor = bin.color.hex; ctx.shadowBlur = 12 * flash; }
+    ctx.strokeStyle = bin.color.hex + (flash > 0 ? 'ff' : '99');
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, BIN_W, BIN_H, BIN_R);
+    ctx.stroke();
+    ctx.shadowBlur  = 0;
+  }
+}
+
+// ── Game loop ─────────────────────────────────────────────────────────────
+function draw(now) {
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, W, H);
+
+  drawHeader();
+  drawGem(now);
+  drawBlock(now);
+  drawShards(now);
+  drawBins(now);
+
+  requestAnimationFrame(draw);
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
-langBtn.textContent = t('lang_toggle');
-renderBins();
-renderGem();
 spawnBlock();
+requestAnimationFrame(draw);
 </script>
+
 </body>
 </html>
