@@ -1,23 +1,20 @@
-# knack!
+# knack! – AI Rules
 
-A web prototype. Minimal, exploratory, honest.
+Rules and context for the AI agent working on this project.
 
-## Purpose
+→ Game idea, design decisions, and learnings: [DESIGN.md](DESIGN.md)
 
-A fidget game. A colorful block appears, tap it – it breaks into shards. Sort the shards by color into bins. Bins fill up, a gem grows facet by facet.
+---
 
-**Inspiration:** Satisfying stone-breaking videos (TikTok/YouTube). The good part of mobile sorting games – without the dark patterns around them.
+## Project
 
-**Core question:** Does it feel good? Is sorting satisfying enough to be a podcast companion?
-
-## Status
+A fidget game. Tap a block – it breaks into shards. Sort them by color. Watch a gem grow.
 
 **Started:** February 20, 2026
-**Phase:** Prototype
 
 ## Tech
 
-- **Stack:** Vanilla HTML + CSS + JS
+- **Stack:** Vanilla HTML + CSS + JS, Canvas
 - **No dependencies:** No framework, no build tools
 - **Files:** `index.html` (game), `manifest.json` + `sw.js` + `icon.svg` (PWA)
 - **Target:** Browser, touch + mouse, installable as PWA
@@ -40,70 +37,20 @@ The human starts the server. The AI does not run `python3 -m http.server` or sim
 - Readable > short
 - Works > perfect
 
+### AI behavior
+- **Questions get answers** – if the human asks a question, answer it. Don't just start doing things.
+- **Dialogue over assumptions** – if something doesn't make sense, ask. Don't silently interpret and execute.
+
 ### Iteration
 - Small steps, each committable independently
 - Test, feel, adjust
 - "Done" is when it feels right
 
-## Game design
-
-### Core loop
-
-```
-Colored block appears
-        ↓
-Tap it → breaks into shards (the satisfying moment)
-        ↓
-Tap shard to select → tap bin to sort
-        ↓
-Bins persist across rounds – next block appears immediately
-        ↓
-Bin full → shards compact → gem grows a facet
-        ↓
-Gem complete → new gem begins
-```
-
-### Design principles
-
-- **No timer, no punishment** – wrong sort: gentle shake, try again
-- **No reset between rounds** – bins stay filled, game flows continuously
-- **Fidget-first** – low cognitive load, podcast-compatible
-- **Haptic + visual feedback** – combined on Android, visual only on iOS/desktop
-
-### MVP scope
-
-| In | Out |
-|---|---|
-| Block → break → shards | Harry / character |
-| Sort into persistent bins | Sound |
-| Gem grows per filled bin | World / scene |
-| Haptic + animation feedback | Score / stats |
-| DE + EN | Achievements |
-
 ## Standard features
 
 | Feature | Details |
 |---|---|
-| **i18n** | Auto-detected via `navigator.language`, toggle button, `localStorage` |
-| **PWA** | Installable, offline-capable, network-first service worker |
-| **Phone frame** | 430px max-width on desktop |
+| **i18n** | Language auto-detected via `navigator.language`, toggle button, persisted in `localStorage` |
+| **PWA** | Installable, offline-capable via Service Worker (network-first) |
+| **Phone frame** | Canvas 430×932px, centered, `border-radius: 12px` – see pling as reference |
 | **Colors** | GitHub Dark Colorblind palette – blue/orange, never green/red |
-
-## Values
-
-- **No dark patterns** – no manipulation, no fake urgency
-- **Honest** – what you see is what you get
-- **Simple** – as little as possible, as much as needed
-- **Joyful** – if it's not fun, why bother?
-- **Accessible** – colorblind-safe palette; before release: respect `prefers-reduced-motion`
-
-## Open questions
-
-- [ ] How many shards per block? (currently 3 per color)
-- [ ] How many shards to fill a bin?
-- [ ] How many facets per gem?
-- [ ] What does the gem look like?
-
-## Learnings
-
-*(Collected during development)*

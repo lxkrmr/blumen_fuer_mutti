@@ -32,6 +32,10 @@ python3 -m http.server 8080
 No dark patterns. No ads. No tracking. No stress.  
 Tap things. Sort things. Watch something grow.
 
+## Design
+
+Game idea, decisions, and learnings: [DESIGN.md](DESIGN.md)
+
 ## License
 
 MIT – see [LICENSE](LICENSE)
