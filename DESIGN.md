@@ -226,7 +226,7 @@ Building labels are identical on both screens.
 | Garden screen – flower meadow render | 🔄 in progress |
 | Blumen-Farbsystem (Pfingstrose) | ✅ designed, not yet implemented |
 | Garden – Reihen-System mit Perspektive | ❌ next |
-| Garden – Wolkenhimmel als Start | ❌ planned |
+| Garden – Wolkenhimmel als Start | ✅ (braucht Feinschliff) |
 | Garden – Wachstums-Animation | ❌ planned |
 | Sound | ❌ out of scope for now |
 
@@ -277,6 +277,16 @@ Beim ersten Start: leerer Himmel. Ein Gradient oben (dunkel → blaugrau), ein p
 Mit jeder verdienten Blume wächst eine neue von unten ins Bild. Je mehr Blumen, desto mehr verdecken sie den Himmel. Am Ende: fast nur noch Blumenfeld.
 
 **Emotionale Logik:** Nichts → etwas → viel. Fortschritt ist buchstäblich sichtbar.
+
+### Wolkenhimmel – Detail
+
+**Gradient:**
+- Oben (Zenith): `#0a0817` – fast schwarz, leichter Lila-Stich
+- Unten (Horizont): `#2a1854` – warmes Sommerabend-Lila
+
+**Wolken:** 4–5 Puffs, je 3–4 überlappende Kreise, weiß bei ~0.05 Opacity, feste hardcoded Positionen, obere 55% des Screens. Keine Animation.
+
+**Blenden:** Keine extra Logik. Blumen wachsen davor, verdecken den Himmel natürlich.
 
 ### Wachstums-Animation
 
@@ -379,4 +389,5 @@ Wenn eine neue Blume fertig ist, wächst sie von unten in den Frame – Stiel zu
 - *Feb 21:* Flower-Ursprung am Stieluntergrund (`ctx.translate(0, -58)`) macht Row-Placement trivial: y = Bodenlinie, Blume wächst nach oben.
 - *Feb 21:* Opaker Basiskreis vor den Petals verhindert Durchscheinen von Hintergrundblumen durch Petal-Lücken.
 - *Feb 21:* Garden-Vision: Close-up-Perspektive ins Feld hinein, Blumen füllen Screen, angeschnitten erlaubt. Wolkenhimmel als Start, Blumen verdrängen ihn mit der Zeit. Erste Blume kein Sonderplatz – wächst als erste in der Vorderreihe.
+- *Feb 21:* Wolkenhimmel implementiert. Gradient `#0a0817` → `#2a1854` (Sommerabend-Lila). Wolken als statische Puff-Cluster (überlappende Kreise, Opacity 0.055). Keine eigene Blende-Logik nötig – Blumen verdecken den Himmel natürlich.
 - *Feb 21:* Pfingstrose als Blumentyp gewählt. Grün (Blatt/Stiel) fix, Blütenblatt-Pool aus 7 Rosa-Tönen – jedes der 8 Petals zufällig gemischt.

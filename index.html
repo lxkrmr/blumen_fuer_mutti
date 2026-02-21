@@ -746,6 +746,34 @@ function drawFlower(ctx, cx, cy, rotation, scale, parts) {
   ctx.restore();
 }
 
+// ── Sky (Garden background) ───────────────────────────────────────────────
+function drawSky() {
+  // Gradient: dark purple-black at zenith → warm summer-evening purple at horizon
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0a0817');
+  grad.addColorStop(1, '#2a1854');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Clouds: subtle puffs of overlapping circles, fixed positions, upper 55% of screen
+  const CLOUDS = [
+    { cx:  75, cy: 105, puffs: [{ dx: -28, dy:  8, r: 28 }, { dx:  0, dy:  0, r: 35 }, { dx: 28, dy: 10, r: 26 }, { dx: 12, dy: 18, r: 20 }] },
+    { cx: 310, cy: 155, puffs: [{ dx: -32, dy: 12, r: 24 }, { dx:  0, dy:  0, r: 34 }, { dx: 30, dy:  8, r: 28 }, { dx: 14, dy: 16, r: 18 }] },
+    { cx: 165, cy: 255, puffs: [{ dx: -25, dy:  6, r: 22 }, { dx:  0, dy:  0, r: 30 }, { dx: 24, dy:  8, r: 20 }] },
+    { cx: 368, cy: 345, puffs: [{ dx: -22, dy:  5, r: 20 }, { dx:  0, dy:  0, r: 28 }, { dx: 20, dy:  8, r: 18 }, { dx: 10, dy: 14, r: 14 }] },
+    { cx:  52, cy: 405, puffs: [{ dx: -20, dy:  5, r: 18 }, { dx:  0, dy:  0, r: 26 }, { dx: 18, dy:  6, r: 16 }] },
+  ];
+
+  ctx.fillStyle = 'rgba(255,255,255,0.055)';
+  for (const cloud of CLOUDS) {
+    for (const p of cloud.puffs) {
+      ctx.beginPath();
+      ctx.arc(cloud.cx + p.dx, cloud.cy + p.dy, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
 // ── Garden flowers ────────────────────────────────────────────────────────
 function drawGardenFlowers() {
   const sorted = [...flowers.done].sort((a, b) => a.zIndex - b.zIndex);
@@ -885,6 +913,7 @@ function drawMineButton() {
 }
 
 function drawGarden(now) {
+  drawSky();
   drawGardenHeader();
   drawGardenFlowers();
   drawIndicator(now);
