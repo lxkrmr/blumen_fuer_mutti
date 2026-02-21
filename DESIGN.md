@@ -18,9 +18,15 @@ Game idea, design decisions, and learnings. Living document – updated as the p
 
 ## Backstory
 
-Harry the cat knows his Mutti loves flowers made from building bricks. He can build them – somehow, only he knows how. **But** he's a cat, and as everyone knows, cats have no thumbs. So he can't open those stupid bags with the parts, and sorting them drives him crazy.
+Mutti and the player share a dream: owning an alpaca farm. But alpaca farms are expensive. So the three of them – Mutti, Harry, and the player – decide to start a family business.
 
-That's where the player comes in. **Our job:** open the bags, sort the parts. Harry builds the flowers and ties them into bouquets. Mutti gets flowers. Everyone's happy. 🐱
+It turns out Klemmbaustein flower bouquets are in high demand. Nobody wants to assemble them themselves, but everyone wants to buy them. Harry learns to build the flowers. Mutti has great contacts and sells the finished bouquets. And someone has to do the unglamorous work – opening the bags, sorting the parts. That's us.
+
+**Harry:** builds flowers (somehow, despite no thumbs – don't ask). Loves snacks.
+**Mutti:** sells bouquets, has business instincts, can be upgraded.
+**Player:** opens bags, sorts parts. The unsung hero.
+
+The family saves up coins until they can finally afford the alpaca farm. That's the win condition.
 
 ---
 
@@ -48,11 +54,15 @@ Drag part to matching bin
         ↓
 Bins persist across rounds – next bag appears immediately
         ↓
-Enough parts for a flower → Harry starts building (20–40s in background)
+Enough parts for a flower → Harry starts building (20–40s, sequential queue)
         ↓
 Flower complete → added to bouquet (visible in indicator circle)
         ↓
-Bouquet reaches 10 flowers → Mutti sends a heart (+1 ♥) → bouquet resets
+Bouquet reaches 10 flowers → Mutti sells it → +coins → bouquet resets
+        ↓
+Coins accumulate → spend in shop (upgrades, special bags)
+        ↓
+Enough coins → buy the alpaca farm → 🦙 win
 ```
 
 ---
@@ -148,11 +158,11 @@ Finished flowers accumulate in the **indicator circle** as a bouquet:
 - **Max 10 flowers** per bouquet
 
 When the bouquet reaches **10 flowers:**
-1. Mutti sends a heart → **+1 ♥**
+1. Mutti sells it → **+coins** (base value TBD, upgradeable via shop)
 2. Bouquet resets (flowers cleared)
 3. Harry starts fresh with flower 1
 
-**Badge:** Pill at the bottom of the indicator ring showing `♥ N  n / 10`. Overlaps ring slightly for a "badge attached to ring" look.
+**Badge:** Pill at the bottom of the indicator ring showing coin total + bouquet progress (`🪙 1.250  n / 10`). Overlaps ring slightly for a "badge attached to ring" look.
 
 **Label below badge:** `Harry baut X Blumen …` while building, `teile sortieren …` when idle. Plain language, no symbols.
 
@@ -192,15 +202,48 @@ hearts = 0
 
 **Bouquet trigger:** When flower completes → push to `bouquet`. If `bouquet.length >= 10` → hearts++ → bouquet = [].
 
+### Economy & Shop
+
+**Currency:** Coins. Earned when Mutti sells a completed bouquet.
+
+**Base value:** TBD – needs playtesting against alpaca farm price.
+
+**Win condition:** Buy the alpaca farm. Price is absurdly high (think: 1 trillion coins) to make the idle progression feel meaningful.
+
+**Shop:** Accessible via a shop icon on the Mine screen. Opens as an overlay. Shopkeeper: Harry with a mustache 🥸
+
+**Upgrade categories:**
+
+| Category | Example | Effect |
+|---|---|---|
+| **Harry upgrades** | Snackies | Harry builds the next X flowers at 2× speed. X consumed per flower, no timestamps. |
+| **Mutti upgrades** | Schulung | Sell bouquets for more coins (permanent multiplier) |
+| | Schrumpf-flation | Smaller bouquet (8 flowers?) for nearly the same price |
+| | Sparschwein | Idle interest – coins slowly accumulate over time |
+| **Special bags** | Herz-Packung | Next bag contains only heart-shaped parts |
+| | Große Packung | More parts per bag, better value than small bags |
+| **Goal** | Alpakafarm 🦙 | Win condition. Absurdly expensive. |
+
+**Harry speed bonus (Snackies):**
+- Bought in the shop as "X snackies"
+- Each snacky consumed when Harry starts a flower: build time halved
+- No timer, no timestamps – just a counter that decrements
+- Shows remaining snackies somewhere near the indicator
+
+**Special bags:**
+- Bought in shop, queued as the next bag to open
+- Player still taps to open and sorts – same mechanic, guaranteed contents
+- Small bags cheaper, large bags more bang for buck
+
 ### Screen
 
 **One screen only: the Mine.**
 
 | Area | Content |
 |---|---|
-| Top | Indicator circle (bouquet + glow + heart counter) |
+| Top | Indicator circle (bouquet + glow + coin/progress badge) |
 | Middle | Current bag / piece cluster |
-| Bottom | 4 bins |
+| Bottom | 4 bins + shop icon |
 
 ---
 
@@ -230,26 +273,35 @@ hearts = 0
 | Garden screen removed | ✅ |
 | Bouquet-in-circle (indicator redesign, R=80) | ✅ |
 | Bouquet fan (±35°, anchor cy+38) | ✅ |
-| Heart counter + badge (♥ N  n/10) | ✅ |
+| Coin counter + badge (🪙 N  n/10) | ❌ next |
 | "Harry baut X Blumen" label | ✅ |
+| Shop (overlay, Harry with mustache) | ❌ future |
+| Harry speed bonus (Snackies) | ❌ future |
+| Mutti upgrades (Schulung, Schrumpf-flation, Sparschwein) | ❌ future |
+| Special bags (shop-bought, guaranteed parts) | ❌ future |
+| Alpaka farm (win condition) | ❌ future |
 | Bag visual (silhouette over cluster) | ❌ future |
-| Harry (tutorial character) | ❌ future |
+| Harry (tutorial / shopkeeper character) | ❌ future |
 
 ---
 
 ## Next steps
 
-- **Feel tuning** – tap ranges, build time, shard sizes, fan spread *(ongoing)*
-- **Bag visual** – silhouette over piece-cluster when tapping
-- **Harry** – appears as tutorial character (help screen)
+1. **Hearts → Coins** – rename in state, badge, persistence. Base coin value per bouquet TBD.
+2. **Feel tuning** – tap ranges, build time, fan spread *(ongoing)*
+3. **Shop skeleton** – icon, overlay, Harry-with-mustache placeholder
+4. **First shop item** – probably Harry Snackies (simplest mechanic, big fun)
 
 ---
 
 ## Open questions
 
+- [ ] Base coin value per bouquet – needs playtesting against farm price
+- [ ] Alpaka farm price – absurdly high, exact number TBD (1 trillion placeholder)
+- [ ] Shop upgrade prices – need balancing once base loop is playable
+- [ ] Sparschwein mechanic – time-based interest rate, how much per interval?
 - [ ] Harry reactions to completed bouquets (future)
 - [ ] Bag visual (silhouette, future)
-- [ ] Max hearts – is there a cap, or does the counter just grow forever?
 - [ ] Feel tuning – build time 20s right? Fan spread 70° right? Needs playtesting.
 
 ---
@@ -274,7 +326,12 @@ hearts = 0
 | **Fan spread ±35° (70° total)** | Enough spread to see individual flowers without losing the bouquet silhouette. |
 | **Sequential build queue, unlimited depth** | Simpler than parallel building. More honest – shows true queue size. Harry is one cat. |
 | **"Harry baut X Blumen" not "✦ X"** | Plain language beats symbols. Player shouldn't need to learn what ✦ means. |
-| **Badge at ring bottom for hearts/progress** | Pill overlapping ring = compact, attached to the indicator. No extra screen space needed. |
+| **Badge at ring bottom for coins/progress** | Pill overlapping ring = compact, attached to the indicator. No extra screen space needed. |
+| **Coins not hearts** | Hearts were confusing – already used in flower petals. Coins are unambiguous and fit the business theme. |
+| **Alpaka farm as win condition** | Gives the game a clear endpoint and emotional goal. Absurd price = long idle progression without feeling like a grind. |
+| **Harry speed bonus as counter not timer** | "Next X flowers at 2×" avoids timestamp complexity and feels more concrete than "2 minutes". |
+| **Special bags = same mechanic, different contents** | Player still opens and sorts. No new mechanics to learn. Reward is time savings, not different gameplay. |
+| **Idle layer via Mutti upgrades** | Mutti handles the "away" progression (interest, better prices). Harry handles the "active" progression (faster builds). Clear separation of concerns. |
 | **Build time ±15% variance** | Organic feel. No two flowers take exactly the same time. |
 | **Spawn probability = recipe ratio** | Supply matches demand. Hearts spawn most (57%) because 8 are needed. |
 | **Persist `building` queue** | Parts are consumed when a build starts. Timer restarted on load. |
