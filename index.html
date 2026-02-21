@@ -133,19 +133,31 @@ const GEM_CX    = W / 2;
 const GEM_CY    = HEADER_H + GEM_H / 2 - 10;           // 125
 const GEM_R     = 38;
 
-// Shard landing zones – offsets from play-area center
+// Shard landing zones – offsets from play-area center (12 for jackpot blocks)
 const SHARD_ZONES = [
-  { dx: -95, dy: -80 },
-  { dx:  95, dy: -65 },
-  { dx:   0, dy: 100 },
+  { dx:    0, dy: -115 },
+  { dx: -100, dy:  -55 },
+  { dx: -100, dy:   60 },
+  { dx:    0, dy:  115 },
+  { dx:  100, dy:   60 },
+  { dx:  100, dy:  -55 },
+  { dx:  -45, dy: -160 },
+  { dx:   45, dy: -155 },
+  { dx: -160, dy:   10 },
+  { dx:  155, dy:   15 },
+  { dx:  -55, dy:  165 },
+  { dx:   60, dy:  160 },
 ];
 
-const SHARD_SIZE   = 80;
-const BLOCK_SIZE   = 112;
-const BLOCK_R      = 22;
+const SHARD_SIZE = 60;
 
-// ── Game constants ─────────────────────────────────────────────────────────
-const SHARDS_PER_BLOCK = 3;
+// Block sizes – size = yield. More shards = more sorting = more reward.
+const SIZES = [
+  { id: 'small',   blockPx:  90, shards:  3 },
+  { id: 'medium',  blockPx: 118, shards:  5 },
+  { id: 'large',   blockPx: 150, shards:  7 },
+  { id: 'jackpot', blockPx: 188, shards: 12 },
+];
 const BIN_CAPACITY     = 4;
 const GEM_FACETS       = 6;
 
@@ -195,21 +207,49 @@ function jitter(v, range = 22) {
   return v + (Math.random() - 0.5) * range;
 }
 
+// Piece positions for N shapes in a cluster – normalized offsets scaled by spread
+const PIECE_LAYOUTS = {
+   3: [[ 0,   -1  ], [-0.9,  0.7 ], [ 0.9,  0.7 ]],
+   5: [[ 0,   -1  ], [-0.95,-0.3 ], [-0.6,  0.85], [ 0.6,  0.85], [ 0.95,-0.3 ]],
+   7: [[ 0,    0  ], [ 0,   -1.3 ], [ 1.1, -0.65], [ 1.1,  0.65], [ 0,   1.3 ], [-1.1, 0.65], [-1.1, -0.65]],
+  12: [[-0.6, -0.6], [ 0.6, -0.6 ], [-0.6,  0.6 ], [ 0.6,  0.6 ],
+       [ 0,   -1.4], [ 1.2, -0.7 ], [ 1.4,  0   ], [ 1.2,  0.7 ],
+       [ 0,    1.4], [-1.2,  0.7 ], [-1.4,  0   ], [-1.2, -0.7 ]],
+};
+
+function genPieces(count, blockPx) {
+  const spread    = blockPx * 0.17;
+  const pieceSize = blockPx * 0.58;
+  return PIECE_LAYOUTS[count].map(([nx, ny]) => ({
+    shape: SHAPES[Math.floor(Math.random() * SHAPES.length)],
+    x:     nx * spread + (Math.random() - 0.5) * spread * 0.3,
+    y:     ny * spread + (Math.random() - 0.5) * spread * 0.3,
+    size:  pieceSize,
+    angle: (Math.random() - 0.5) * 0.5,   // ±~15°
+  }));
+}
+
 function spawnBlock() {
   state.phase    = 'block';
   state.shards   = [];
   state.selected = null;
 
   const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+  const size  = SIZES[Math.floor(Math.random() * SIZES.length)];
   const [tMin, tMax] = color.taps;
   const tapsRequired = tMin + Math.floor(Math.random() * (tMax - tMin + 1));
 
-  state.block    = { color, tapsRequired, tapsLeft: tapsRequired, cracks: [], lastTapAt: 0 };
+  state.block    = {
+    color, size,
+    pieces:       genPieces(size.shards, size.blockPx),
+    tapsRequired, tapsLeft: tapsRequired,
+    cracks: [],   lastTapAt: 0,
+  };
   blockEnterStart = performance.now();
 }
 
 function addCracks(block, n) {
-  const hw = BLOCK_SIZE / 2 * 0.88;
+  const hw = block.size.blockPx / 2 * 0.88;
   for (let i = 0; i < n; i++) {
     const angle = Math.random() * Math.PI * 2;
     block.cracks.push({
@@ -246,15 +286,15 @@ function doBreakBlock() {
   const color = state.block.color;
   const zones = [...SHARD_ZONES].sort(() => Math.random() - 0.5);
 
-  zones.slice(0, SHARDS_PER_BLOCK).forEach(zone => {
+  state.block.pieces.forEach((piece, i) => {
     state.shards.push({
       id:         shardIdCounter++,
       color,
-      shape:      SHAPES[Math.floor(Math.random() * SHAPES.length)],
-      targetX:    PLAY_CX + jitter(zone.dx),
-      targetY:    PLAY_CY + jitter(zone.dy),
+      shape:      piece.shape,
+      targetX:    PLAY_CX + jitter(zones[i].dx),
+      targetY:    PLAY_CY + jitter(zones[i].dy),
       flyStart:   now,
-      phase:      'flying',   // 'flying' | 'idle' | 'dragging' | 'snapping' | 'sorting'
+      phase:      'flying',
       sortStart:  0,
       shakeStart: 0,
     });
@@ -448,8 +488,8 @@ function hitTest(x, y, now) {
 
   // Block
   if (state.phase === 'block') {
-    const hw = BLOCK_SIZE / 2;
-    if (inRect(x, y, PLAY_CX - hw, PLAY_CY - hw, BLOCK_SIZE, BLOCK_SIZE)) {
+    const hw = state.block.size.blockPx / 2;
+    if (inRect(x, y, PLAY_CX - hw, PLAY_CY - hw, state.block.size.blockPx, state.block.size.blockPx)) {
       return { type: 'block' };
     }
   }
@@ -649,26 +689,24 @@ function drawBlock(now) {
   const wobbleSc  = wobbleAge < 200 ? 1 + Math.sin(clamp01(wobbleAge / 200) * Math.PI) * 0.08 : 1;
 
   const sc = enterSc * wobbleSc;
-  const hw = BLOCK_SIZE / 2 * sc;
-  const r  = BLOCK_R * sc;
 
+  // Draw each piece – cluster forms the block silhouette
   ctx.shadowColor = block.color.hex;
-  ctx.shadowBlur  = 24;
+  ctx.shadowBlur  = 20;
   ctx.fillStyle   = block.color.hex;
-  ctx.beginPath();
-  ctx.roundRect(PLAY_CX - hw, PLAY_CY - hw, hw * 2, hw * 2, r);
-  ctx.fill();
+  for (const piece of block.pieces) {
+    ctx.save();
+    ctx.translate(PLAY_CX + piece.x * sc, PLAY_CY + piece.y * sc);
+    ctx.rotate(piece.angle);
+    drawShapePath(ctx, piece.shape, 0, 0, piece.size * sc);
+    ctx.fill();
+    ctx.restore();
+  }
   ctx.shadowBlur = 0;
 
-  // Cracks – clipped to block shape
+  // Cracks – drawn over the cluster, visible on shapes, invisible on dark bg
   if (block.cracks.length > 0) {
-    const progress = 1 - block.tapsLeft / block.tapsRequired;
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(PLAY_CX - hw, PLAY_CY - hw, hw * 2, hw * 2, r);
-    ctx.clip();
-
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.28)';
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
     ctx.lineWidth   = 1.2;
     ctx.lineCap     = 'round';
     for (const c of block.cracks) {
@@ -677,7 +715,7 @@ function drawBlock(now) {
       ctx.lineTo(PLAY_CX + c.x2 * sc, PLAY_CY + c.y2 * sc);
       ctx.stroke();
     }
-    ctx.restore();
+    ctx.lineCap = 'butt';
   }
 }
 
