@@ -110,24 +110,21 @@ const BORDER   = '#30363d';
 const TEXT_HI  = '#f0f6fc';
 const TEXT_DIM = '#6e7681';
 
-// ── Shard shapes ───────────────────────────────────────────────────────────
-// Normalized [0–1] polygon coordinates – scaled to SHARD_SIZE at draw time
-const SHARD_POLYS = [
-  [[.5,0],[1,.3],[.85,1],[.15,1],[0,.3]],
-  [[.2,0],[1,.15],[.9,.9],[0,.75]],
-  [[.5,.05],[1,.45],[.65,1],[.05,.75],[0,.2]],
-  [[0,.2],[.55,0],[1,.4],[.8,1],[.1,.85]],
-  [[.1,0],[.95,.1],[1,.85],[.5,1],[0,.6]],
-  [[.3,0],[1,.25],[.85,.95],[0,.85]],
+// ── Shapes ─────────────────────────────────────────────────────────────────
+const SHAPES = [
+  { id: 'circle' },
+  { id: 'heart'  },
+  { id: 'stem'   },
+  { id: 'leaf'   },
 ];
 
 // ── Layout ─────────────────────────────────────────────────────────────────
 const HEADER_H  = 70;
 const GEM_H     = 130;
-const BIN_H     = 96,  BIN_W = 90, BIN_GAP = 16, BIN_R = 12;
-const BIN_Y     = H - 36 - BIN_H;                      // 800
-const BIN_TOTAL = 3 * BIN_W + 2 * BIN_GAP;             // 302
-const BIN_LEFT  = (W - BIN_TOTAL) / 2;                 // 64
+const BIN_H     = 96,  BIN_W = 80, BIN_GAP = 12, BIN_R = 12;
+const BIN_Y     = H - 36 - BIN_H;
+const BIN_TOTAL = 4 * BIN_W + 3 * BIN_GAP;             // 356
+const BIN_LEFT  = (W - BIN_TOTAL) / 2;                 // 37
 const PLAY_Y    = HEADER_H + GEM_H;                    // 200
 const PLAY_H    = BIN_Y - PLAY_Y - 20;                 // 580
 const PLAY_CX   = W / 2;                               // 215
@@ -182,14 +179,14 @@ const state = {
   block:    null,      // { color }
   shards:   [],        // see spawnShards()
   selected: null,      // shard id or null
-  bins:     COLORS.map(c => ({ color: c, count: 0 })),
+  bins:     SHAPES.map(s => ({ shape: s, count: 0 })),
   gem:      { filled: 0 },
 };
 
 // ── Animation state ───────────────────────────────────────────────────────
 let blockEnterStart = 0;
-const binFillAnim   = [0, 0, 0];   // lerps toward bin.count / BIN_CAPACITY
-const binFlashAt    = [0, 0, 0];   // timestamp of last bin-full event
+const binFillAnim   = Array(4).fill(0);  // lerps toward bin.count / BIN_CAPACITY
+const binFlashAt    = Array(4).fill(0);  // timestamp of last bin-full event
 const facetAnim     = Array(GEM_FACETS).fill(0.1);
 let gemCompleteAt   = 0;
 
@@ -253,11 +250,11 @@ function doBreakBlock() {
     state.shards.push({
       id:         shardIdCounter++,
       color,
-      poly:       SHARD_POLYS[Math.floor(Math.random() * SHARD_POLYS.length)],
+      shape:      SHAPES[Math.floor(Math.random() * SHAPES.length)],
       targetX:    PLAY_CX + jitter(zone.dx),
       targetY:    PLAY_CY + jitter(zone.dy),
       flyStart:   now,
-      phase:      'flying',   // 'flying' | 'idle' | 'selected' | 'sorting'
+      phase:      'flying',   // 'flying' | 'idle' | 'dragging' | 'snapping' | 'sorting'
       sortStart:  0,
       shakeStart: 0,
     });
@@ -292,7 +289,7 @@ function trySortShard(binIndex) {
   const shard = state.shards.find(s => s.id === state.selected);
   if (!shard) return;
 
-  if (shard.color.id !== state.bins[binIndex].color.id) {
+  if (shard.shape.id !== state.bins[binIndex].shape.id) {
     haptic([8, 30, 8]);
     shard.shakeStart = performance.now();
     return;
@@ -384,18 +381,45 @@ function shardAnim(shard, now) {
   return { x: shard.targetX + shakeX, y: shard.targetY, scale: 1, opacity: 1 };
 }
 
-// ── Hit testing ───────────────────────────────────────────────────────────
-// Point-in-polygon (ray casting) – works in logical canvas coordinates
-function pointInPoly(px, py, pts) {
-  let inside = false;
-  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-    const [xi, yi] = pts[i], [xj, yj] = pts[j];
-    if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
-      inside = !inside;
-    }
-  }
-  return inside;
+// ── Shape paths ───────────────────────────────────────────────────────────
+function pathCircle(ctx, cx, cy, s) {
+  ctx.arc(cx, cy, s * 0.42, 0, Math.PI * 2);
 }
+
+function pathHeart(ctx, cx, cy, s) {
+  const r = s * 0.42;
+  const x = cx, y = cy + r * 0.2;
+  ctx.moveTo(x, y + r * 0.75);
+  ctx.bezierCurveTo(x - r * 0.1, y + r * 0.4,  x - r, y + r * 0.1,  x - r, y - r * 0.3);
+  ctx.bezierCurveTo(x - r, y - r,               x,     y - r * 0.65, x,     y - r * 0.1);
+  ctx.bezierCurveTo(x,     y - r * 0.65,        x + r, y - r,        x + r, y - r * 0.3);
+  ctx.bezierCurveTo(x + r, y + r * 0.1,         x + r * 0.1, y + r * 0.4, x, y + r * 0.75);
+}
+
+function pathStem(ctx, cx, cy, s) {
+  const w = s * 0.22, h = s * 0.46;
+  ctx.roundRect(cx - w, cy - h, w * 2, h * 2, w);
+}
+
+function pathLeaf(ctx, cx, cy, s) {
+  const h = s * 0.46, w = s * 0.28;
+  ctx.moveTo(cx, cy - h);
+  ctx.bezierCurveTo(cx + w, cy - h * 0.3, cx + w, cy + h * 0.3, cx, cy + h);
+  ctx.bezierCurveTo(cx - w, cy + h * 0.3, cx - w, cy - h * 0.3, cx, cy - h);
+}
+
+function drawShapePath(ctx, shape, cx, cy, size) {
+  ctx.beginPath();
+  switch (shape.id) {
+    case 'circle': pathCircle(ctx, cx, cy, size); break;
+    case 'heart':  pathHeart(ctx, cx, cy, size);  break;
+    case 'stem':   pathStem(ctx, cx, cy, size);   break;
+    case 'leaf':   pathLeaf(ctx, cx, cy, size);   break;
+  }
+  ctx.closePath();
+}
+
+// ── Hit testing ───────────────────────────────────────────────────────────
 
 function inRect(x, y, rx, ry, rw, rh) {
   return x >= rx && x <= rx + rw && y >= ry && y <= ry + rh;
@@ -414,10 +438,11 @@ function hitTest(x, y, now) {
   if (state.phase === 'shards') {
     for (const shard of [...state.shards].reverse()) {
       if (shard.phase === 'sorting') continue;
-      const a = shardAnim(shard, now);
-      const s = SHARD_SIZE * a.scale;
-      const pts = shard.poly.map(([nx, ny]) => [a.x + (nx - 0.5) * s, a.y + (ny - 0.5) * s]);
-      if (pointInPoly(x, y, pts)) return { type: 'shard', id: shard.id };
+      const a  = shardAnim(shard, now);
+      const dx = x - a.x, dy = y - a.y;
+      if (Math.sqrt(dx * dx + dy * dy) < SHARD_SIZE * 0.45 * a.scale) {
+        return { type: 'shard', id: shard.id };
+      }
     }
   }
 
@@ -430,7 +455,7 @@ function hitTest(x, y, now) {
   }
 
   // Bins
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const bx = BIN_LEFT + i * (BIN_W + BIN_GAP);
     if (inRect(x, y, bx, BIN_Y, BIN_W, BIN_H)) return { type: 'bin', index: i };
   }
@@ -474,7 +499,7 @@ function endDrag(coords) {
 
   // Check if dropped on a bin
   let binIndex = -1;
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const bx = BIN_LEFT + i * (BIN_W + BIN_GAP);
     if (inRect(coords.x, coords.y, bx, BIN_Y, BIN_W, BIN_H)) { binIndex = i; break; }
   }
@@ -663,9 +688,6 @@ function drawShards(now, dragOnly = false) {
     const a = shardAnim(shard, now);
     if (a.opacity < 0.01) continue;
 
-    const s   = SHARD_SIZE * a.scale;
-    const pts = shard.poly.map(([nx, ny]) => [a.x + (nx - 0.5) * s, a.y + (ny - 0.5) * s]);
-
     ctx.globalAlpha = a.opacity;
     if (shard.phase === 'selected' || shard.phase === 'dragging' || shard.phase === 'snapping') {
       ctx.shadowColor = shard.color.hex;
@@ -673,9 +695,7 @@ function drawShards(now, dragOnly = false) {
     }
 
     ctx.fillStyle = shard.color.hex;
-    ctx.beginPath();
-    pts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
-    ctx.closePath();
+    drawShapePath(ctx, shard.shape, a.x, a.y, SHARD_SIZE * a.scale);
     ctx.fill();
 
     ctx.shadowBlur  = 0;
@@ -684,18 +704,18 @@ function drawShards(now, dragOnly = false) {
 }
 
 function drawBins(now) {
-  for (let i = 0; i < 3; i++) {
-    const bin  = state.bins[i];
-    const bx   = BIN_LEFT + i * (BIN_W + BIN_GAP);
-    const by   = BIN_Y;
+  for (let i = 0; i < 4; i++) {
+    const bin = state.bins[i];
+    const bx  = BIN_LEFT + i * (BIN_W + BIN_GAP);
+    const by  = BIN_Y;
 
     // Animate fill level
-    const fillTarget   = bin.count / BIN_CAPACITY;
-    binFillAnim[i]    += (fillTarget - binFillAnim[i]) * 0.15;
+    const fillTarget = bin.count / BIN_CAPACITY;
+    binFillAnim[i]  += (fillTarget - binFillAnim[i]) * 0.15;
 
     // Flash factor (0–1) after bin fills
-    const flashAge    = binFlashAt[i] ? now - binFlashAt[i] : Infinity;
-    const flash       = flashAge < 600 ? 1 - flashAge / 600 : 0;
+    const flashAge = binFlashAt[i] ? now - binFlashAt[i] : Infinity;
+    const flash    = flashAge < 600 ? 1 - flashAge / 600 : 0;
 
     // Background
     ctx.fillStyle = BG;
@@ -709,22 +729,29 @@ function drawBins(now) {
       ctx.beginPath();
       ctx.roundRect(bx, by, BIN_W, BIN_H, BIN_R);
       ctx.clip();
-      ctx.globalAlpha = 0.4 + flash * 0.45;
-      ctx.fillStyle   = bin.color.hex;
-      const fillH     = binFillAnim[i] * BIN_H;
+      ctx.globalAlpha = 0.2 + flash * 0.45;
+      ctx.fillStyle   = TEXT_HI;
+      const fillH = binFillAnim[i] * BIN_H;
       ctx.fillRect(bx, by + BIN_H - fillH, BIN_W, fillH);
       ctx.globalAlpha = 1;
       ctx.restore();
     }
 
-    // Border (glows on flash)
-    if (flash > 0) { ctx.shadowColor = bin.color.hex; ctx.shadowBlur = 12 * flash; }
-    ctx.strokeStyle = bin.color.hex + (flash > 0 ? 'ff' : '99');
+    // Border
+    if (flash > 0) { ctx.shadowColor = TEXT_HI; ctx.shadowBlur = 12 * flash; }
+    ctx.strokeStyle = flash > 0 ? TEXT_HI : BORDER;
     ctx.lineWidth   = 2;
     ctx.beginPath();
     ctx.roundRect(bx, by, BIN_W, BIN_H, BIN_R);
     ctx.stroke();
     ctx.shadowBlur  = 0;
+
+    // Shape icon
+    ctx.globalAlpha = 0.3 + flash * 0.5;
+    ctx.fillStyle   = TEXT_HI;
+    drawShapePath(ctx, bin.shape, bx + BIN_W / 2, by + BIN_H / 2, 30);
+    ctx.fill();
+    ctx.globalAlpha = 1;
   }
 }
 
