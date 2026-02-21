@@ -53,6 +53,7 @@ The human starts the server. The AI does not run `python3 -m http.server` or sim
 ### AI behavior
 - **Questions get answers** – if the human asks a question, answer it. Don't just start doing things.
 - **Dialogue over assumptions** – if something doesn't make sense, ask. Don't silently interpret and execute.
+- **Plan before code** – design decisions go into DESIGN.md first. Only write code after the human explicitly says to build it.
 - **Keep DESIGN.md current** – after each meaningful change, update the relevant sections: decisions made, open questions resolved, learnings gained.
 - **No system-specific content** – avoid absolute paths, usernames, or local IPs in any file that may be shared (CLAUDE.md, DESIGN.md, README.md, source files).
 
