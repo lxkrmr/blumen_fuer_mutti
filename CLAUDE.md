@@ -55,6 +55,7 @@ The human starts the server. The AI does not run `python3 -m http.server` or sim
 - **Dialogue over assumptions** – if something doesn't make sense, ask. Don't silently interpret and execute.
 - **Human navigates** – never prompt "ready for X?" or push the next step. After finishing, say "Ich bin bereit – Nächstes in DESIGN.md: [item]" and wait.
 - **Plan before code** – design decisions go into DESIGN.md first. Only write code after the human explicitly says to build it.
+- **Plan step by step** – when planning, think in numbered steps. Start with just a few, continue when done. Don't plan everything at once.
 - **Clean up before starting** – before every new feature: check if DESIGN.md is current, mark done items, remove stale notes.
 - **Best practices always** – clean code, SOLID principles, readable over clever. No shortcuts.
 - **Keep DESIGN.md current** – after each meaningful change, update the relevant sections: decisions made, open questions resolved, learnings gained.
