@@ -60,6 +60,7 @@ The human starts the server. The AI does not run `python3 -m http.server` or sim
 - **Ask before screenshotting** – don't take screenshots autonomously or in loops.
 - **Human drives the browser** – the human clicks/plays until a good moment, then says something like "anschauen" or "screenshot". Only then take one.
 - **One shot** – take a single screenshot, show it, discuss. No loops.
+- **Setup** – browser-tools is installed (`node_modules` present). Chrome may need to be started: `node ~/.pi/agent/skills/pi-skills/browser-tools/browser-start.js`
 
 ### Iteration
 - Small steps, each committable independently
