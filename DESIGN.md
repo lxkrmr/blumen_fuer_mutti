@@ -105,9 +105,62 @@ Replaces the hexagon gem. Built organically from sorted shapes.
 | Stem | Stem (curved, 3–4 segments) | 1 |
 | Leaf | Leaves on stem (one left, one right) | 2 |
 
-Total: **12 parts** per flower. Bin capacity matches the recipe – bin full = flower part complete.
+Total: **12 parts** per flower.
 
 The stem curves gently (not straight up). The right leaf sits slightly behind the stem, lower than the left.
+
+**Color variation:** Each flower's parts carry the actual colors of the sorted shards. Bins are color queues – when a flower is built, the oldest shard colors are consumed. This makes every player's meadow unique.
+
+**Data model:**
+```javascript
+// Bins: queues of colored shards
+bins = {
+  circle: [{ color: '#f0883e' }],
+  heart:  [{ color: '#58a6ff' }, { color: '#bc8cff' }, ...],  // up to N*8
+  stem:   [{ color: '#bc8cff' }],
+  leaf:   [{ color: '#58a6ff' }, { color: '#f0883e' }],
+}
+
+// How many complete flowers can currently be built?
+flowersReady = Math.min(
+  bins.circle.length,
+  Math.floor(bins.heart.length / 8),
+  bins.stem.length,
+  Math.floor(bins.leaf.length / 2)
+)
+
+// Building queue – flowers currently growing
+building = [
+  { id, startedAt, completesAt, parts: { circle, hearts[], stem, leaves[] } },
+]
+
+// Done – completed flowers, capped (exact max TBD, feel-based)
+done = [ ...flower objects with fixed layout coords ... ]
+```
+
+**Build time:** `scale * BASE_MS` with a small random range for organic feel. Larger flowers take slightly longer. BASE_MS TBD (likely 20–40s range).
+
+**Building trigger:** When `flowersReady > 0` and no flower is currently building → consume parts from bins → push to `building`. When `completesAt` passed → move to `done`.
+
+**Bin visual – saturation indicator:**
+Bin background fills with color based on how many multiples of the recipe are available. 0 = neutral/dark. 1× = subtle tint. 2× = more opacity. 3×+ = fully saturated. Shows abundance at a glance without numbers.
+
+**Game screen indicator (top – replaces hex gem):**
+Crystal glows and animates when a flower is currently building. Gray/inactive when `building` is empty. Shows at most a count if multiple are queued.
+
+### Meadow / Zen screen – planned, separate feature
+
+A dedicated start screen – the "zen garden". Shows the full meadow of finished flowers from the `done` array. Also displays the building indicator (same state as game screen, possibly more detail).
+
+**Layout:**
+- Flowers placed at random fixed `{ x, y, rotation, scale, zIndex }` assigned at creation – they never move after placed
+- Flowers can extend beyond screen edges (natural meadow feel)
+- Drawing order = sorted by `zIndex` (random) → natural depth, no strict foreground/background rule
+- `scale` varies slightly → subtle depth illusion
+
+**Max flowers:** TBD by feel – enough to make a lush meadow, not so many it becomes chaotic. Start testing around 20–30.
+
+**Future home for:** tutorial, settings, other screens.
 
 ---
 
@@ -129,17 +182,24 @@ The stem curves gently (not straight up). The right leaf sits slightly behind th
 | Haptic feedback (Android) | ✅ |
 | i18n (DE + EN) | ✅ |
 | PWA (installable, offline) | ✅ |
-| Crystal flower | ❌ (next) – recipe defined, sketch done |
+| Crystal flower | ❌ (next) – recipe + data model defined, sketch done |
+| Bin saturation indicator | ❌ (next) |
+| Building indicator (crystal → game screen) | ❌ (next) |
+| Meadow / Zen screen | ❌ planned, separate feature |
 | Sound | ❌ (out of scope for now) |
 
 ---
 
 ## Next steps
 
-1. **Crystal flower** – replace hexagon gem with organic flower (recipe: 1 Circle, 8 Hearts, 1 Stem, 2 Leaves)
-2. **Crack visuals** – damage feedback without lines. Ideas: per-piece opacity fade, piece-level micro-rotation as they drift
-3. **Color → shape tendency** – subtle probability bias per block color (optional, discoverable)
-4. **Feel tuning** – tap ranges, drift speed, glow intensity, shard sizes. Ongoing.
+1. **Bins → color queues** – bins store colored shard objects instead of a count
+2. **Building system** – `flowersReady` calculation, `building` queue, `done` array with cap
+3. **Bin saturation indicator** – background tint scales with multiples of recipe
+4. **Building indicator** – replace hex gem with crystal that glows when a flower is building
+5. **Crystal flower render** – draw the actual flower (for done array + eventually zen screen)
+6. **Meadow / Zen screen** – separate start screen, full meadow, building status *(separate feature)*
+7. **Crack visuals** – damage feedback without lines *(later)*
+8. **Feel tuning** – tap ranges, drift speed, glow intensity, shard sizes *(ongoing)*
 
 ---
 
@@ -147,9 +207,14 @@ The stem curves gently (not straight up). The right leaf sits slightly behind th
 
 - [x] How organic is the flower build? → Fixed structure, curved stem, overlapping petals
 - [x] How many shards fill a bin? → Bin capacity = flower recipe (1/8/1/2)
+- [x] Fixed color per shape vs. per-flower variation? → Per-flower (bins are color queues, cheap, more unique)
+- [x] Meadow on same screen or separate? → Separate zen/start screen
+- [x] Flower placement → random fixed coords, can go off-screen, random z-order
+- [ ] Build time BASE_MS – needs a felt value (likely 20–40s, scale * base)
+- [ ] Max flowers in `done` array – needs playtesting (~20–30 to start)
 - [ ] Crack/damage visuals – how to communicate progress without lines?
 - [ ] Does color → shape tendency add enough to be worth the complexity?
-- [ ] **Shape-to-color mapping:** Each shape gets its own fixed color → block becomes multicolor from the start. Looks potentially beautiful, makes sorting more intuitive. Tension: color would no longer be purely aesthetic. 4 shapes, 3 current colors – needs a 4th color or one shared.
+- [ ] **Shape-to-color mapping:** Each shape gets its own fixed color → block becomes multicolor. Potentially beautiful, more intuitive sorting. Needs a 4th color or one shared. Parked for later.
 
 ---
 
@@ -167,6 +232,10 @@ The stem curves gently (not straight up). The right leaf sits slightly behind th
 | **Glow as two-pass render** | Pass 1: shadowBlur for halo. Pass 2: sharp shapes on top. Crisp edges + glow. |
 | **Jackpot size (12 shards)** | Rare, worth it. More sorting = more reward. Visible from block size. |
 | **knack! = lab only** | Learnings flow into "Blumen für Mutti", not into feature creep here |
+| **Per-flower color variation** | Bins are color queues → each flower gets the actual shard colors. Unique per player, cheap to store. |
+| **Meadow as separate screen** | Sorting screen stays focused. Zen screen is the reward space + future home for tutorial/settings. |
+| **Flowers get fixed coords at birth** | Placed once when done, never move. Stable, no layout recalculation. |
+| **Build time = scale × BASE_MS** | Larger flowers feel more earned. Range adds organic feel. |
 
 ---
 
@@ -191,3 +260,4 @@ The stem curves gently (not straight up). The right leaf sits slightly behind th
 - *Feb 21:* Glow without sound/vibration feels noticeably gentler. Haptic + sound amplify visual feedback significantly – visuals alone carry more weight on silent devices.
 - *Feb 21:* Two-pass glow render (blur pass + sharp pass) solves the "blurry shapes" problem. Halo outside, crisp fill inside.
 - *Feb 21:* Crystal flower recipe settled: 1 Circle (center), 8 Hearts (overlapping petals), 1 Stem (curved), 2 Leaves. Bin capacity = recipe count.
+- *Feb 21:* Full system design: bins as color queues, building queue, done array with cap, meadow as separate zen/start screen. Per-flower color variation is free (600 strings max). Fixed coords at flower birth = stable meadow layout.
