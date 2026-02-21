@@ -403,9 +403,9 @@ function pathStem(ctx, cx, cy, s) {
 
 function pathLeaf(ctx, cx, cy, s) {
   const h = s * 0.46, w = s * 0.28;
-  ctx.moveTo(cx, cy - h);
-  ctx.bezierCurveTo(cx + w, cy - h * 0.3, cx + w, cy + h * 0.3, cx, cy + h);
-  ctx.bezierCurveTo(cx - w, cy + h * 0.3, cx - w, cy - h * 0.3, cx, cy - h);
+  ctx.moveTo(cx - h, cy);
+  ctx.bezierCurveTo(cx - h * 0.3, cy - w, cx + h * 0.3, cy - w, cx + h, cy);
+  ctx.bezierCurveTo(cx + h * 0.3, cy + w, cx - h * 0.3, cy + w, cx - h, cy);
 }
 
 function drawShapePath(ctx, shape, cx, cy, size) {
