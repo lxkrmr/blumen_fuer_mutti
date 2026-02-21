@@ -198,6 +198,33 @@ const SIZES = [
 ];
 
 
+// ── Pfingstrose color system ───────────────────────────────────────────────
+const PEONY_PETAL_POOL = [
+  '#fce4ec', '#f8bbd9', '#f48fb1', '#f06292',
+  '#e91e8c', '#c2185b', '#880e4f',
+];
+
+// Slightly shift a hex color by ±range per channel – keeps colors organic
+function varyColor(hex, range = 12) {
+  const p = (i) => parseInt(hex.slice(i, i + 2), 16);
+  const r = p(1), g = p(3), b = p(5);
+  const clamp = v => Math.max(0, Math.min(255, Math.round(v)));
+  const vary  = () => (Math.random() - 0.5) * 2 * range;
+  return '#' + [r + vary(), g + vary(), b + vary()]
+    .map(v => clamp(v).toString(16).padStart(2, '0')).join('');
+}
+
+// Maps a shape to its Pfingstrose color
+function shapeToColor(shapeId) {
+  switch (shapeId) {
+    case 'circle': return varyColor('#fff176', 10);
+    case 'heart':  return PEONY_PETAL_POOL[Math.floor(Math.random() * PEONY_PETAL_POOL.length)];
+    case 'stem':   return varyColor('#52b788', 12);
+    case 'leaf':   return varyColor('#1e4d2b', 10);
+    default:       return '#ffffff';
+  }
+}
+
 // ── Easing ────────────────────────────────────────────────────────────────
 function easeOutBack(t) {
   const c1 = 1.70158, c3 = c1 + 1;
@@ -268,13 +295,17 @@ const PIECE_LAYOUTS = {
 function genPieces(count, blockPx) {
   const spread    = blockPx * 0.17;
   const pieceSize = blockPx * 0.58;
-  return PIECE_LAYOUTS[count].map(([nx, ny]) => ({
-    shape: randomShape(),
-    x:     nx * spread + (Math.random() - 0.5) * spread * 0.3,
-    y:     ny * spread + (Math.random() - 0.5) * spread * 0.3,
-    size:  pieceSize,
-    angle: (Math.random() - 0.5) * 0.5,   // ±~15°
-  }));
+  return PIECE_LAYOUTS[count].map(([nx, ny]) => {
+    const shape = randomShape();
+    return {
+      shape,
+      color: shapeToColor(shape.id),
+      x:     nx * spread + (Math.random() - 0.5) * spread * 0.3,
+      y:     ny * spread + (Math.random() - 0.5) * spread * 0.3,
+      size:  pieceSize,
+      angle: (Math.random() - 0.5) * 0.5,   // ±~15°
+    };
+  });
 }
 
 function spawnBlock() {
@@ -318,13 +349,12 @@ function doBreakBlock() {
 
   state.phase = 'shards';
   const now   = performance.now();
-  const color = state.block.color;
   const zones = [...SHARD_ZONES].sort(() => Math.random() - 0.5);
 
   state.block.pieces.forEach((piece, i) => {
     state.shards.push({
       id:         shardIdCounter++,
-      color,
+      color:      { hex: piece.color },
       shape:      piece.shape,
       targetX:    PLAY_CX + jitter(zones[i].dx),
       targetY:    PLAY_CY + jitter(zones[i].dy),
@@ -418,6 +448,15 @@ function startBuildingFlower() {
     const bin = state.bins.find(b => b.shape.id === s.id);
     parts[s.id] = bin.shards.splice(0, FLOWER_RECIPE[s.id]);
   }
+
+  // Pfingstrose color system – overwrite shard colors with peony palette
+  parts.circle = [{ color: varyColor('#fff176', 10) }];
+  parts.heart  = Array.from({ length: 8 }, () => ({
+    color: PEONY_PETAL_POOL[Math.floor(Math.random() * PEONY_PETAL_POOL.length)],
+  }));
+  parts.stem   = Array.from({ length: 3 }, () => ({ color: varyColor('#52b788', 12) }));
+  parts.leaf   = Array.from({ length: 2 }, () => ({ color: varyColor('#1e4d2b', 10) }));
+
   const now     = performance.now();
   const buildMs = BUILD_BASE_MS * (0.85 + Math.random() * 0.3);
   flowers.building.push({ id: flowerIdCounter++, startedAt: now, completesAt: now + buildMs, parts });
@@ -696,13 +735,13 @@ function drawFlower(ctx, cx, cy, rotation, scale, parts) {
   ctx.translate(0, -58); // origin = bottom of stem
 
   // Extract colors (with fallbacks)
-  const circleColor = parts.circle && parts.circle[0] ? parts.circle[0].color : '#58a6ff';
+  const circleColor = parts.circle && parts.circle[0] ? parts.circle[0].color : '#fff176';
   const heartColors = parts.heart || [];
   const stemColors  = parts.stem  || [];
   const leafColors  = parts.leaf  || [];
-  const hc = i => heartColors[i] ? heartColors[i].color : '#f0883e';
-  const sc = i => stemColors[i]  ? stemColors[i].color  : '#bc8cff';
-  const lc = i => leafColors[i]  ? leafColors[i].color  : '#58a6ff';
+  const hc = i => heartColors[i] ? heartColors[i].color : '#f48fb1';
+  const sc = i => stemColors[i]  ? stemColors[i].color  : '#52b788';
+  const lc = i => leafColors[i]  ? leafColors[i].color  : '#1e4d2b';
 
   // ── Right leaf behind stem – outer tip points upper-right ──
   ctx.save();
@@ -974,27 +1013,26 @@ function drawBlock(now) {
   ctx.rotate(wobbleRot);
   // Pass 1 – glow halo (only after first tap, doesn't blur the shapes themselves)
   if (progress > 0) {
-    const pulse    = 0.55 + 0.45 * Math.sin(now / (180 - progress * 110));
-    ctx.shadowColor = block.color.hex;
-    ctx.shadowBlur  = progress * 34 * pulse;
-    ctx.fillStyle   = block.color.hex;
+    const pulse = 0.55 + 0.45 * Math.sin(now / (180 - progress * 110));
     for (const piece of block.pieces) {
       ctx.save();
       ctx.translate(piece.x * sc * drift, piece.y * sc * drift);
       ctx.rotate(piece.angle);
+      ctx.shadowColor = piece.color;
+      ctx.shadowBlur  = progress * 34 * pulse;
+      ctx.fillStyle   = piece.color;
       drawShapePath(ctx, piece.shape, 0, 0, piece.size * sc);
       ctx.fill();
       ctx.restore();
     }
-    ctx.shadowBlur = 0;
   }
 
   // Pass 2 – sharp shapes on top
-  ctx.fillStyle = block.color.hex;
   for (const piece of block.pieces) {
     ctx.save();
     ctx.translate(piece.x * sc * drift, piece.y * sc * drift);
     ctx.rotate(piece.angle);
+    ctx.fillStyle = piece.color;
     drawShapePath(ctx, piece.shape, 0, 0, piece.size * sc);
     ctx.fill();
     ctx.restore();

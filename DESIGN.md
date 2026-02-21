@@ -224,7 +224,7 @@ Building labels are identical on both screens.
 | Mine screen (back button, screen switching) | ✅ |
 | Crystal flower render | ✅ |
 | Garden screen – flower meadow render | 🔄 in progress |
-| Blumen-Farbsystem (Pfingstrose) | ✅ designed, not yet implemented |
+| Blumen-Farbsystem (Pfingstrose) | ✅ |
 | Garden – Reihen-System mit Perspektive | ✅ |
 | Garden – Wolkenhimmel als Start | ✅ (braucht Feinschliff) |
 | Garden – Wachstums-Animation | ❌ planned |
@@ -314,8 +314,7 @@ x: −60 bis 490 (Blumen dürfen angeschnitten werden). zIndex = Reihe + 0–0.5
 
 ## Next steps
 
-1. **Pfingstrose-Farben** – Farbsystem in die Blumen-Generierung einbauen
-2. **Wachstums-Animation** – neue Blume wächst von unten ins Bild
+1. **Wachstums-Animation** – neue Blume wächst von unten ins Bild
 3. **Wolkenhimmel Feinschliff** – sieht noch komisch aus, braucht Überarbeitung
 4. **Feel tuning** – tap ranges, drift speed, glow intensity, shard sizes *(ongoing)*
 
@@ -333,7 +332,7 @@ x: −60 bis 490 (Blumen dürfen angeschnitten werden). zIndex = Reihe + 0–0.5
 - [ ] Max flowers in `done` array – needs playtesting (~20–30 to start)
 - [x] Crack/damage visuals → solved: wobble + rattle + drift + glow (no lines needed)
 - [ ] Does color → shape tendency add enough to be worth the complexity?
-- [ ] **Shape-to-color mapping:** Each shape gets its own fixed color → block becomes multicolor. Potentially beautiful, more intuitive sorting. Needs a 4th color or one shared. Parked for later.
+- [x] **Shape-to-color mapping:** Jede Form hat ihre Pfingstrose-Farbe (Kreis=Creme, Herz=Rosa, Stiel=Mittelgrün, Blatt=Dunkelgrün). Block wird mehrfarbig. Farbe verrät Form → intuitives Sortieren.
 
 ---
 
@@ -343,7 +342,7 @@ x: −60 bis 490 (Blumen dürfen angeschnitten werden). zIndex = Reihe + 0–0.5
 |---|---|
 | **Sort by shape, not color** | Color stays visual/emotional, no cognitive load of "I need X color now" |
 | **Size = hardness + yield** | Bigger block = more taps + more shards. Natural, physical feel. |
-| **Color = purely aesthetic** | No game meaning – every block/shard color is just beautiful |
+| **Color follows shape** | Jede Form hat eine Pfingstrose-Farbe. Farbe = Hinweis auf Form → intuitiveres Sortieren, konsistentes Bild von Block bis Blume. |
 | **Block is a cluster of its pieces** | Player sees what's inside before breaking. Visual language is consistent. |
 | **Drag & drop, not tap-select-tap** | More intuitive, direct manipulation |
 | **No tap counter shown** | Player feels the block through wobble/drift/glow – more tactile |
@@ -389,6 +388,8 @@ x: −60 bis 490 (Blumen dürfen angeschnitten werden). zIndex = Reihe + 0–0.5
 - *Feb 21:* Flower-Ursprung am Stieluntergrund (`ctx.translate(0, -58)`) macht Row-Placement trivial: y = Bodenlinie, Blume wächst nach oben.
 - *Feb 21:* Opaker Basiskreis vor den Petals verhindert Durchscheinen von Hintergrundblumen durch Petal-Lücken.
 - *Feb 21:* Garden-Vision: Close-up-Perspektive ins Feld hinein, Blumen füllen Screen, angeschnitten erlaubt. Wolkenhimmel als Start, Blumen verdrängen ihn mit der Zeit. Erste Blume kein Sonderplatz – wächst als erste in der Vorderreihe.
+- *Feb 21:* Shape-to-color mapping umgesetzt. Jede Form hat eine feste Pfingstrose-Farbe. Block ist jetzt mehrfarbig – Farbe verrät die Form bereits im Block, bevor er bricht. Shard-Farben fließen konsistent in die Blume.
+- *Feb 21:* Pfingstrose-Farben implementiert. Shard-Farben aus Bins werden weiter konsumiert (Sortier-Feedback bleibt), aber beim Blumenbau sofort durch das Pfingstrose-Farbsystem überschrieben. `varyColor()` gibt organische Variation bei Grün/Creme. Blütenblätter random aus 7-Ton-Pool → jede Blume einzigartig.
 - *Feb 21:* Reihen-System implementiert. 5 Reihen von vorne (scale 2.0–2.5, y≈850) nach hinten (scale 0.3–0.55, y≈360). Opacity nimmt nach hinten ab (1.0→0.70). zIndex = Reihen-Index + random → Tiefensortierung funktioniert automatisch. x mit ±60px Bleed über Screenrand.
 - *Feb 21:* Wolkenhimmel implementiert. Gradient `#0a0817` → `#2a1854` (Sommerabend-Lila). Wolken als statische Puff-Cluster (überlappende Kreise, Opacity 0.055). Keine eigene Blende-Logik nötig – Blumen verdecken den Himmel natürlich.
 - *Feb 21:* Pfingstrose als Blumentyp gewählt. Grün (Blatt/Stiel) fix, Blütenblatt-Pool aus 7 Rosa-Tönen – jedes der 8 Petals zufällig gemischt.
