@@ -1070,41 +1070,7 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
-// ── Garden layout prototype ───────────────────────────────────────────────
-const SEED_COLORS = ['#f0883e', '#58a6ff', '#bc8cff'];
-function seedFlower(x, y, scale, rotation, zIndex, color) {
-  const c = color || SEED_COLORS[Math.floor(Math.random() * 3)];
-  flowers.done.push({
-    id: flowerIdCounter++, startedAt: 0, completesAt: 0,
-    parts: {
-      circle: [{ color: c }],
-      heart:  Array(8).fill({ color: c }),
-      stem:   Array(3).fill({ color: '#bc8cff' }),
-      leaf:   Array(2).fill({ color: '#58a6ff' }),
-    },
-    x, y, rotation, scale, zIndex,
-  });
-}
-
-// Special first flower – center background (like the tree)
-seedFlower(W / 2, 390, 1.4, 0, 0.05, '#f0883e');
-
-// Rows fanning out toward viewer – back to front
-const ROWS = [
-  { y: 470, scaleMin: 0.55, scaleMax: 0.75, count: 5,  spread: 100, zi: 0.15 },
-  { y: 560, scaleMin: 0.80, scaleMax: 1.05, count: 7,  spread: 150, zi: 0.35 },
-  { y: 665, scaleMin: 1.10, scaleMax: 1.40, count: 7,  spread: 185, zi: 0.55 },
-  { y: 790, scaleMin: 1.50, scaleMax: 1.90, count: 5,  spread: 200, zi: 0.80 },
-];
-
-for (const row of ROWS) {
-  for (let i = 0; i < row.count; i++) {
-    const t  = row.count === 1 ? 0.5 : i / (row.count - 1);
-    const x  = W / 2 - row.spread + t * row.spread * 2;
-    const sc = row.scaleMin + Math.random() * (row.scaleMax - row.scaleMin);
-    seedFlower(x, row.y, sc, (Math.random() - 0.5) * 0.25, row.zi + Math.random() * 0.1);
-  }
-}
+// Garden flowers are populated by the row system (see DESIGN.md → Garden – Reihen-System)
 
 spawnBlock();
 requestAnimationFrame(draw);
