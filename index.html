@@ -76,14 +76,16 @@ function canvasCoords(e) {
 // ── i18n ──────────────────────────────────────────────────────────────────
 const STRINGS = {
   de: {
-    lang_toggle: 'EN',
-    gem_label:   (n, max) => `${n} von ${max} Facetten`,
-    gem_done:    '✦ Edelstein vollständig!',
+    lang_toggle:    'EN',
+    building_one:   '✦ blume wächst …',
+    building_many:  (n) => `✦ ${n} blumen wachsen …`,
+    building_idle:  'sortiere um blumen zu züchten',
   },
   en: {
-    lang_toggle: 'DE',
-    gem_label:   (n, max) => `${n} of ${max} facets`,
-    gem_done:    '✦ gem complete!',
+    lang_toggle:    'DE',
+    building_one:   '✦ flower growing …',
+    building_many:  (n) => `✦ ${n} flowers growing …`,
+    building_idle:  'sort shards to grow flowers',
   },
 };
 
@@ -102,8 +104,11 @@ const COLORS = [
   { id: 'purple', hex: '#bc8cff' },
 ];
 
-// Each gem facet cycles through the 3 colors
-const FACET_COLORS = ['#58a6ff', '#f0883e', '#bc8cff', '#58a6ff', '#f0883e', '#bc8cff'];
+// Flower recipe – how many sorted shards per bin make one flower part
+const FLOWER_RECIPE = { circle: 1, heart: 8, stem: 1, leaf: 2 };
+const BUILD_BASE_MS = 20000;   // base build time in ms (±15% random variance)
+const DONE_MAX      = 30;      // max finished flowers kept in memory
+let   flowerIdCounter = 0;
 
 const BG       = '#0d1117';
 const BORDER   = '#30363d';
@@ -158,8 +163,7 @@ const SIZES = [
   { id: 'large',   blockPx: 150, shards:  7, taps: [4,  7] },
   { id: 'jackpot', blockPx: 188, shards: 12, taps: [7, 12] },
 ];
-const BIN_CAPACITY     = 4;
-const GEM_FACETS       = 6;
+
 
 // ── Easing ────────────────────────────────────────────────────────────────
 function easeOutBack(t) {
@@ -188,19 +192,22 @@ let shardIdCounter = 0;
 
 const state = {
   phase:    'block',   // 'block' | 'shards'
-  block:    null,      // { color }
-  shards:   [],        // see spawnShards()
-  selected: null,      // shard id or null
-  bins:     SHAPES.map(s => ({ shape: s, count: 0 })),
-  gem:      { filled: 0 },
+  block:    null,
+  shards:   [],
+  selected: null,
+  bins:     SHAPES.map(s => ({ shape: s, shards: [] })),
+};
+
+// Flower system – separate from game state
+const flowers = {
+  building: [],   // { id, startedAt, completesAt, parts }
+  done:     [],   // { ...building, x, y, rotation, scale, zIndex }
 };
 
 // ── Animation state ───────────────────────────────────────────────────────
 let blockEnterStart = 0;
-const binFillAnim   = Array(4).fill(0);  // lerps toward bin.count / BIN_CAPACITY
-const binFlashAt    = Array(4).fill(0);  // timestamp of last bin-full event
-const facetAnim     = Array(GEM_FACETS).fill(0.1);
-let gemCompleteAt   = 0;
+const binFillAnim   = Array(4).fill(0);  // lerps toward current cycle fill (0–1)
+const binFlashAt    = Array(4).fill(0);  // timestamp of last recipe-threshold event
 
 // ── Game logic ────────────────────────────────────────────────────────────
 function jitter(v, range = 22) {
@@ -330,35 +337,72 @@ function trySortShard(binIndex) {
 
   setTimeout(() => {
     state.shards = state.shards.filter(s => s.id !== shard.id);
-    state.bins[binIndex].count++;
 
-    if (state.bins[binIndex].count >= BIN_CAPACITY) {
-      onBinFilled(binIndex);
+    const bin    = state.bins[binIndex];
+    const recipe = FLOWER_RECIPE[bin.shape.id];
+    bin.shards.push({ color: shard.color.hex });
+
+    // Flash when we cross a recipe threshold
+    if (bin.shards.length % recipe === 0) {
+      binFlashAt[binIndex] = performance.now();
+      haptic([18, 10, 18]);
     }
+
+    checkBuildTrigger();
+
     if (state.shards.length === 0) {
       setTimeout(spawnBlock, 350);
     }
   }, 230);
 }
 
-function onBinFilled(binIndex) {
-  haptic([18, 10, 18]);
-  state.bins[binIndex].count = 0;
-  binFlashAt[binIndex] = performance.now();
-  // binFillAnim stays near 1.0 and drains naturally toward 0
-
-  state.gem.filled++;
-  if (state.gem.filled >= GEM_FACETS) onGemComplete();
+// ── Flower system ─────────────────────────────────────────────────────────
+function flowersReady() {
+  return Math.min(...SHAPES.map(s => {
+    const bin = state.bins.find(b => b.shape.id === s.id);
+    return Math.floor(bin.shards.length / FLOWER_RECIPE[s.id]);
+  }));
 }
 
-function onGemComplete() {
-  haptic([25, 12, 25, 12, 40]);
-  gemCompleteAt = performance.now();
+function checkBuildTrigger() {
+  const MAX_BUILDING = 3;
+  while (flowersReady() > 0 && flowers.building.length < MAX_BUILDING) {
+    startBuildingFlower();
+  }
+}
 
-  setTimeout(() => {
-    state.gem.filled = 0;
-    gemCompleteAt    = 0;
-  }, 1800);
+function startBuildingFlower() {
+  const parts = {};
+  for (const s of SHAPES) {
+    const bin = state.bins.find(b => b.shape.id === s.id);
+    parts[s.id] = bin.shards.splice(0, FLOWER_RECIPE[s.id]);
+  }
+  const now     = performance.now();
+  const buildMs = BUILD_BASE_MS * (0.85 + Math.random() * 0.3);
+  flowers.building.push({ id: flowerIdCounter++, startedAt: now, completesAt: now + buildMs, parts });
+  haptic([15, 10, 15]);
+}
+
+function tickBuilding(now) {
+  const done = flowers.building.filter(f => now >= f.completesAt);
+  if (!done.length) return;
+
+  flowers.building = flowers.building.filter(f => now < f.completesAt);
+
+  for (const flower of done) {
+    flowers.done.push({
+      ...flower,
+      x:        (Math.random() * 0.8 + 0.1) * W,
+      y:        (Math.random() * 0.8 + 0.1) * H,
+      rotation:  (Math.random() - 0.5) * 0.4,
+      scale:     0.6 + Math.random() * 0.5,
+      zIndex:    Math.random(),
+    });
+  }
+  while (flowers.done.length > DONE_MAX) flowers.done.shift();
+
+  haptic([20, 12, 20, 12, 35]);
+  checkBuildTrigger();
 }
 
 // ── Shard animation helper ────────────────────────────────────────────────
@@ -613,52 +657,66 @@ function drawHeader() {
   ctx.fillText(label, bx + 10, by + bh / 2);
 }
 
-function drawGem(now) {
-  // Hexagon vertices – pointy-top orientation
-  const verts = Array.from({ length: 6 }, (_, i) => {
-    const a = (i * 60 - 90) * Math.PI / 180;
-    return [GEM_CX + GEM_R * Math.cos(a), GEM_CY + GEM_R * Math.sin(a)];
-  });
+function drawIndicator(now) {
+  const active  = flowers.building.length > 0;
+  const current = flowers.building[0];
+  const cx = GEM_CX, cy = GEM_CY, r = GEM_R;
 
-  const isComplete = gemCompleteAt > 0 && now - gemCompleteAt < 1800;
-  const flash      = isComplete ? Math.sin(clamp01((now - gemCompleteAt) / 1800) * Math.PI) : 0;
+  // Progress through current build (0–1)
+  const progress = current
+    ? clamp01((now - current.startedAt) / (current.completesAt - current.startedAt))
+    : 0;
 
-  if (flash > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 28 * flash; }
+  // Pulse factor (only when active)
+  const pulse = active ? 0.6 + 0.4 * Math.sin(now / 700) : 0;
 
-  // Draw 6 facets
-  for (let i = 0; i < GEM_FACETS; i++) {
-    const target  = isComplete ? 0.85 : (i < state.gem.filled ? 0.85 : 0.1);
-    facetAnim[i] += (target - facetAnim[i]) * 0.08;
-
-    ctx.globalAlpha = facetAnim[i];
-    ctx.fillStyle   = FACET_COLORS[i];
-    ctx.beginPath();
-    ctx.moveTo(GEM_CX, GEM_CY);
-    ctx.lineTo(verts[i][0], verts[i][1]);
-    ctx.lineTo(verts[(i + 1) % 6][0], verts[(i + 1) % 6][1]);
-    ctx.closePath();
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-  ctx.shadowBlur  = 0;
-
-  // Hexagon outline
-  ctx.strokeStyle = BORDER;
-  ctx.lineWidth   = 2;
+  // Background fill
   ctx.beginPath();
-  verts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
-  ctx.closePath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = active ? `rgba(88,166,255,${0.05 + pulse * 0.05})` : 'rgba(110,118,129,0.05)';
+  ctx.fill();
+
+  // Track ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = BORDER;
+  ctx.lineWidth   = 3;
   ctx.stroke();
+
+  // Progress arc
+  if (active) {
+    ctx.shadowColor = '#58a6ff';
+    ctx.shadowBlur  = 10 + 8 * pulse;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+    ctx.strokeStyle = '#58a6ff';
+    ctx.lineWidth   = 3;
+    ctx.lineCap     = 'round';
+    ctx.stroke();
+    ctx.shadowBlur  = 0;
+    ctx.lineCap     = 'butt';
+  }
+
+  // Center dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+  ctx.fillStyle = active ? `rgba(88,166,255,${0.4 + pulse * 0.6})` : 'rgba(110,118,129,0.3)';
+  ctx.fill();
 
   // Label
   ctx.fillStyle    = TEXT_DIM;
   ctx.font         = '11px system-ui';
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(
-    isComplete ? t('gem_done') : t('gem_label', state.gem.filled, GEM_FACETS),
-    GEM_CX, GEM_CY + GEM_R + 20
-  );
+  let label;
+  if (!active) {
+    label = t('building_idle');
+  } else if (flowers.building.length === 1) {
+    label = t('building_one');
+  } else {
+    label = t('building_many', flowers.building.length);
+  }
+  ctx.fillText(label, cx, cy + r + 20);
   ctx.textAlign = 'left';
 }
 
@@ -746,31 +804,46 @@ function drawShards(now, dragOnly = false) {
 
 function drawBins(now) {
   for (let i = 0; i < 4; i++) {
-    const bin = state.bins[i];
-    const bx  = BIN_LEFT + i * (BIN_W + BIN_GAP);
-    const by  = BIN_Y;
+    const bin    = state.bins[i];
+    const bx     = BIN_LEFT + i * (BIN_W + BIN_GAP);
+    const by     = BIN_Y;
+    const recipe = FLOWER_RECIPE[bin.shape.id];
 
-    // Animate fill level
-    const fillTarget = bin.count / BIN_CAPACITY;
-    binFillAnim[i]  += (fillTarget - binFillAnim[i]) * 0.15;
+    // level = total shards / recipe (e.g. 1.5 = halfway through 2nd flower's worth)
+    const level      = bin.shards.length / recipe;
+    const multiples  = Math.floor(level);
+    // cycle: progress within current recipe (0–1). At exact multiples show 1, not 0.
+    const cycle      = (level % 1) || (level > 0 ? 1 : 0);
 
-    // Flash factor (0–1) after bin fills
+    binFillAnim[i] += (cycle - binFillAnim[i]) * 0.15;
+
+    // Flash factor after hitting a recipe threshold
     const flashAge = binFlashAt[i] ? now - binFlashAt[i] : Infinity;
     const flash    = flashAge < 600 ? 1 - flashAge / 600 : 0;
 
-    // Background
+    // Background tint – more saturated per additional multiple
+    const tintAlpha = Math.min(multiples, 3) / 3 * 0.18;
     ctx.fillStyle = BG;
     ctx.beginPath();
     ctx.roundRect(bx, by, BIN_W, BIN_H, BIN_R);
     ctx.fill();
 
-    // Fill bar – clipped to bin shape
+    if (tintAlpha > 0) {
+      ctx.globalAlpha = tintAlpha;
+      ctx.fillStyle   = '#58a6ff';
+      ctx.beginPath();
+      ctx.roundRect(bx, by, BIN_W, BIN_H, BIN_R);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // Fill bar – shows progress within current recipe cycle
     if (binFillAnim[i] > 0.005) {
       ctx.save();
       ctx.beginPath();
       ctx.roundRect(bx, by, BIN_W, BIN_H, BIN_R);
       ctx.clip();
-      ctx.globalAlpha = 0.2 + flash * 0.45;
+      ctx.globalAlpha = 0.18 + flash * 0.35;
       ctx.fillStyle   = TEXT_HI;
       const fillH = binFillAnim[i] * BIN_H;
       ctx.fillRect(bx, by + BIN_H - fillH, BIN_W, fillH);
@@ -801,8 +874,10 @@ function draw(now) {
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
 
+  tickBuilding(now);
+
   drawHeader();
-  drawGem(now);
+  drawIndicator(now);
   drawBlock(now);
   drawShards(now, false);
   drawBins(now);
