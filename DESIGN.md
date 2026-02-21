@@ -147,9 +147,9 @@ flowersReady = Math.min(
   Math.floor(bins.leaf.length / 2)
 )
 
-// Building queue – flowers currently growing
+// Building queue – flowers currently growing (no timestamps, just parts)
 building = [
-  { id, startedAt, completesAt, parts: { circle, heart[], stem[], leaf[] } },
+  { id, parts: { circle, heart[], stem[], leaf[] } },
 ]
 
 // Done – completed flowers, placed in the Garden
@@ -206,6 +206,7 @@ Start screen. Shows all finished flowers from the `done` array.
 | Haptic feedback (Android) | ✅ |
 | i18n (DE + EN) | ✅ |
 | PWA (installable, offline) | ✅ |
+| State persistence (localStorage) | ✅ |
 | Garden screen (navigation, indicator, mine button) | ✅ |
 | Mine screen (back button, screen switching) | ✅ |
 | Crystal flower render | ✅ |
@@ -322,6 +323,7 @@ Wenn eine neue Blume fertig ist, wächst sie von unten in den Frame – Stiel zu
 | **Build time ±15% variance** | Organic feel. No two flowers take exactly the same time. |
 | **Spawn probability = recipe ratio** | Supply matches demand. Hearts spawn most (57%) because 8 are needed. No frustrating shortages. |
 | **Row-based perspective** | 5 Reihen von vorne (groß) nach hinten (klein). Tiefenwirkung ohne 3D. |
+| **Persist `building` queue** | Shards are consumed when a build starts. To avoid losing this work on reload, the `building` queue is persisted (without timestamps) and timers are restarted on load. |
 
 ---
 
@@ -358,3 +360,4 @@ Wenn eine neue Blume fertig ist, wächst sie von unten in den Frame – Stiel zu
 - *Feb 21:* Shape-to-color: Farbe folgt Form (Pfingstrose-Palette). Block mehrfarbig – man sieht schon vor dem Brechen was drin ist. Konsistentes Bild von Block bis Blume.
 - *Feb 21:* `shapeToColor()` als zentrales System: eine Funktion für Blocks, Scherben und Blumen. Kein Duplikat-Code. Fallbacks in `drawFlower` ebenfalls auf Pfingstrose-Farben gesetzt.
 - *Feb 21:* Dead code konsequent entfernen: `COLORS`-Array, `selectShard()` (tap-select war durch drag-only ersetzt), doppelte Farbzuweisung in `startBuildingFlower()`.
+- *Feb 21:* Persistence via localStorage (`bins`, `building`, `done`) implemented. The `building` queue is stored without timestamps; a simple `setTimeout` is started on load if the queue is not empty. This makes the state robust against reloads during the build process without complex timestamp management.

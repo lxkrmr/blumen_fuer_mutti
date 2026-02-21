@@ -262,9 +262,14 @@ const state = {
 
 // Flower system – separate from game state
 const flowers = {
-  building: [],   // { id, startedAt, completesAt, parts }
-  done:     [],   // { ...building, x, y, rotation, scale, zIndex }
+  building: [],   // { id, parts }
+  done:     [],   // { id, parts, x, y, rotation, scale, opacity, zIndex }
 };
+
+// Build timer – runtime only, not persisted
+let buildTimerActive = false;
+let buildStartedAt   = 0;   // performance.now() – resets on each page load
+let buildDurationMs  = 0;   // for progress ring
 
 // ── Animation state ───────────────────────────────────────────────────────
 let blockEnterStart = 0;
@@ -394,6 +399,7 @@ function trySortShard(binIndex) {
     if (state.shards.length === 0) {
       setTimeout(spawnBlock, 350);
     }
+    saveState();
   }, 230);
 }
 
@@ -408,54 +414,60 @@ function flowersReady() {
 function checkBuildTrigger() {
   const MAX_BUILDING = 3;
   while (flowersReady() > 0 && flowers.building.length < MAX_BUILDING) {
-    startBuildingFlower();
+    // Consume shards from bins
+    for (const s of SHAPES) {
+      state.bins.find(b => b.shape.id === s.id).shards.splice(0, FLOWER_RECIPE[s.id]);
+    }
+
+    // Assign Pfingstrose colors via shapeToColor
+    const parts = {
+      circle: [{ color: shapeToColor('circle') }],
+      heart:  Array.from({ length: 8 }, () => ({ color: shapeToColor('heart') })),
+      stem:   Array.from({ length: 3 }, () => ({ color: shapeToColor('stem')  })),
+      leaf:   Array.from({ length: 2 }, () => ({ color: shapeToColor('leaf')  })),
+    };
+    flowers.building.push({ id: flowerIdCounter++, parts });
+    haptic([15, 10, 15]);
   }
+
+  if (flowers.building.length > 0 && !buildTimerActive) {
+    startBuildTimer();
+  }
+  saveState();
 }
 
-function startBuildingFlower() {
-  // Consume shards from bins
-  for (const s of SHAPES) {
-    state.bins.find(b => b.shape.id === s.id).shards.splice(0, FLOWER_RECIPE[s.id]);
-  }
+function startBuildTimer() {
+  if (buildTimerActive || flowers.building.length === 0) return;
 
-  // Assign Pfingstrose colors via shapeToColor
-  const parts = {
-    circle: [{ color: shapeToColor('circle') }],
-    heart:  Array.from({ length: 8 }, () => ({ color: shapeToColor('heart') })),
-    stem:   Array.from({ length: 3 }, () => ({ color: shapeToColor('stem')  })),
-    leaf:   Array.from({ length: 2 }, () => ({ color: shapeToColor('leaf')  })),
-  };
+  buildTimerActive = true;
+  buildDurationMs  = BUILD_BASE_MS * (0.85 + Math.random() * 0.3);
+  buildStartedAt   = performance.now(); // For progress ring, not persisted
 
-  const now     = performance.now();
-  const buildMs = BUILD_BASE_MS * (0.85 + Math.random() * 0.3);
-  flowers.building.push({ id: flowerIdCounter++, startedAt: now, completesAt: now + buildMs, parts });
-  haptic([15, 10, 15]);
+  setTimeout(completeBuilding, buildDurationMs);
 }
 
-function tickBuilding(now) {
-  const done = flowers.building.filter(f => now >= f.completesAt);
-  if (!done.length) return;
+function completeBuilding() {
+  const flower = flowers.building.shift();
+  if (!flower) return;
 
-  flowers.building = flowers.building.filter(f => now < f.completesAt);
-
-  for (const flower of done) {
-    const rowIndex = Math.floor(Math.random() * GARDEN_ROWS.length);
-    const row      = GARDEN_ROWS[rowIndex];
-    const scale    = row.scaleMin + Math.random() * (row.scaleMax - row.scaleMin);
-    flowers.done.push({
-      ...flower,
-      x:        -60 + Math.random() * (W + 120),            // can bleed off edges
-      y:        row.yMin + Math.random() * (row.yMax - row.yMin),
-      rotation: (Math.random() - 0.5) * 0.3,
-      scale,
-      opacity:  row.opacity,
-      zIndex:   rowIndex + Math.random() * 0.5,             // back rows = low zIndex
-    });
-  }
+  const rowIndex = Math.floor(Math.random() * GARDEN_ROWS.length);
+  const row      = GARDEN_ROWS[rowIndex];
+  const scale    = row.scaleMin + Math.random() * (row.scaleMax - row.scaleMin);
+  flowers.done.push({
+    ...flower,
+    x:        -60 + Math.random() * (W + 120),
+    y:        row.yMin + Math.random() * (row.yMax - row.yMin),
+    rotation: (Math.random() - 0.5) * 0.3,
+    scale,
+    opacity:  row.opacity,
+    zIndex:   rowIndex + Math.random() * 0.5,
+  });
   while (flowers.done.length > DONE_MAX) flowers.done.shift();
 
   haptic([20, 12, 20, 12, 35]);
-  checkBuildTrigger();
+
+  buildTimerActive = false;
+  checkBuildTrigger(); // Will save state
 }
 
 // ── Shard animation helper ────────────────────────────────────────────────
@@ -809,13 +821,12 @@ function drawGardenFlowers() {
 
 
 function drawIndicator(now) {
-  const active  = flowers.building.length > 0;
-  const current = flowers.building[0];
+  const active = buildTimerActive || flowers.building.length > 0;
   const cx = GEM_CX, cy = GEM_CY, r = GEM_R;
 
-  // Progress through current build (0–1)
-  const progress = current
-    ? clamp01((now - current.startedAt) / (current.completesAt - current.startedAt))
+  // Progress through current build (0–1), runtime only
+  const progress = buildTimerActive
+    ? clamp01((now - buildStartedAt) / buildDurationMs)
     : 0;
 
   // Pulse factor (only when active)
@@ -1103,8 +1114,6 @@ function draw(now) {
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
 
-  tickBuilding(now);
-
   if (screen === 'garden') {
     drawGarden(now);
   } else {
@@ -1114,13 +1123,45 @@ function draw(now) {
   requestAnimationFrame(draw);
 }
 
+// ── Persistence ───────────────────────────────────────────────────────────
+const SAVE_KEY = 'knack-save';
+
+function saveState() {
+  const saveData = {
+    bins:    state.bins,
+    building: flowers.building,
+    done:     flowers.done,
+    flowerIdCounter,
+  };
+  localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+}
+
+function loadState() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) return;
+
+  try {
+    const saveData = JSON.parse(raw);
+    if (!saveData) return;
+
+    state.bins    = saveData.bins || SHAPES.map(s => ({ shape: s, shards: [] }));
+    flowers.building = saveData.building || [];
+    flowers.done     = saveData.done || [];
+    flowerIdCounter = saveData.flowerIdCounter || 0;
+
+  } catch (e) {
+    console.error("Failed to load state", e);
+  }
+}
+
+
 // ── Boot ──────────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
-// Garden flowers are populated by the row system (see DESIGN.md → Garden – Reihen-System)
-
+loadState();
+checkBuildTrigger(); // In case there are flowers in build queue from last session
 spawnBlock();
 requestAnimationFrame(draw);
 </script>
