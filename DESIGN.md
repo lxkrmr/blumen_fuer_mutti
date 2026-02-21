@@ -141,6 +141,7 @@ Replaces the hexagon gem. Built organically from sorted shapes:
 - [ ] How many shards fill a bin? (currently 4 – feels right?)
 - [ ] Crack/damage visuals – how to communicate progress without lines?
 - [ ] Does color → shape tendency add enough to be worth the complexity?
+- [ ] **Shape-to-color mapping:** Each shape gets its own fixed color → block becomes multicolor from the start. Looks potentially beautiful, makes sorting more intuitive. Tension: color would no longer be purely aesthetic. 4 shapes, 3 current colors – needs a 4th color or one shared.
 
 ---
 
