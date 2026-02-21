@@ -97,9 +97,9 @@ function t(key, ...args) {
 
 // ── Colors ─────────────────────────────────────────────────────────────────
 const COLORS = [
-  { id: 'blue',   hex: '#58a6ff', taps: [1, 2] },
-  { id: 'orange', hex: '#f0883e', taps: [2, 4] },
-  { id: 'purple', hex: '#bc8cff', taps: [4, 7] },
+  { id: 'blue',   hex: '#58a6ff' },
+  { id: 'orange', hex: '#f0883e' },
+  { id: 'purple', hex: '#bc8cff' },
 ];
 
 // Each gem facet cycles through the 3 colors
@@ -151,12 +151,12 @@ const SHARD_ZONES = [
 
 const SHARD_SIZE = 60;
 
-// Block sizes – size = yield. More shards = more sorting = more reward.
+// Block sizes – size = yield + hardness. Bigger = more taps + more shards.
 const SIZES = [
-  { id: 'small',   blockPx:  90, shards:  3 },
-  { id: 'medium',  blockPx: 118, shards:  5 },
-  { id: 'large',   blockPx: 150, shards:  7 },
-  { id: 'jackpot', blockPx: 188, shards: 12 },
+  { id: 'small',   blockPx:  90, shards:  3, taps: [1,  2] },
+  { id: 'medium',  blockPx: 118, shards:  5, taps: [2,  4] },
+  { id: 'large',   blockPx: 150, shards:  7, taps: [4,  7] },
+  { id: 'jackpot', blockPx: 188, shards: 12, taps: [7, 12] },
 ];
 const BIN_CAPACITY     = 4;
 const GEM_FACETS       = 6;
@@ -236,7 +236,7 @@ function spawnBlock() {
 
   const color = COLORS[Math.floor(Math.random() * COLORS.length)];
   const size  = SIZES[Math.floor(Math.random() * SIZES.length)];
-  const [tMin, tMax] = color.taps;
+  const [tMin, tMax] = size.taps;
   const tapsRequired = tMin + Math.floor(Math.random() * (tMax - tMin + 1));
 
   state.block    = {
