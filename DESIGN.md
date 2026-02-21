@@ -22,13 +22,14 @@ knack! is a prototype lab. We learn here what feels good – mechanics, animatio
 ## Core loop
 
 ```
-Block appears (color = hardness, size = yield)
+Block appears (size = hardness + yield, color = aesthetic only)
         ↓
-Tap repeatedly until it breaks (harder blocks need more taps)
+Tap repeatedly until it breaks
+(block rattles, rotates, pieces drift apart, glow intensifies)
         ↓
 Shards fly out – each has a SHAPE (circle, heart, stem, leaf)
         ↓
-Tap shard to select → tap matching bin to sort
+Drag shard to matching bin
         ↓
 Bins persist across rounds – next block appears immediately
         ↓
@@ -45,43 +46,51 @@ Flower complete → new flower begins
 - **No reset between rounds** – bins stay filled, game flows continuously
 - **Fidget-first** – low cognitive load, podcast-compatible
 - **Haptic + visual feedback** – combined on Android, visual only on iOS/desktop
-- **Discover, don't explain** – hidden patterns (color → shape tendency) reward attention, no tutorial needed
+- **Discover, don't explain** – no tutorial needed
 
 ---
 
-## Mechanics (new direction)
+## Mechanics
 
 ### Blocks
 
+The block is not a rectangle – it's a **cluster of its own pieces**, overlapping and merged into an organic shape. The player can already see what shapes are inside before breaking.
+
 | Property | Meaning |
 |---|---|
-| **Color** | Hardness – how many taps to break |
-| **Size** | Yield – how many shards come out |
-| **Color → shape tendency** | Subtle probability bias toward certain shapes (no UI, player discovers) |
+| **Size** | Hardness + yield – bigger = more taps + more shards |
+| **Color** | Purely aesthetic – blue, orange, purple. No game meaning. |
 
-**Hardness by color (example – tune by feel):**
-| Color | Tap range |
-|---|---|
-| Blue | 1–2 (soft) |
-| Orange | 2–4 (medium) |
-| Purple | 4–7 (hard) |
+**Sizes:**
+| Size | Taps | Shards | Feel |
+|---|---|---|---|
+| small | 1–2 | 3 | quick, easy |
+| medium | 2–4 | 5 | comfortable |
+| large | 4–7 | 7 | satisfying |
+| jackpot | 7–12 | 12 | rare, worth it |
 
-Block shows damage visually as it's tapped (cracks, wobble). The player feels when it's close to breaking – no counter shown.
+**Damage feedback (no cracks – replaced by feel):**
+- **Wobble** – scale punch on each tap
+- **Rattle** – block rotates slightly, accumulates (never springs back – like hitting a stone)
+- **Drift** – pieces slowly spread apart, block "comes undone"
+- **Glow** – starts after first tap, pulses faster as damage increases. Crisp shapes, glow is a separate halo pass.
 
 ### Shards / Shapes
 
-Sorting is by **shape**, not color. Shapes are recognizable (Montessori-style), not random polygons.
+Sorting is by **shape**, not color. 4 shapes, each has its own bin.
 
-| Shape | Bin |
+| Shape | Description |
 |---|---|
-| ◯ Circle | Circle bin |
-| ♥ Heart | Heart bin |
-| \| Stem | Stem bin |
-| ❧ Leaf | Leaf bin |
+| ◯ Circle | round |
+| ♥ Heart | heart |
+| \| Stem | tall rounded rectangle, vertical |
+| ❧ Leaf | pointed oval, horizontal |
 
-Shard **colors are wild** – they inherit from the block, but color carries no sorting meaning. This keeps colors beautiful without creating "I need blue now" pressure.
+Shard **colors are wild** – inherited from the block, no sorting meaning. Keeps colors beautiful without pressure.
 
-### Crystal flower (reward)
+Sorting via **drag & drop** – drag shard directly to bin. Wrong bin: snap back + shake.
+
+### Crystal flower (reward) – not yet built
 
 Replaces the hexagon gem. Built organically from sorted shapes:
 
@@ -92,65 +101,46 @@ Replaces the hexagon gem. Built organically from sorted shapes:
 | Stem | Stem |
 | Leaf | Leaves on stem |
 
-- Build is **organic** – not always identical. Sometimes more petals, sometimes more leaves.
-- Colors come from the shards → every flower is a unique color combination.
-- When complete: brief celebration, then new flower begins.
-
 ---
 
-## Scope
-
-| In | Out |
-|---|---|
-| Block → multi-tap break | Harry / character |
-| Sort by shape (4 shapes) | Sound |
-| Crystal flower grows | World / scene |
-| Color = hardness | Score / stats |
-| Size = yield | Achievements |
-| Haptic + animation feedback | |
-| DE + EN | |
-
----
-
-## Current state (prototype v1 – baseline)
-
-*What is actually implemented right now. The new direction above is NOT yet built.*
+## Current state
 
 | What | Status |
 |---|---|
-| Block appears (random color) | ✅ |
-| Tap once → breaks into shards | ✅ |
-| Select shard → sort by **color** | ✅ |
-| Wrong sort → shake feedback | ✅ |
+| Block appears (random color + size) | ✅ |
+| Block is a cluster of its pieces (organic shape) | ✅ |
+| Multi-tap break (N taps by size) | ✅ |
+| Damage feedback: wobble + rattle + drift + glow | ✅ |
+| Breaks into shards with defined shapes | ✅ |
+| Drag & drop sorting by shape | ✅ |
+| Wrong sort → snap back + shake | ✅ |
+| 4 bins with shape icons | ✅ |
 | Bins persist across rounds | ✅ |
-| Bin full → hexagon gem grows a facet | ✅ |
+| Bin full → hexagon gem grows (placeholder) | ✅ |
 | Gem complete → new gem begins | ✅ |
 | Haptic feedback (Android) | ✅ |
 | i18n (DE + EN) | ✅ |
 | PWA (installable, offline) | ✅ |
+| Crystal flower | ❌ (next) |
+| Sound | ❌ (out of scope for now) |
 
 ---
 
 ## Next steps
 
-Build these in order – each should be independently testable and feel-able:
-
-1. **Multi-tap block breaking** – block needs N taps (random range by color) to break. Visual damage on each tap (cracks, scale wobble). No counter shown.
-2. **Shape shards** – replace random polygons with defined shapes (circle, heart, stem, leaf). Sort by shape instead of color.
-3. **Block size variation** – small/medium/large blocks with different shard yields.
-4. **Crystal flower** – replace hexagon gem with organic flower built from sorted shapes.
-5. **Color → shape tendency** – subtle probability bias per block color.
+1. **Crystal flower** – replace hexagon gem with organic flower built from sorted shapes
+2. **Crack visuals** – damage feedback without lines. Ideas: per-piece opacity fade, piece-level micro-rotation as they drift
+3. **Color → shape tendency** – subtle probability bias per block color (optional, discoverable)
+4. **Feel tuning** – tap ranges, drift speed, glow intensity, shard sizes. Ongoing.
 
 ---
 
 ## Open questions
 
-- [ ] How many taps per hardness level feels right? (tune by feel)
-- [ ] How many bins? Currently 3 (colors). New plan: 4 (shapes) – does that fit the screen?
-- [ ] How to draw the 4 shapes cleanly on canvas? (circle = easy, heart/leaf/stem = needs care)
-- [ ] How organic is the flower build? (random within a range? or fully procedural?)
-- [ ] How many shards per block (small/medium/large)?
-- [ ] How many shards fill a bin?
+- [ ] How organic is the flower build? Fixed structure or procedural?
+- [ ] How many shards fill a bin? (currently 4 – feels right?)
+- [ ] Crack/damage visuals – how to communicate progress without lines?
+- [ ] Does color → shape tendency add enough to be worth the complexity?
 
 ---
 
@@ -159,11 +149,14 @@ Build these in order – each should be independently testable and feel-able:
 | Decision | Rationale |
 |---|---|
 | **Sort by shape, not color** | Color stays visual/emotional, no cognitive load of "I need X color now" |
-| **Color = hardness** | Color gains meaning without becoming a sorting rule |
-| **Wild shard colors** | Every crystal flower unique, no color pressure |
-| **No tap counter shown** | Player feels the block through cracks/wobble – more tactile |
-| **Variable hardness range** | e.g. 1–2 not exactly 1 – prevents predictability, keeps it alive |
-| **Organic flower build** | Not always identical – gives each flower personality |
+| **Size = hardness + yield** | Bigger block = more taps + more shards. Natural, physical feel. |
+| **Color = purely aesthetic** | No game meaning – every block/shard color is just beautiful |
+| **Block is a cluster of its pieces** | Player sees what's inside before breaking. Visual language is consistent. |
+| **Drag & drop, not tap-select-tap** | More intuitive, direct manipulation |
+| **No tap counter shown** | Player feels the block through wobble/drift/glow – more tactile |
+| **Rattle accumulates (no spring-back)** | Stone rolls when hit – doesn't bounce back. More physical. |
+| **Glow as two-pass render** | Pass 1: shadowBlur for halo. Pass 2: sharp shapes on top. Crisp edges + glow. |
+| **Jackpot size (12 shards)** | Rare, worth it. More sorting = more reward. Visible from block size. |
 | **knack! = lab only** | Learnings flow into "Blumen für Mutti", not into feature creep here |
 
 ---
@@ -181,4 +174,10 @@ Build these in order – each should be independently testable and feel-able:
 ## Learnings
 
 - *Feb 20:* Prototype v1 built. Core loop works. Color sorting functional. Hexagon gem functional.
-- *Feb 21:* New direction decided. Color = hardness. Shape sorting. Crystal flower. knack! is lab for "Blumen für Mutti".
+- *Feb 21:* New direction: shape sorting, crystal flower, knack! as lab for "Blumen für Mutti".
+- *Feb 21:* Hardness moved from color to size – feels more natural. Color is purely aesthetic.
+- *Feb 21:* Block as piece-cluster: more interesting than a rectangle, communicates content visually.
+- *Feb 21:* Drag & drop replaces tap-select-tap. Much more intuitive, immediately obvious.
+- *Feb 21:* Crack lines removed – all attempts looked bad (asterisk pattern, straight lines). Replaced by wobble + rattle + drift + glow.
+- *Feb 21:* Glow without sound/vibration feels noticeably gentler. Haptic + sound amplify visual feedback significantly – visuals alone carry more weight on silent devices.
+- *Feb 21:* Two-pass glow render (blur pass + sharp pass) solves the "blurry shapes" problem. Halo outside, crisp fill inside.
