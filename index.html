@@ -105,7 +105,7 @@ const COLORS = [
 ];
 
 // Flower recipe – how many sorted shards per bin make one flower part
-const FLOWER_RECIPE = { circle: 1, heart: 8, stem: 1, leaf: 2 };
+const FLOWER_RECIPE = { circle: 1, heart: 8, stem: 3, leaf: 2 };
 const BUILD_BASE_MS = 20000;   // base build time in ms (±15% random variance)
 const DONE_MAX      = 30;      // max finished flowers kept in memory
 let   flowerIdCounter = 0;
@@ -122,6 +122,24 @@ const SHAPES = [
   { id: 'stem'   },
   { id: 'leaf'   },
 ];
+
+// Weighted shape spawn – probabilities match recipe ratios (total 14 parts)
+const SHAPE_WEIGHTS = [
+  { shape: SHAPES[0], w: 1 },   // circle  1/14
+  { shape: SHAPES[1], w: 8 },   // heart   8/14
+  { shape: SHAPES[2], w: 3 },   // stem    3/14
+  { shape: SHAPES[3], w: 2 },   // leaf    2/14
+];
+const SHAPE_WEIGHT_TOTAL = SHAPE_WEIGHTS.reduce((s, e) => s + e.w, 0);
+
+function randomShape() {
+  let r = Math.random() * SHAPE_WEIGHT_TOTAL;
+  for (const entry of SHAPE_WEIGHTS) {
+    r -= entry.w;
+    if (r <= 0) return entry.shape;
+  }
+  return SHAPE_WEIGHTS[SHAPE_WEIGHTS.length - 1].shape;
+}
 
 // ── Layout ─────────────────────────────────────────────────────────────────
 const HEADER_H  = 70;
@@ -228,7 +246,7 @@ function genPieces(count, blockPx) {
   const spread    = blockPx * 0.17;
   const pieceSize = blockPx * 0.58;
   return PIECE_LAYOUTS[count].map(([nx, ny]) => ({
-    shape: SHAPES[Math.floor(Math.random() * SHAPES.length)],
+    shape: randomShape(),
     x:     nx * spread + (Math.random() - 0.5) * spread * 0.3,
     y:     ny * spread + (Math.random() - 0.5) * spread * 0.3,
     size:  pieceSize,
