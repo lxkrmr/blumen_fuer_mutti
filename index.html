@@ -84,9 +84,9 @@ function t(key, ...args) {
 
 // ── Colors ─────────────────────────────────────────────────────────────────
 const COLORS = [
-  { id: 'blue',   hex: '#58a6ff' },
-  { id: 'orange', hex: '#f0883e' },
-  { id: 'purple', hex: '#bc8cff' },
+  { id: 'blue',   hex: '#58a6ff', taps: [1, 2] },
+  { id: 'orange', hex: '#f0883e', taps: [2, 4] },
+  { id: 'purple', hex: '#bc8cff', taps: [4, 7] },
 ];
 
 // Each gem facet cycles through the 3 colors
@@ -153,6 +153,14 @@ function haptic(pattern) {
   if (navigator.vibrate) navigator.vibrate(pattern);
 }
 
+// ── Drag state ────────────────────────────────────────────────────────────
+const drag = {
+  active:  false,
+  shardId: null,
+  x:       0,
+  y:       0,
+};
+
 // ── Game state ────────────────────────────────────────────────────────────
 let shardIdCounter = 0;
 
@@ -178,16 +186,50 @@ function jitter(v, range = 22) {
 }
 
 function spawnBlock() {
-  state.phase         = 'block';
-  state.shards        = [];
-  state.selected      = null;
-  state.block         = { color: COLORS[Math.floor(Math.random() * COLORS.length)] };
-  blockEnterStart     = performance.now();
+  state.phase    = 'block';
+  state.shards   = [];
+  state.selected = null;
+
+  const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+  const [tMin, tMax] = color.taps;
+  const tapsRequired = tMin + Math.floor(Math.random() * (tMax - tMin + 1));
+
+  state.block    = { color, tapsRequired, tapsLeft: tapsRequired, cracks: [], lastTapAt: 0 };
+  blockEnterStart = performance.now();
 }
 
-function breakBlock() {
+function addCracks(block, n) {
+  const hw = BLOCK_SIZE / 2 * 0.88;
+  for (let i = 0; i < n; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    block.cracks.push({
+      x1: Math.cos(angle) * hw * Math.random() * 0.2,
+      y1: Math.sin(angle) * hw * Math.random() * 0.2,
+      x2: Math.cos(angle) * hw * (0.5 + Math.random() * 0.5),
+      y2: Math.sin(angle) * hw * (0.5 + Math.random() * 0.5),
+    });
+  }
+}
+
+function tapBlock() {
   if (state.phase !== 'block') return;
-  haptic(14);
+  const block = state.block;
+
+  block.lastTapAt = performance.now();
+  block.tapsLeft--;
+
+  if (block.tapsLeft <= 0) {
+    haptic([10, 20, 10]);
+    doBreakBlock();
+  } else {
+    haptic(8);
+    const progress = 1 - block.tapsLeft / block.tapsRequired;
+    addCracks(block, 2 + Math.floor(progress * 3));
+  }
+}
+
+function doBreakBlock() {
+  if (state.phase !== 'block') return;
 
   state.phase = 'shards';
   const now   = performance.now();
@@ -302,6 +344,22 @@ function shardAnim(shard, now) {
     return { x: shard.targetX, y: shard.targetY, scale: lerp(1, 0.2, t), opacity: 1 - t };
   }
 
+  if (shard.phase === 'dragging') {
+    return { x: drag.x, y: drag.y, scale: 1.18, opacity: 1 };
+  }
+
+  if (shard.phase === 'snapping') {
+    const t = clamp01((now - shard.snapStart) / 280);
+    const e = easeOutBack(t);
+    if (t >= 1) shard.phase = 'idle';
+    return {
+      x:       lerp(shard.snapFrom.x, shard.targetX, e),
+      y:       lerp(shard.snapFrom.y, shard.targetY, e),
+      scale:   lerp(1.18, 1, t),
+      opacity: 1,
+    };
+  }
+
   // idle / selected – optional shake
   let shakeX = 0;
   if (shard.shakeStart) {
@@ -370,15 +428,82 @@ function hitTest(x, y, now) {
 // ── Input ─────────────────────────────────────────────────────────────────
 let lastTouchEnd = 0;
 
+function initDrag(coords) {
+  const now = performance.now();
+  const hit = hitTest(coords.x, coords.y, now);
+  if (!hit || hit.type !== 'shard') return;
+
+  const shard = state.shards.find(s => s.id === hit.id);
+  if (!shard || shard.phase === 'sorting') return;
+
+  haptic(8);
+  drag.active  = true;
+  drag.shardId = hit.id;
+  drag.x       = coords.x;
+  drag.y       = coords.y;
+  shard.phase  = 'dragging';
+  state.selected = null;
+}
+
+function updateDrag(coords) {
+  if (!drag.active) return;
+  drag.x = coords.x;
+  drag.y = coords.y;
+}
+
+function endDrag(coords) {
+  if (!drag.active) return;
+  drag.active = false;
+
+  const shard = state.shards.find(s => s.id === drag.shardId);
+  drag.shardId = null;
+  if (!shard) return;
+
+  // Check if dropped on a bin
+  let binIndex = -1;
+  for (let i = 0; i < 3; i++) {
+    const bx = BIN_LEFT + i * (BIN_W + BIN_GAP);
+    if (inRect(coords.x, coords.y, bx, BIN_Y, BIN_W, BIN_H)) { binIndex = i; break; }
+  }
+
+  if (binIndex >= 0) {
+    state.selected = shard.id;
+    trySortShard(binIndex);
+    // trySortShard sets phase='sorting' on success – if still 'dragging', it failed
+  }
+
+  // Snap back if not successfully sorted
+  if (shard.phase === 'dragging') {
+    shard.snapFrom  = { x: drag.x, y: drag.y };
+    shard.snapStart = performance.now();
+    shard.phase     = 'snapping';
+    state.selected  = null;
+  }
+}
+
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  initDrag(canvasCoords(e));
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  updateDrag(canvasCoords(e));
+}, { passive: false });
+
 canvas.addEventListener('touchend', (e) => {
   e.preventDefault();
   lastTouchEnd = Date.now();
-  handleTap(canvasCoords(e));
+  const coords = canvasCoords(e);
+  if (drag.active) { endDrag(coords); } else { handleTap(coords); }
 }, { passive: false });
 
-canvas.addEventListener('click', (e) => {
+canvas.addEventListener('mousedown',  (e) => { initDrag(canvasCoords(e)); });
+canvas.addEventListener('mousemove',  (e) => { updateDrag(canvasCoords(e)); });
+canvas.addEventListener('mouseup',    (e) => {
   if (Date.now() - lastTouchEnd < 500) return;
-  handleTap(canvasCoords(e));
+  const coords = canvasCoords(e);
+  if (drag.active) { endDrag(coords); } else { handleTap(coords); }
 });
 
 function handleTap({ x, y }) {
@@ -386,10 +511,8 @@ function handleTap({ x, y }) {
   const hit = hitTest(x, y, now);
   if (!hit) return;
   switch (hit.type) {
-    case 'lang':  toggleLang();         break;
-    case 'block': breakBlock();         break;
-    case 'shard': selectShard(hit.id);  break;
-    case 'bin':   trySortShard(hit.index); break;
+    case 'lang':  toggleLang(); break;
+    case 'block': tapBlock();   break;
   }
 }
 
@@ -477,22 +600,53 @@ function drawGem(now) {
 function drawBlock(now) {
   if (state.phase !== 'block' || !state.block) return;
 
-  const t  = clamp01((now - blockEnterStart) / 300);
-  const sc = easeOutBack(t);
+  const block = state.block;
+
+  // Enter animation
+  const enterT  = clamp01((now - blockEnterStart) / 300);
+  const enterSc = easeOutBack(enterT);
+
+  // Tap wobble: quick outward punch, then settle
+  const wobbleAge = block.lastTapAt > 0 ? now - block.lastTapAt : Infinity;
+  const wobbleSc  = wobbleAge < 200 ? 1 + Math.sin(clamp01(wobbleAge / 200) * Math.PI) * 0.08 : 1;
+
+  const sc = enterSc * wobbleSc;
   const hw = BLOCK_SIZE / 2 * sc;
   const r  = BLOCK_R * sc;
 
-  ctx.shadowColor = state.block.color.hex;
+  ctx.shadowColor = block.color.hex;
   ctx.shadowBlur  = 24;
-  ctx.fillStyle   = state.block.color.hex;
+  ctx.fillStyle   = block.color.hex;
   ctx.beginPath();
   ctx.roundRect(PLAY_CX - hw, PLAY_CY - hw, hw * 2, hw * 2, r);
   ctx.fill();
-  ctx.shadowBlur  = 0;
+  ctx.shadowBlur = 0;
+
+  // Cracks – clipped to block shape
+  if (block.cracks.length > 0) {
+    const progress = 1 - block.tapsLeft / block.tapsRequired;
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(PLAY_CX - hw, PLAY_CY - hw, hw * 2, hw * 2, r);
+    ctx.clip();
+
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.28)';
+    ctx.lineWidth   = 1.2;
+    ctx.lineCap     = 'round';
+    for (const c of block.cracks) {
+      ctx.beginPath();
+      ctx.moveTo(PLAY_CX + c.x1 * sc, PLAY_CY + c.y1 * sc);
+      ctx.lineTo(PLAY_CX + c.x2 * sc, PLAY_CY + c.y2 * sc);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 }
 
-function drawShards(now) {
+function drawShards(now, dragOnly = false) {
   for (const shard of state.shards) {
+    const isDragged = shard.phase === 'dragging';
+    if (dragOnly !== isDragged) continue;
     const a = shardAnim(shard, now);
     if (a.opacity < 0.01) continue;
 
@@ -500,7 +654,10 @@ function drawShards(now) {
     const pts = shard.poly.map(([nx, ny]) => [a.x + (nx - 0.5) * s, a.y + (ny - 0.5) * s]);
 
     ctx.globalAlpha = a.opacity;
-    if (shard.phase === 'selected') { ctx.shadowColor = shard.color.hex; ctx.shadowBlur = 14; }
+    if (shard.phase === 'selected' || shard.phase === 'dragging' || shard.phase === 'snapping') {
+      ctx.shadowColor = shard.color.hex;
+      ctx.shadowBlur  = shard.phase === 'dragging' ? 22 : 14;
+    }
 
     ctx.fillStyle = shard.color.hex;
     ctx.beginPath();
@@ -566,8 +723,9 @@ function draw(now) {
   drawHeader();
   drawGem(now);
   drawBlock(now);
-  drawShards(now);
+  drawShards(now, false);
   drawBins(now);
+  drawShards(now, true);
 
   requestAnimationFrame(draw);
 }
