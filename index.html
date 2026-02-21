@@ -14,6 +14,11 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
+    html, body {
+      overflow: hidden;
+      height: 100%;
+    }
+
     body {
       background: #0d1117;
       min-height: 100dvh;
@@ -21,7 +26,6 @@
       align-items: center;
       justify-content: center;
       user-select: none;
-      touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
     }
 
@@ -33,6 +37,15 @@
       height: auto;
       aspect-ratio: 430 / 932;
       cursor: pointer;
+      touch-action: none;
+    }
+
+    /* On actual phone: no frame */
+    @media (max-width: 430px) {
+      canvas {
+        border-radius: 0;
+        box-shadow: none;
+      }
     }
   </style>
 </head>
