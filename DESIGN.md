@@ -33,9 +33,9 @@ Drag shard to matching bin
         ↓
 Bins persist across rounds – next block appears immediately
         ↓
-Bin full → crystal flower grows a part
+Enough parts for a flower → building starts automatically in background (20–40s)
         ↓
-Flower complete → new flower begins
+Flower complete → placed on the Wiese (zen screen) with fixed random coords
 ```
 
 ---
@@ -101,7 +101,7 @@ A weighted random draw per piece ensures the right mix over time.
 
 Sorting via **drag & drop** – drag shard directly to bin. Wrong bin: snap back + shake.
 
-### Crystal flower (reward) – not yet built
+### Crystal flower (reward)
 
 Replaces the hexagon gem. Built organically from sorted shapes.
 
@@ -149,9 +149,9 @@ building = [
 done = [ ...flower objects with fixed layout coords ... ]
 ```
 
-**Build time:** `scale * BASE_MS` with a small random range for organic feel. Larger flowers take slightly longer. BASE_MS TBD (likely 20–40s range).
+**Build time:** `BASE_MS * (0.85–1.15)` random range for organic feel. `BASE_MS = 20000ms`.
 
-**Building trigger:** When `flowersReady > 0` and no flower is currently building → consume parts from bins → push to `building`. When `completesAt` passed → move to `done`.
+**Building trigger:** When `flowersReady > 0` → consume parts from bins → push to `building` (max 3 simultaneous). When `completesAt` passed → move to `done`.
 
 **Bin visual – saturation indicator:**
 Bin background fills with color based on how many multiples of the recipe are available. 0 = neutral/dark. 1× = subtle tint. 2× = more opacity. 3×+ = fully saturated. Shows abundance at a glance without numbers.
@@ -159,9 +159,9 @@ Bin background fills with color based on how many multiples of the recipe are av
 **Game screen indicator (top – replaces hex gem):**
 Crystal glows and animates when a flower is currently building. Gray/inactive when `building` is empty. Shows at most a count if multiple are queued.
 
-### Meadow / Zen screen – planned, separate feature
+### Wiese / Zen screen – planned, separate feature
 
-A dedicated start screen – the "zen garden". Shows the full meadow of finished flowers from the `done` array. Also displays the building indicator (same state as game screen, possibly more detail).
+A dedicated start screen – the zen garden. Shows all finished flowers from the `done` array. Also displays the building indicator.
 
 **Layout:**
 - Flowers placed at random fixed `{ x, y, rotation, scale, zIndex }` assigned at creation – they never move after placed
@@ -184,33 +184,27 @@ A dedicated start screen – the "zen garden". Shows the full meadow of finished
 | Multi-tap break (N taps by size) | ✅ |
 | Damage feedback: wobble + rattle + drift + glow | ✅ |
 | Breaks into shards with defined shapes | ✅ |
+| Shape spawn probability weighted by recipe | ✅ |
 | Drag & drop sorting by shape | ✅ |
 | Wrong sort → snap back + shake | ✅ |
-| 4 bins with shape icons | ✅ |
-| Bins persist across rounds | ✅ |
-| Bin full → hexagon gem grows (placeholder) | ✅ |
-| Gem complete → new gem begins | ✅ |
+| 4 bins as color queues (recipe-based capacity) | ✅ |
+| Bin saturation indicator (tint scales with multiples) | ✅ |
+| Building system (queue + done array) | ✅ |
+| Building indicator (glowing ring, replaces hex gem) | ✅ |
 | Haptic feedback (Android) | ✅ |
 | i18n (DE + EN) | ✅ |
 | PWA (installable, offline) | ✅ |
-| Crystal flower | ❌ (next) – recipe + data model defined, sketch done |
-| Bin saturation indicator | ❌ (next) |
-| Building indicator (crystal → game screen) | ❌ (next) |
-| Meadow / Zen screen | ❌ planned, separate feature |
-| Sound | ❌ (out of scope for now) |
+| Crystal flower render | ❌ next |
+| Wiese / Zen screen | ❌ planned, separate feature |
+| Sound | ❌ out of scope for now |
 
 ---
 
 ## Next steps
 
-1. **Bins → color queues** – bins store colored shard objects instead of a count
-2. **Building system** – `flowersReady` calculation, `building` queue, `done` array with cap
-3. **Bin saturation indicator** – background tint scales with multiples of recipe
-4. **Building indicator** – replace hex gem with crystal that glows when a flower is building
-5. **Crystal flower render** – draw the actual flower (for done array + eventually zen screen)
-6. **Meadow / Zen screen** – separate start screen, full meadow, building status *(separate feature)*
-7. **Crack visuals** – damage feedback without lines *(later)*
-8. **Feel tuning** – tap ranges, drift speed, glow intensity, shard sizes *(ongoing)*
+1. **Crystal flower render** – draw the actual flower shape on canvas (for done array + eventually Wiese)
+2. **Wiese / Zen screen** – separate start screen, full meadow of finished flowers *(separate feature)*
+3. **Feel tuning** – tap ranges, drift speed, glow intensity, shard sizes *(ongoing)*
 
 ---
 
@@ -219,12 +213,12 @@ A dedicated start screen – the "zen garden". Shows the full meadow of finished
 - [x] How organic is the flower build? → Fixed structure, curved stem, overlapping petals
 - [x] How many shards fill a bin? → Bin capacity = flower recipe (1/8/1/2)
 - [x] Fixed color per shape vs. per-flower variation? → Per-flower (bins are color queues, cheap, more unique)
-- [x] Meadow on same screen or separate? → Separate zen/start screen
+- [x] Wiese on same screen or separate? → Separate zen/start screen
 - [x] Flower placement → random fixed coords, can go off-screen, random z-order
 - [x] Stem recipe count → 3 (matches 3 visible segments in reference sketch)
-- [ ] Build time BASE_MS – needs a felt value (likely 20–40s, scale * base)
+- [x] Build time BASE_MS → 20s base, ±15% random variance
 - [ ] Max flowers in `done` array – needs playtesting (~20–30 to start)
-- [ ] Crack/damage visuals – how to communicate progress without lines?
+- [x] Crack/damage visuals → solved: wobble + rattle + drift + glow (no lines needed)
 - [ ] Does color → shape tendency add enough to be worth the complexity?
 - [ ] **Shape-to-color mapping:** Each shape gets its own fixed color → block becomes multicolor. Potentially beautiful, more intuitive sorting. Needs a 4th color or one shared. Parked for later.
 
@@ -245,7 +239,7 @@ A dedicated start screen – the "zen garden". Shows the full meadow of finished
 | **Jackpot size (12 shards)** | Rare, worth it. More sorting = more reward. Visible from block size. |
 | **knack! = lab only** | Learnings flow into "Blumen für Mutti", not into feature creep here |
 | **Per-flower color variation** | Bins are color queues → each flower gets the actual shard colors. Unique per player, cheap to store. |
-| **Meadow as separate screen** | Sorting screen stays focused. Zen screen is the reward space + future home for tutorial/settings. |
+| **Wiese as separate screen** | Sorting screen stays focused. Zen screen is the reward space + future home for tutorial/settings. |
 | **Flowers get fixed coords at birth** | Placed once when done, never move. Stable, no layout recalculation. |
 | **Build time = scale × BASE_MS** | Larger flowers feel more earned. Range adds organic feel. |
 | **Spawn probability = recipe ratio** | Supply matches demand. Hearts spawn most (57%) because 8 are needed. No frustrating shortages of common parts. |
