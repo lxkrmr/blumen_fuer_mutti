@@ -90,4 +90,4 @@ The human starts the server. The AI does not run `python3 -m http.server` or sim
 | **i18n** | Language auto-detected via `navigator.language`, toggle button, persisted in `localStorage` |
 | **PWA** | Installable, offline-capable via Service Worker (network-first) |
 | **Phone frame** | Canvas 430×932px, centered, `border-radius: 12px` – see pling as reference |
-| **Colors** | GitHub Dark Colorblind palette – blue/orange, never green/red |
+| **Colors** | GitHub Dark Colorblind palette – blue/orange, never green/red for game feedback/sorting. Green is allowed for decorative plant elements (stems, leaves). |

@@ -222,16 +222,91 @@ Building labels are identical on both screens.
 | PWA (installable, offline) | ✅ |
 | Garden screen (navigation, indicator, mine button) | ✅ |
 | Mine screen (back button, screen switching) | ✅ |
-| Crystal flower render | ❌ next |
-| Garden screen – flower meadow render | ❌ planned |
+| Crystal flower render | ✅ |
+| Garden screen – flower meadow render | 🔄 in progress |
+| Blumen-Farbsystem (Pfingstrose) | ✅ designed, not yet implemented |
+| Garden – Reihen-System mit Perspektive | ❌ next |
+| Garden – Wolkenhimmel als Start | ❌ planned |
+| Garden – Wachstums-Animation | ❌ planned |
 | Sound | ❌ out of scope for now |
 
 ---
 
+## Blumen-Farbsystem
+
+### Pfingstrose
+
+Blütenblätter können **gemischt** sein – jedes der 8 Petals bekommt zufällig eine Farbe aus dem Pool. Das erlaubt zarte, klassische, saturierte und wilde Kombinationen innerhalb derselben Blumenform.
+
+**Fix (kleine Variation erlaubt):**
+
+| Teil | Farbe | Hex |
+|---|---|---|
+| Blatt | Dunkelgrün | `#1e4d2b` (±leichte Variation) |
+| Stiel | Mittelgrün | `#52b788` (±leichte Variation) |
+| Blütenkopf | Gelb/Creme | `#fff176` (±leichte Variation) |
+
+**Blütenblatt-Pool (8 Petals, zufällig gemischt):**
+
+| Ton | Hex |
+|---|---|
+| Sehr hell | `#fce4ec` |
+| Hell | `#f8bbd9` |
+| Rosa | `#f48fb1` |
+| Mittel | `#f06292` |
+| Kräftig | `#e91e8c` |
+| Dunkel | `#c2185b` |
+| Sehr dunkel | `#880e4f` |
+
+**Technisch:** `parts.heart` ist bereits ein Array mit 8 einzelnen Farbwerten → jedes Blütenblatt kann individuell gefärbt werden. Beim Erstellen der Blume wird pro Petal zufällig aus dem Pool gewählt.
+
+---
+
+## Garden – Vision & Layout
+
+### Perspektive
+
+Wir sind nah am Feld und schauen hinein – nicht von außen drauf. Die Blumen füllen den gesamten Screen. Vorne riesig, hinten klein. Blumen dürfen über alle Kanten rausgehen (angeschnitten ist gewollt). Der dunkle Hintergrund schaut oben zwischen den Blumen durch – wie Himmel.
+
+**Referenz:** Sonnenblumenfeld-Wallpaper, Close-up-Perspektive.
+
+### Startbildschirm – Wolkenhimmel
+
+Beim ersten Start: leerer Himmel. Ein Gradient oben (dunkel → blaugrau), ein paar Wolken. Stille.
+
+Mit jeder verdienten Blume wächst eine neue von unten ins Bild. Je mehr Blumen, desto mehr verdecken sie den Himmel. Am Ende: fast nur noch Blumenfeld.
+
+**Emotionale Logik:** Nichts → etwas → viel. Fortschritt ist buchstäblich sichtbar.
+
+### Wachstums-Animation
+
+Wenn eine neue Blume fertig ist, wächst sie von unten in den Frame – Stiel zuerst, dann Blüte. Eigenes Feature, nach dem Reihen-System umzusetzen.
+
+### Reihen-System
+
+- Koordinatenursprung Blume = Stieluntergrund (wächst nach oben)
+- Reihen von vorne nach hinten: vorne große y-Werte (unten im Screen), hinten kleine y-Werte (oben)
+- Jede Reihe: eigene scale-Range (vorne größer, hinten kleiner)
+- Blumen pro Reihe: zufällig verteilt, dürfen überlappen und angeschnitten werden
+- Erste Blume hat keinen Sonderplatz – wächst einfach als erste in der Vorderreihe
+- Hintere Reihen: opacity leicht reduziert (Tiefenwirkung)
+- zIndex ergibt sich aus der Reihe (vorne = höher)
+
+| Element | Wert (vorläufig) |
+|---|---|
+| Koordinatenursprung | Stieluntergrund |
+| Vorderreihe y | ~780–850 |
+| Hinterste Reihe y | ~300–400 |
+| Scale vorne | 1.8–2.5 |
+| Scale hinten | 0.3–0.6 |
+
 ## Next steps
 
-1. **Crystal flower render** – draw the actual flower shape on canvas
-2. **Garden meadow** – render finished flowers from `done` array on Garden screen
+1. **Reihen-System** – Garden mit Perspektive-Reihen, Blumen wachsen von vorne nach hinten auf
+2. **Pfingstrose-Farben** – Farbsystem in die Blumen-Generierung einbauen
+3. **Wolkenhimmel** – Startbildschirm mit Gradient + Wolken, wird von Blumen verdrängt
+4. **Wachstums-Animation** – neue Blume wächst von unten ins Bild
+5. **Feel tuning** – laufend
 3. **Feel tuning** – tap ranges, drift speed, glow intensity, shard sizes *(ongoing)*
 
 ---
