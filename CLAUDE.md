@@ -71,10 +71,11 @@ The human starts the server. The AI does not run `python3 -m http.server` or sim
 
 1. **Plan** → DESIGN.md first. No code without explicit go-ahead.
 2. **Implement** → write the code.
-3. **Clean up** → update DESIGN.md, mark done items, remove stale notes, refactor if needed.
-4. **Learnings** → anything worth adding to the skill for future projects?
-5. **Agent rules** → any new rules discovered that should go into CLAUDE.md or the skill?
-6. **Brain dump** *(optional)* → anything worth capturing in `../braind_dump/`?
+3. **Review** → human reviews technically and functionally (Fachabnahme). Wait for feedback before proceeding.
+4. **Clean up** → update DESIGN.md, mark done items, remove stale notes, refactor if needed.
+5. **Learnings** → anything worth adding to the skill for future projects?
+6. **Agent rules** → any new rules discovered that should go into CLAUDE.md or the skill?
+7. **Brain dump** *(optional)* → anything worth capturing in `../braind_dump/`?
 
 ### Iteration
 - Small steps, each committable independently
