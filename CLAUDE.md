@@ -53,7 +53,10 @@ The human starts the server. The AI does not run `python3 -m http.server` or sim
 ### AI behavior
 - **Questions get answers** – if the human asks a question, answer it. Don't just start doing things.
 - **Dialogue over assumptions** – if something doesn't make sense, ask. Don't silently interpret and execute.
+- **Human navigates** – never prompt "ready for X?" or push the next step. After finishing, say "Ich bin bereit – Nächstes in DESIGN.md: [item]" and wait.
 - **Plan before code** – design decisions go into DESIGN.md first. Only write code after the human explicitly says to build it.
+- **Clean up before starting** – before every new feature: check if DESIGN.md is current, mark done items, remove stale notes.
+- **Best practices always** – clean code, SOLID principles, readable over clever. No shortcuts.
 - **Keep DESIGN.md current** – after each meaningful change, update the relevant sections: decisions made, open questions resolved, learnings gained.
 - **No system-specific content** – avoid absolute paths, usernames, or local IPs in any file that may be shared (CLAUDE.md, DESIGN.md, README.md, source files).
 
@@ -62,6 +65,15 @@ The human starts the server. The AI does not run `python3 -m http.server` or sim
 - **Human drives the browser** – the human clicks/plays until a good moment, then says something like "anschauen" or "screenshot". Only then take one.
 - **One shot** – take a single screenshot, show it, discuss. No loops.
 - **Setup** – browser-tools is installed (`node_modules` present). Chrome may need to be started: `node ~/.pi/agent/skills/pi-skills/browser-tools/browser-start.js`
+
+### Workflow – always in this order
+
+1. **Plan** → DESIGN.md first. No code without explicit go-ahead.
+2. **Implement** → write the code.
+3. **Clean up** → update DESIGN.md, mark done items, remove stale notes, refactor if needed.
+4. **Learnings** → anything worth adding to the skill for future projects?
+5. **Agent rules** → any new rules discovered that should go into CLAUDE.md or the skill?
+6. **Brain dump** *(optional)* → anything worth capturing in `../braind_dump/`?
 
 ### Iteration
 - Small steps, each committable independently
