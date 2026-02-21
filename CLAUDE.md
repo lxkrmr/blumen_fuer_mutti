@@ -1,4 +1,4 @@
-# knack! – AI Rules
+# Blumen für Mutti – AI Rules
 
 Rules and context for the AI agent working on this project.
 
@@ -9,9 +9,11 @@ Rules and context for the AI agent working on this project.
 
 ## Project
 
-A fidget game and prototype lab. Tap a block repeatedly until it breaks into shards. Sort them by shape into bins. Watch a crystal flower grow.
+**Blumen für Mutti** (Logo: B♥M) – A fidget sorting game. Harry the cat wants to build Klemmbaustein flowers for his Mutti, but he has no thumbs. The player opens the bags and sorts the parts. Harry builds the flowers and ties bouquets. Mutti sends hearts.
 
-knack! is the lab for the next game ("Blumen für Mutti"). We learn here what feels good before building the real thing.
+Tap a bag open, sort parts by shape into bins. Harry builds flowers in the background. 10 flowers = 1 bouquet = 1 ♥ from Mutti.
+
+*Evolved from knack! (Feb 2026), which served as the prototype lab for this game.*
 
 **Started:** February 20, 2026
 

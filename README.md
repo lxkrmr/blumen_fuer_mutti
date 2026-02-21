@@ -1,17 +1,17 @@
-# knack!
+# B♥M – Blumen für Mutti
 
-A fidget game. Tap a colorful block – it breaks into shards. Sort the shards by color. Watch a gem grow.
+Harry the cat wants to build Klemmbaustein flowers for his Mutti. But he's a cat – no thumbs. He can't open the bags, and sorting the parts drives him crazy.
 
-**Inspiration:** Satisfying stone-breaking videos. The good part of mobile sorting games – without the dark patterns.
+That's where you come in. Open the bags. Sort the parts. Harry builds the flowers. Mutti gets bouquets. 🐱
 
 ## Try it
 
-**Online:** https://lxkrmr.github.io/knack
+**Online:** https://lxkrmr.github.io/blumen_fuer_mutti
 
 **Locally:**
 ```bash
-git clone https://github.com/lxkrmr/knack.git
-cd knack
+git clone https://github.com/lxkrmr/blumen_fuer_mutti.git
+cd blumen_fuer_mutti
 python3 -m http.server 8080
 # open http://localhost:8080
 ```
@@ -25,12 +25,12 @@ python3 -m http.server 8080
 
 ## Status
 
-🔬 Prototype – not finished, not polished.
+🔬 Prototype – in active development.
 
 ## Philosophy
 
 No dark patterns. No ads. No tracking. No stress.  
-Tap things. Sort things. Watch something grow.
+Open bags. Sort parts. Watch flowers grow.
 
 ## Design
 

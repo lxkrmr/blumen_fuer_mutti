@@ -1,7 +1,7 @@
 {
-  "name": "knack!",
-  "short_name": "knack!",
-  "description": "Tap. Break. Sort. A fidget game.",
+  "name": "Blumen für Mutti",
+  "short_name": "B♥M",
+  "description": "Open bags. Sort parts. Harry builds flowers for Mutti.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>knack!</title>
+  <title>Blumen für Mutti</title>
   <link rel="icon" href="icon.svg">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d1117">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="knack!">
+  <meta name="apple-mobile-web-app-title" content="B♥M">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -95,7 +95,7 @@ const STRINGS = {
   },
 };
 
-let lang = localStorage.getItem('knack-lang') ||
+let lang = localStorage.getItem('bfm-lang') ||
   (navigator.language.startsWith('de') ? 'de' : 'en');
 
 function t(key, ...args) {
@@ -704,7 +704,7 @@ function handleTap({ x, y }) {
 
 function toggleLang() {
   lang = lang === 'de' ? 'en' : 'de';
-  localStorage.setItem('knack-lang', lang);
+  localStorage.setItem('bfm-lang', lang);
 }
 
 // ── Flower draw ───────────────────────────────────────────────────────────
@@ -1124,7 +1124,7 @@ function draw(now) {
 }
 
 // ── Persistence ───────────────────────────────────────────────────────────
-const SAVE_KEY = 'knack-save';
+const SAVE_KEY = 'bfm-save';
 
 function saveState() {
   const saveData = {

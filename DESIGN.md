@@ -1,19 +1,34 @@
-# knack! – Design
+# Blumen für Mutti – Design
 
 Game idea, design decisions, and learnings. Living document – updated as the project evolves.
 
 → See also: [CLAUDE.md](CLAUDE.md) (AI rules) · [README](README.md) (public)
-→ knack! is the lab for: [../braind_dump/blumen-fuer-mutti.md](../braind_dump/blumen-fuer-mutti.md)
+
+---
+
+## Branding
+
+| | |
+|---|---|
+| **Full name** | Blumen für Mutti |
+| **Logo** | B♥M |
+| **Short** | BfM |
+
+---
+
+## Backstory
+
+Harry the cat knows his Mutti loves flowers made from building bricks. He can build them – somehow, only he knows how. **But** he's a cat, and as everyone knows, cats have no thumbs. So he can't open those stupid bags with the parts, and sorting them drives him crazy.
+
+That's where the player comes in. **Our job:** open the bags, sort the parts. Harry builds the flowers and ties them into bouquets. Mutti gets flowers. Everyone's happy. 🐱
 
 ---
 
 ## Idea
 
-A fidget game. A block appears – tap it until it breaks into shards. Sort the shards by **shape** into bins. Bins fill up, a crystal flower grows.
+A fidget game. A bag of parts appears – tap it open, sort the pieces by shape into bins. Harry builds Klemmbaustein flowers from the sorted parts. Flowers accumulate into a bouquet. Finish a bouquet → Mutti sends a heart.
 
-knack! is a prototype lab. We learn here what feels good – mechanics, animations, haptics, visual language – before building the actual game ("Blumen für Mutti").
-
-**Inspiration:** Satisfying stone-breaking videos (TikTok/YouTube). Montessori shape sorters. The good part of mobile sorting games – without the dark patterns.
+**Inspiration:** Satisfying sorting videos (TikTok/YouTube). Montessori shape sorters. The good part of mobile sorting games – without the dark patterns.
 
 **Core question:** Does it feel good? Is sorting satisfying enough to be a podcast companion?
 
@@ -22,20 +37,22 @@ knack! is a prototype lab. We learn here what feels good – mechanics, animatio
 ## Core loop
 
 ```
-Block appears (size = hardness + yield, color = follows shape / Pfingstrose palette)
+Bag appears (size = how many parts inside)
         ↓
-Tap repeatedly until it breaks
-(block rattles, rotates, pieces drift apart, glow intensifies)
+Tap repeatedly until it opens
+(bag rattles, rotates, pieces drift apart, glow intensifies)
         ↓
-Shards fly out – each has a SHAPE (circle, heart, stem, leaf) and matching color
+Parts fly out – each has a SHAPE (circle, heart, stem, leaf) and matching color
         ↓
-Drag shard to matching bin
+Drag part to matching bin
         ↓
-Bins persist across rounds – next block appears immediately
+Bins persist across rounds – next bag appears immediately
         ↓
-Enough parts for a flower → building starts automatically in background (20–40s)
+Enough parts for a flower → Harry starts building (20–40s in background)
         ↓
-Flower complete → placed on the Garden with fixed random coords
+Flower complete → added to bouquet (visible in indicator circle)
+        ↓
+Bouquet reaches 10 flowers → Mutti sends a heart (+1 ♥) → bouquet resets
 ```
 
 ---
@@ -46,20 +63,22 @@ Flower complete → placed on the Garden with fixed random coords
 - **No reset between rounds** – bins stay filled, game flows continuously
 - **Fidget-first** – low cognitive load, podcast-compatible
 - **Haptic + visual feedback** – combined on Android, visual only on iOS/desktop
-- **Discover, don't explain** – no tutorial needed
+- **Discover, don't explain** – no tutorial needed (Harry explains later)
 
 ---
 
 ## Mechanics
 
-### Blocks
+### Bags (formerly: blocks)
 
-The block is not a rectangle – it's a **cluster of its own pieces**, overlapping and merged into an organic shape. The player can already see what shapes are inside before breaking – including their colors.
+The bag is not a rectangle – it's a **cluster of its own pieces**, overlapping and merged into an organic shape. The player can already see what shapes are inside before opening – including their colors.
+
+Visually: a bag silhouette over the piece-cluster (future visual detail – mechanics unchanged).
 
 | Property | Meaning |
 |---|---|
-| **Size** | Hardness + yield – bigger = more taps + more shards |
-| **Color** | Follows shape – each shape has its Pfingstrose color (see below) |
+| **Size** | How many parts inside – bigger = more taps + more shards |
+| **Color** | Follows shape – each shape has its Pfingstrose color |
 
 **Sizes:**
 | Size | Taps | Shards | Feel |
@@ -69,13 +88,13 @@ The block is not a rectangle – it's a **cluster of its own pieces**, overlappi
 | large | 4–7 | 7 | satisfying |
 | jackpot | 7–12 | 12 | rare, worth it |
 
-**Damage feedback (no cracks – replaced by feel):**
+**Damage feedback:**
 - **Wobble** – scale punch on each tap
-- **Rattle** – block rotates slightly, accumulates (never springs back – like hitting a stone)
-- **Drift** – pieces slowly spread apart, block "comes undone"
-- **Glow** – starts after first tap, pulses faster as damage increases. Crisp shapes, glow is a separate halo pass.
+- **Rattle** – rotates slightly, accumulates (never springs back)
+- **Drift** – pieces slowly spread apart
+- **Glow** – starts after first tap, pulses faster as damage increases
 
-### Shards / Shapes
+### Parts / Shapes
 
 Sorting is by **shape**. Color follows shape – the same shape always has the same color family, making sorting intuitive. 4 shapes, each has its own bin.
 
@@ -95,15 +114,7 @@ Sorting is by **shape**. Color follows shape – the same shape always has the s
 | Stem | 3 / 14 | 21.4% |
 | Leaf | 2 / 14 | 14.3% |
 
-A weighted random draw per piece ensures the right mix over time.
-
-Sorting via **drag & drop** – drag shard directly to bin. Wrong bin: snap back + shake.
-
-### Crystal flower (reward)
-
-Built organically from sorted shapes.
-
-![Flower reference sketch](flower-reference.png)
+### Flower (built by Harry)
 
 **Recipe – one complete flower:**
 
@@ -116,8 +127,6 @@ Built organically from sorted shapes.
 
 Total: **14 parts** per flower.
 
-The stem curves gently (not straight up). The right leaf sits slightly behind the stem, lower than the left.
-
 **Pfingstrose color system:**
 
 | Part | Color |
@@ -127,63 +136,66 @@ The stem curves gently (not straight up). The right leaf sits slightly behind th
 | Stem segments (3) | Mittelgrün `#52b788` ±variation |
 | Leaves (2) | Dunkelgrün `#1e4d2b` ±variation |
 
-Colors are assigned fresh per flower via `shapeToColor()`. Every flower is unique (petal mix).
+**Build time:** `BASE_MS * (0.85–1.15)` random range. `BASE_MS = 20000ms`.
 
-**Data model:**
+### Bouquet & Heart counter
+
+Finished flowers accumulate in the **indicator circle** as a bouquet:
+
+- All flowers share a common **anchor point** – shifted ~1/3 up the stem (the "hand holding the bouquet")
+- Each flower fans out with a slight rotation (−25° to +25°, evenly distributed)
+- Newest flower always on top (highest zIndex)
+- **Max 10 flowers** per bouquet
+
+When the bouquet reaches **10 flowers:**
+1. Mutti sends a heart → **+1 ♥**
+2. Bouquet resets (flowers cleared)
+3. Harry starts fresh with flower 1
+
+**Heart counter display:** Small ♥ with number, shown inside or directly below the indicator circle.
+
+### Indicator circle
+
+The single indicator at the top of the Mine screen. Larger than the original small ring.
+
+- **Glows / pulses** when a flower is currently building (`building` queue not empty)
+- **Contains the bouquet** – flowers rendered inside
+- **Shows heart counter** – ♥ N below or inside
+
+### Data model
+
 ```javascript
-// Bins: queues of consumed shards (colors stored but not used for flower rendering)
+// Bins: queues of consumed parts (colors stored)
 bins = {
   circle: [{ color: '...' }],
-  heart:  [{ color: '...' }, ...],  // up to N*8
+  heart:  [{ color: '...' }, ...],
   stem:   [{ color: '...' }],
   leaf:   [{ color: '...' }, { color: '...' }],
 }
 
-// How many complete flowers can currently be built?
-flowersReady = Math.min(
-  bins.circle.length,
-  Math.floor(bins.heart.length / 8),
-  Math.floor(bins.stem.length / 3),
-  Math.floor(bins.leaf.length / 2)
-)
-
-// Building queue – flowers currently growing (no timestamps, just parts)
+// Building queue – flowers currently growing
 building = [
   { id, parts: { circle, heart[], stem[], leaf[] } },
 ]
 
-// Done – completed flowers, placed in the Garden
-done = [ ...flower objects with fixed layout coords ... ]
+// Bouquet – finished flowers, up to 10
+bouquet = [ ...flower objects (max 10) ]
+
+// Hearts earned from completed bouquets
+hearts = 0
 ```
 
-**Build time:** `BASE_MS * (0.85–1.15)` random range for organic feel. `BASE_MS = 20000ms`.
+**Bouquet trigger:** When flower completes → push to `bouquet`. If `bouquet.length >= 10` → hearts++ → bouquet = [].
 
-**Building trigger:** When `flowersReady > 0` → consume shards from bins → push to `building` (max 3 simultaneous). When `completesAt` passed → move to `done`.
+### Screen
 
-**Bin visual – saturation indicator:**
-Bin background fills with color based on how many multiples of the recipe are available. 0 = neutral/dark. 1× = subtle tint. 2× = more opacity. 3×+ = fully saturated. Shows abundance at a glance without numbers.
+**One screen only: the Mine.**
 
-**Game screen indicator (top):**
-Ring glows and animates when a flower is currently building. Gray/inactive when `building` is empty.
-
-### Screens
-
-| Screen | Name | Description |
-|---|---|---|
-| Start / Zen | **Garden** | Meadow of finished flowers, building indicator, button to Mine |
-| Game | **Mine** | Break blocks, sort shards into bins, building indicator (compact) |
-
-Navigation: Garden → Mine via button. Mine → Garden via back button.
-
-### Garden screen
-
-Start screen. Shows all finished flowers from the `done` array.
-
-**Navigation:**
-- Garden → Mine: button at bottom
-- Mine → Garden: back button top left
-
-**Future home for:** tutorial, settings, other screens.
+| Area | Content |
+|---|---|
+| Top | Indicator circle (bouquet + glow + heart counter) |
+| Middle | Current bag / piece cluster |
+| Bottom | 4 bins |
 
 ---
 
@@ -191,11 +203,11 @@ Start screen. Shows all finished flowers from the `done` array.
 
 | What | Status |
 |---|---|
-| Block appears (size = hardness + yield) | ✅ |
-| Block is a cluster of its pieces (organic shape) | ✅ |
-| Multi-tap break (N taps by size) | ✅ |
+| Bag appears (size = hardness + yield) | ✅ (visual: still looks like block cluster) |
+| Bag is a cluster of its pieces (organic shape) | ✅ |
+| Multi-tap open (N taps by size) | ✅ |
 | Damage feedback: wobble + rattle + drift + glow | ✅ |
-| Breaks into shards with defined shapes | ✅ |
+| Opens into parts with defined shapes | ✅ |
 | Shape spawn probability weighted by recipe | ✅ |
 | Drag & drop sorting by shape | ✅ |
 | Wrong sort → snap back + shake | ✅ |
@@ -207,39 +219,65 @@ Start screen. Shows all finished flowers from the `done` array.
 | i18n (DE + EN) | ✅ |
 | PWA (installable, offline) | ✅ |
 | State persistence (localStorage) | ✅ |
-| Garden screen (navigation, indicator, mine button) | ✅ |
-| Mine screen (back button, screen switching) | ✅ |
-| Crystal flower render | ✅ |
-| Garden screen – flower meadow render | ✅ |
+| Flower render | ✅ |
 | Blumen-Farbsystem (Pfingstrose) | ✅ |
-| Shape-to-color mapping (Block mehrfarbig) | ✅ |
-| Garden – Reihen-System mit Perspektive | ✅ |
-| Garden – Wolkenhimmel als Start | ✅ (Feinschliff offen) |
-| Garden – Wachstums-Animation | ❌ future |
-| Sound | ❌ out of scope for now |
+| Shape-to-color mapping | ✅ |
+| Garden screen | ❌ removed |
+| Bouquet-in-circle (indicator redesign) | ❌ next |
+| Heart counter (bouquet complete → ♥ +1) | ❌ next |
+| Bag visual (silhouette over cluster) | ❌ future |
+| Harry (tutorial character) | ❌ future |
 
 ---
 
-## Next steps (future / when ready)
+## Next steps
 
-- **Wolkenhimmel Feinschliff** – sieht noch komisch aus, braucht Überarbeitung
-- **Wachstums-Animation** – neue Blume wächst von unten ins Bild (Stiel zuerst, dann Blüte)
-- **Feel tuning** – tap ranges, drift speed, glow intensity, shard sizes *(ongoing)*
-- **Max flowers** – DONE_MAX = 30 braucht playtesting
+1. **Rename & rebrand** – folder, repo, HTML title, manifest, CLAUDE.md → "Blumen für Mutti / BfM"
+2. **Garden raus** – Garden-Screen-Code, Screen-Switching, Cloud/Row-Logic entfernen
+3. **Indikator redesign** – Kreis größer, Strauß darin, Herz-Counter
+4. **Bouquet-Loop** – 10 Blumen → ♥ +1 → reset
 
 ---
 
 ## Open questions
 
-- [x] How organic is the flower build? → Fixed structure, curved stem, overlapping petals
-- [x] How many shards fill a bin? → Bin capacity = flower recipe (1/8/3/2)
-- [x] Shape-to-color: fixed per shape or random? → Fixed per shape (Pfingstrose palette). Color = intuitive sorting hint.
-- [x] Garden screen separate from Mine? → Yes. Garden = start screen, Mine = game screen.
-- [x] Flower placement → row-based perspective system (5 rows, front→back)
-- [x] Stem recipe count → 3 (matches 3 visible segments in reference sketch)
-- [x] Build time BASE_MS → 20s base, ±15% random variance
-- [x] Crack/damage visuals → solved: wobble + rattle + drift + glow (no lines needed)
-- [ ] Max flowers in `done` array – needs playtesting (DONE_MAX = 30 to start)
+- [ ] Exact size of indicator circle (px)
+- [ ] Harry reactions to completed bouquets (future)
+- [ ] Bag visual (silhouette, future)
+- [ ] Max hearts display (just a number for now)
+
+---
+
+## Design decisions
+
+| Decision | Rationale |
+|---|---|
+| **Sort by shape, not color** | Shape = sorting key. Color = visual hint. No extra cognitive load. |
+| **Size = hardness + yield** | Bigger bag = more taps + more parts. Natural, physical feel. |
+| **Color follows shape (Pfingstrose)** | Farbe verrät Form schon in der Tüte. Konsistentes Bild von Tüte über Teil bis Blume. |
+| **Bag is a cluster of its pieces** | Player sees what's inside before opening. Visual language is consistent. |
+| **Drag & drop, not tap-select-tap** | More intuitive, direct manipulation |
+| **No tap counter shown** | Player feels the bag through wobble/drift/glow – more tactile |
+| **Rattle accumulates (no spring-back)** | Feels physical – like shaking a real bag |
+| **Glow as two-pass render** | Pass 1: shadowBlur for halo. Pass 2: sharp shapes on top. Crisp edges + glow. |
+| **One screen only (Mine)** | Garden felt useless – sorting takes long enough that players rarely switched. Bouquet-in-circle keeps reward visible without context switch. |
+| **Bouquet in indicator circle** | Reward visible at all times. Common anchor + rotation = natural bouquet shape. |
+| **Bouquet reset at 10 → heart** | Cleaner loop than a growing-forever done-array. Hearts are the persistent score. |
+| **B♥M logo** | Short, warm, the heart doubles as game symbol and reward icon. |
+| **Flowers get fixed rotation at birth** | Assigned when flower completes, never recalculated. Stable bouquet layout. |
+| **Build time ±15% variance** | Organic feel. No two flowers take exactly the same time. |
+| **Spawn probability = recipe ratio** | Supply matches demand. Hearts spawn most (57%) because 8 are needed. |
+| **Persist `building` queue** | Shards are consumed when a build starts. Timers restarted on load without timestamps. |
+
+---
+
+## Values
+
+- **No dark patterns** – no manipulation, no fake urgency
+- **Honest** – what you see is what you get
+- **Simple** – as little as possible, as much as needed
+- **Joyful** – if it's not fun, why bother?
+- **Accessible** – colorblind-safe palette; before release: respect `prefers-reduced-motion`
 
 ---
 
@@ -267,97 +305,25 @@ Start screen. Shows all finished flowers from the `done` array.
 
 ---
 
-## Garden – Vision & Layout
-
-### Perspektive
-
-Wir sind nah am Feld und schauen hinein – nicht von außen drauf. Die Blumen füllen den gesamten Screen. Vorne riesig, hinten klein. Blumen dürfen über alle Kanten rausgehen (angeschnitten ist gewollt). Der dunkle Hintergrund schaut oben zwischen den Blumen durch – wie Himmel.
-
-### Wolkenhimmel
-
-**Gradient:**
-- Oben (Zenith): `#0a0817` – fast schwarz, leichter Lila-Stich
-- Unten (Horizont): `#2a1854` – warmes Sommerabend-Lila
-
-**Wolken:** 5 Puffs, je 3–4 überlappende Kreise, weiß bei ~0.055 Opacity, feste hardcoded Positionen, obere 55% des Screens. Keine Animation. Braucht noch Feinschliff.
-
-**Blenden:** Keine extra Logik. Blumen wachsen davor, verdecken den Himmel natürlich.
-
-### Reihen-System
-
-Koordinatenursprung Blume = Stieluntergrund. 5 Reihen von vorne nach hinten:
-
-| Reihe | y-Range | Scale | Opacity |
-|---|---|---|---|
-| 0 (vorne) | 830–870 | 2.0–2.5 | 1.00 |
-| 1 | 710–750 | 1.4–1.8 | 0.95 |
-| 2 | 590–630 | 1.0–1.3 | 0.88 |
-| 3 | 470–510 | 0.6–0.9 | 0.80 |
-| 4 (hinten) | 340–380 | 0.3–0.55 | 0.70 |
-
-x: −60 bis 490 (Blumen dürfen angeschnitten werden). zIndex = Reihe + 0–0.5 random.
-
-### Wachstums-Animation (future)
-
-Wenn eine neue Blume fertig ist, wächst sie von unten in den Frame – Stiel zuerst, dann Blüte.
-
----
-
-## Design decisions
-
-| Decision | Rationale |
-|---|---|
-| **Sort by shape, not color** | Shape = sorting key. Color = visual hint. No extra cognitive load. |
-| **Size = hardness + yield** | Bigger block = more taps + more shards. Natural, physical feel. |
-| **Color follows shape (Pfingstrose)** | Farbe verrät Form schon im Block. Konsistentes Bild von Block über Scherbe bis Blume. |
-| **Block is a cluster of its pieces** | Player sees what's inside before breaking. Visual language is consistent. |
-| **Drag & drop, not tap-select-tap** | More intuitive, direct manipulation |
-| **No tap counter shown** | Player feels the block through wobble/drift/glow – more tactile |
-| **Rattle accumulates (no spring-back)** | Stone rolls when hit – doesn't bounce back. More physical. |
-| **Glow as two-pass render** | Pass 1: shadowBlur for halo. Pass 2: sharp shapes on top. Crisp edges + glow. |
-| **Per-piece glow color** | Each piece glows in its own shape-color. Multi-color halo = more alive. |
-| **Jackpot size (12 shards)** | Rare, worth it. More sorting = more reward. Visible from block size. |
-| **knack! = lab only** | Learnings flow into "Blumen für Mutti", not into feature creep here |
-| **Garden + Mine as two screens** | Mine stays focused on breaking/sorting. Garden is the reward space. |
-| **Flowers get fixed coords at birth** | Placed once when done, never move. Stable, no layout recalculation. |
-| **Build time ±15% variance** | Organic feel. No two flowers take exactly the same time. |
-| **Spawn probability = recipe ratio** | Supply matches demand. Hearts spawn most (57%) because 8 are needed. No frustrating shortages. |
-| **Row-based perspective** | 5 Reihen von vorne (groß) nach hinten (klein). Tiefenwirkung ohne 3D. |
-| **Persist `building` queue** | Shards are consumed when a build starts. To avoid losing this work on reload, the `building` queue is persisted (without timestamps) and timers are restarted on load. |
-
----
-
-## Values
-
-- **No dark patterns** – no manipulation, no fake urgency
-- **Honest** – what you see is what you get
-- **Simple** – as little as possible, as much as needed
-- **Joyful** – if it's not fun, why bother?
-- **Accessible** – colorblind-safe palette; before release: respect `prefers-reduced-motion`
-
----
-
 ## Learnings
 
-- *Feb 20:* Prototype v1 built. Core loop works. Color sorting functional. Hexagon gem functional.
+- *Feb 20:* Prototype v1 (knack!) built. Core loop works. Color sorting functional. Hexagon gem functional.
 - *Feb 21:* New direction: shape sorting, crystal flower, knack! as lab for "Blumen für Mutti".
 - *Feb 21:* Hardness moved from color to size – feels more natural. Color is purely aesthetic.
 - *Feb 21:* Block as piece-cluster: more interesting than a rectangle, communicates content visually.
 - *Feb 21:* Drag & drop replaces tap-select-tap. Much more intuitive, immediately obvious.
-- *Feb 21:* Crack lines removed – all attempts looked bad (asterisk pattern, straight lines). Replaced by wobble + rattle + drift + glow.
-- *Feb 21:* Glow without sound/vibration feels noticeably gentler. Haptic + sound amplify visual feedback significantly – visuals alone carry more weight on silent devices.
-- *Feb 21:* Two-pass glow render (blur pass + sharp pass) solves the "blurry shapes" problem. Halo outside, crisp fill inside.
-- *Feb 21:* Crystal flower recipe settled: 1 Circle (center), 8 Hearts (overlapping petals), 3 Stem segments, 2 Leaves = 14 parts total.
-- *Feb 21:* Full system design: bins as queues, building queue, done array with cap, meadow as separate zen/start screen. Fixed coords at flower birth = stable meadow layout.
-- *Feb 21:* Garden + Mine screens implemented. Screen switching via state variable. Indicator shared, labels context-aware. Drag only active in Mine. Idle label on Garden invites action, not shows status.
-- *Feb 21:* `ctx.beginPath()` vor jeder Shape-Path zwingend – fehlt es, akkumulieren sich alle Pfade und der letzte `fill()` übermalt alles mit einer Farbe. Klassischer Canvas-Bug.
+- *Feb 21:* Crack lines removed – all attempts looked bad. Replaced by wobble + rattle + drift + glow.
+- *Feb 21:* Glow without sound/vibration feels noticeably gentler. Haptic + sound amplify visual feedback significantly.
+- *Feb 21:* Two-pass glow render (blur pass + sharp pass) solves the "blurry shapes" problem.
+- *Feb 21:* Crystal flower recipe settled: 1 Circle, 8 Hearts, 3 Stem, 2 Leaf = 14 parts total.
+- *Feb 21:* Full system design: bins as queues, building queue, bouquet array, hearts as score.
+- *Feb 21:* `ctx.beginPath()` vor jeder Shape-Path zwingend – fehlt es, akkumulieren sich alle Pfade.
 - *Feb 21:* Canvas-Rotation: y zeigt nach unten → Blatt-Rotation war spiegelverkehrt.
-- *Feb 21:* Stiel als `lineTo`-Segmente statt rotierter Rounded-Rects → garantiert verbunden, per-Segment-Farbe, sauberer Look.
-- *Feb 21:* Flower-Ursprung am Stieluntergrund (`ctx.translate(0, -58)`) macht Row-Placement trivial: y = Bodenlinie, Blume wächst nach oben.
-- *Feb 21:* Opaker Basiskreis vor den Petals verhindert Durchscheinen von Hintergrundblumen durch Petal-Lücken.
-- *Feb 21:* Reihen-System: 5 Reihen mit scale + opacity von vorne nach hinten. zIndex = Reihen-Index + random → Tiefensortierung automatisch. x mit ±60px Bleed über Screenrand.
-- *Feb 21:* Wolkenhimmel: Gradient `#0a0817` → `#2a1854` (Sommerabend-Lila). Wolken als statische Puff-Cluster. Keine Blende-Logik nötig – Blumen verdecken den Himmel natürlich.
-- *Feb 21:* Shape-to-color: Farbe folgt Form (Pfingstrose-Palette). Block mehrfarbig – man sieht schon vor dem Brechen was drin ist. Konsistentes Bild von Block bis Blume.
-- *Feb 21:* `shapeToColor()` als zentrales System: eine Funktion für Blocks, Scherben und Blumen. Kein Duplikat-Code. Fallbacks in `drawFlower` ebenfalls auf Pfingstrose-Farben gesetzt.
-- *Feb 21:* Dead code konsequent entfernen: `COLORS`-Array, `selectShard()` (tap-select war durch drag-only ersetzt), doppelte Farbzuweisung in `startBuildingFlower()`.
-- *Feb 21:* Persistence via localStorage (`bins`, `building`, `done`) implemented. The `building` queue is stored without timestamps; a simple `setTimeout` is started on load if the queue is not empty. This makes the state robust against reloads during the build process without complex timestamp management.
+- *Feb 21:* Stiel als `lineTo`-Segmente statt rotierter Rounded-Rects → garantiert verbunden.
+- *Feb 21:* Flower-Ursprung am Stieluntergrund macht Row-Placement trivial.
+- *Feb 21:* Opaker Basiskreis vor den Petals verhindert Durchscheinen von Hintergrundblumen.
+- *Feb 21:* Shape-to-color als zentrales System: eine Funktion für Tüten, Teile und Blumen.
+- *Feb 21:* Dead code konsequent entfernen: COLORS-Array, selectShard(), doppelte Farbzuweisung.
+- *Feb 21:* Persistence via localStorage (bins, building, done) implemented.
+- *Feb 21:* Garden screen removed – sorting takes long enough that players rarely switched screens. The reward (bouquet) stays visible in the indicator circle instead.
+- *Feb 21:* knack! was the lab. BfM (Blumen für Mutti) is the real game. The lab has served its purpose.
