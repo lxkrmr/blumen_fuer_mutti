@@ -22,12 +22,12 @@ knack! is a prototype lab. We learn here what feels good – mechanics, animatio
 ## Core loop
 
 ```
-Block appears (size = hardness + yield, color = aesthetic only)
+Block appears (size = hardness + yield, color = follows shape / Pfingstrose palette)
         ↓
 Tap repeatedly until it breaks
 (block rattles, rotates, pieces drift apart, glow intensifies)
         ↓
-Shards fly out – each has a SHAPE (circle, heart, stem, leaf)
+Shards fly out – each has a SHAPE (circle, heart, stem, leaf) and matching color
         ↓
 Drag shard to matching bin
         ↓
@@ -54,12 +54,12 @@ Flower complete → placed on the Garden with fixed random coords
 
 ### Blocks
 
-The block is not a rectangle – it's a **cluster of its own pieces**, overlapping and merged into an organic shape. The player can already see what shapes are inside before breaking.
+The block is not a rectangle – it's a **cluster of its own pieces**, overlapping and merged into an organic shape. The player can already see what shapes are inside before breaking – including their colors.
 
 | Property | Meaning |
 |---|---|
 | **Size** | Hardness + yield – bigger = more taps + more shards |
-| **Color** | Purely aesthetic – blue, orange, purple. No game meaning. |
+| **Color** | Follows shape – each shape has its Pfingstrose color (see below) |
 
 **Sizes:**
 | Size | Taps | Shards | Feel |
@@ -77,16 +77,14 @@ The block is not a rectangle – it's a **cluster of its own pieces**, overlappi
 
 ### Shards / Shapes
 
-Sorting is by **shape**, not color. 4 shapes, each has its own bin.
+Sorting is by **shape**. Color follows shape – the same shape always has the same color family, making sorting intuitive. 4 shapes, each has its own bin.
 
-| Shape | Description |
-|---|---|
-| ◯ Circle | round |
-| ♥ Heart | heart |
-| \| Stem | tall rounded rectangle, vertical |
-| ❧ Leaf | pointed oval, horizontal |
-
-Shard **colors are wild** – inherited from the block, no sorting meaning. Keeps colors beautiful without pressure.
+| Shape | Description | Color |
+|---|---|---|
+| ◯ Circle | round | Creme `#fff176` ±variation |
+| ♥ Heart | heart | Rosa – random from Pfingstrose pool |
+| \| Stem | tall rounded rectangle, vertical | Mittelgrün `#52b788` ±variation |
+| ❧ Leaf | pointed oval, horizontal | Dunkelgrün `#1e4d2b` ±variation |
 
 **Shape spawn probability** matches the flower recipe ratios so supply meets demand:
 
@@ -103,7 +101,7 @@ Sorting via **drag & drop** – drag shard directly to bin. Wrong bin: snap back
 
 ### Crystal flower (reward)
 
-Replaces the hexagon gem. Built organically from sorted shapes.
+Built organically from sorted shapes.
 
 ![Flower reference sketch](flower-reference.png)
 
@@ -120,16 +118,25 @@ Total: **14 parts** per flower.
 
 The stem curves gently (not straight up). The right leaf sits slightly behind the stem, lower than the left.
 
-**Color variation:** Each flower's parts carry the actual colors of the sorted shards. Bins are color queues – when a flower is built, the oldest shard colors are consumed. This makes every player's meadow unique.
+**Pfingstrose color system:**
+
+| Part | Color |
+|---|---|
+| Bloom center | Creme `#fff176` ±variation |
+| Petals (8) | Each random from Pfingstrose pool (7 shades, `#fce4ec` → `#880e4f`) |
+| Stem segments (3) | Mittelgrün `#52b788` ±variation |
+| Leaves (2) | Dunkelgrün `#1e4d2b` ±variation |
+
+Colors are assigned fresh per flower via `shapeToColor()`. Every flower is unique (petal mix).
 
 **Data model:**
 ```javascript
-// Bins: queues of colored shards
+// Bins: queues of consumed shards (colors stored but not used for flower rendering)
 bins = {
-  circle: [{ color: '#f0883e' }],
-  heart:  [{ color: '#58a6ff' }, { color: '#bc8cff' }, ...],  // up to N*8
-  stem:   [{ color: '#bc8cff' }],
-  leaf:   [{ color: '#58a6ff' }, { color: '#f0883e' }],
+  circle: [{ color: '...' }],
+  heart:  [{ color: '...' }, ...],  // up to N*8
+  stem:   [{ color: '...' }],
+  leaf:   [{ color: '...' }, { color: '...' }],
 }
 
 // How many complete flowers can currently be built?
@@ -142,22 +149,22 @@ flowersReady = Math.min(
 
 // Building queue – flowers currently growing
 building = [
-  { id, startedAt, completesAt, parts: { circle, hearts[], stem, leaves[] } },
+  { id, startedAt, completesAt, parts: { circle, heart[], stem[], leaf[] } },
 ]
 
-// Done – completed flowers, capped (exact max TBD, feel-based)
+// Done – completed flowers, placed in the Garden
 done = [ ...flower objects with fixed layout coords ... ]
 ```
 
 **Build time:** `BASE_MS * (0.85–1.15)` random range for organic feel. `BASE_MS = 20000ms`.
 
-**Building trigger:** When `flowersReady > 0` → consume parts from bins → push to `building` (max 3 simultaneous). When `completesAt` passed → move to `done`.
+**Building trigger:** When `flowersReady > 0` → consume shards from bins → push to `building` (max 3 simultaneous). When `completesAt` passed → move to `done`.
 
 **Bin visual – saturation indicator:**
 Bin background fills with color based on how many multiples of the recipe are available. 0 = neutral/dark. 1× = subtle tint. 2× = more opacity. 3×+ = fully saturated. Shows abundance at a glance without numbers.
 
-**Game screen indicator (top – replaces hex gem):**
-Crystal glows and animates when a flower is currently building. Gray/inactive when `building` is empty. Shows at most a count if multiple are queued.
+**Game screen indicator (top):**
+Ring glows and animates when a flower is currently building. Gray/inactive when `building` is empty.
 
 ### Screens
 
@@ -166,36 +173,15 @@ Crystal glows and animates when a flower is currently building. Gray/inactive wh
 | Start / Zen | **Garden** | Meadow of finished flowers, building indicator, button to Mine |
 | Game | **Mine** | Break blocks, sort shards into bins, building indicator (compact) |
 
-Navigation: Garden → Mine via button. Mine → Garden via back/swipe.
+Navigation: Garden → Mine via button. Mine → Garden via back button.
 
-### Garden screen – planned, separate feature
+### Garden screen
 
 Start screen. Shows all finished flowers from the `done` array.
 
-**Indicator:** Same size and style as on the Mine screen – subtle feedback, not a focal point.
-
-| State | DE | EN |
-|---|---|---|
-| Garden idle | "geh zur mine um scherben abzubauen" | "go to the mine to mine shards" |
-| Building (1 flower) | "✦ blume wächst …" | "✦ flower growing …" |
-| Building (n flowers) | "✦ n blumen wachsen …" | "✦ n flowers growing …" |
-| Mine idle | "scherben abbauen um blumen zu erschaffen" | "mine shards to grow flowers" |
-
-Building labels are identical on both screens.
-
 **Navigation:**
-- Garden → Mine: button at bottom (or natural position). Text works for now, an illustration/image would be nicer later.
-- Mine → Garden: back button top left. Same idea – plain button for now, image later.
-
-**Future home for:** tutorial, settings, other screens.
-
-**Layout:**
-- Flowers placed at random fixed `{ x, y, rotation, scale, zIndex }` assigned at creation – they never move after placed
-- Flowers can extend beyond screen edges (natural meadow feel)
-- Drawing order = sorted by `zIndex` (random) → natural depth, no strict foreground/background rule
-- `scale` varies slightly → subtle depth illusion
-
-**Max flowers:** TBD by feel – enough to make a lush meadow, not so many it becomes chaotic. Start testing around 20–30.
+- Garden → Mine: button at bottom
+- Mine → Garden: back button top left
 
 **Future home for:** tutorial, settings, other screens.
 
@@ -205,7 +191,7 @@ Building labels are identical on both screens.
 
 | What | Status |
 |---|---|
-| Block appears (random color + size) | ✅ |
+| Block appears (size = hardness + yield) | ✅ |
 | Block is a cluster of its pieces (organic shape) | ✅ |
 | Multi-tap break (N taps by size) | ✅ |
 | Damage feedback: wobble + rattle + drift + glow | ✅ |
@@ -216,35 +202,55 @@ Building labels are identical on both screens.
 | 4 bins as color queues (recipe-based capacity) | ✅ |
 | Bin saturation indicator (tint scales with multiples) | ✅ |
 | Building system (queue + done array) | ✅ |
-| Building indicator (glowing ring, replaces hex gem) | ✅ |
+| Building indicator (glowing ring) | ✅ |
 | Haptic feedback (Android) | ✅ |
 | i18n (DE + EN) | ✅ |
 | PWA (installable, offline) | ✅ |
 | Garden screen (navigation, indicator, mine button) | ✅ |
 | Mine screen (back button, screen switching) | ✅ |
 | Crystal flower render | ✅ |
-| Garden screen – flower meadow render | 🔄 in progress |
+| Garden screen – flower meadow render | ✅ |
 | Blumen-Farbsystem (Pfingstrose) | ✅ |
+| Shape-to-color mapping (Block mehrfarbig) | ✅ |
 | Garden – Reihen-System mit Perspektive | ✅ |
-| Garden – Wolkenhimmel als Start | ✅ (braucht Feinschliff) |
-| Garden – Wachstums-Animation | ❌ planned |
+| Garden – Wolkenhimmel als Start | ✅ (Feinschliff offen) |
+| Garden – Wachstums-Animation | ❌ future |
 | Sound | ❌ out of scope for now |
 
 ---
 
-## Blumen-Farbsystem
+## Next steps (future / when ready)
 
-### Pfingstrose
+- **Wolkenhimmel Feinschliff** – sieht noch komisch aus, braucht Überarbeitung
+- **Wachstums-Animation** – neue Blume wächst von unten ins Bild (Stiel zuerst, dann Blüte)
+- **Feel tuning** – tap ranges, drift speed, glow intensity, shard sizes *(ongoing)*
+- **Max flowers** – DONE_MAX = 30 braucht playtesting
 
-Blütenblätter können **gemischt** sein – jedes der 8 Petals bekommt zufällig eine Farbe aus dem Pool. Das erlaubt zarte, klassische, saturierte und wilde Kombinationen innerhalb derselben Blumenform.
+---
 
-**Fix (kleine Variation erlaubt):**
+## Open questions
 
-| Teil | Farbe | Hex |
-|---|---|---|
-| Blatt | Dunkelgrün | `#1e4d2b` (±leichte Variation) |
-| Stiel | Mittelgrün | `#52b788` (±leichte Variation) |
-| Blütenkopf | Gelb/Creme | `#fff176` (±leichte Variation) |
+- [x] How organic is the flower build? → Fixed structure, curved stem, overlapping petals
+- [x] How many shards fill a bin? → Bin capacity = flower recipe (1/8/3/2)
+- [x] Shape-to-color: fixed per shape or random? → Fixed per shape (Pfingstrose palette). Color = intuitive sorting hint.
+- [x] Garden screen separate from Mine? → Yes. Garden = start screen, Mine = game screen.
+- [x] Flower placement → row-based perspective system (5 rows, front→back)
+- [x] Stem recipe count → 3 (matches 3 visible segments in reference sketch)
+- [x] Build time BASE_MS → 20s base, ±15% random variance
+- [x] Crack/damage visuals → solved: wobble + rattle + drift + glow (no lines needed)
+- [ ] Max flowers in `done` array – needs playtesting (DONE_MAX = 30 to start)
+
+---
+
+## Blumen-Farbsystem – Pfingstrose
+
+**Fix (kleine Variation via `varyColor()`):**
+
+| Teil | Hex |
+|---|---|
+| Blatt | `#1e4d2b` ±10 |
+| Stiel | `#52b788` ±12 |
+| Blütenkopf | `#fff176` ±10 |
 
 **Blütenblatt-Pool (8 Petals, zufällig gemischt):**
 
@@ -258,8 +264,6 @@ Blütenblätter können **gemischt** sein – jedes der 8 Petals bekommt zufäll
 | Dunkel | `#c2185b` |
 | Sehr dunkel | `#880e4f` |
 
-**Technisch:** `parts.heart` ist bereits ein Array mit 8 einzelnen Farbwerten → jedes Blütenblatt kann individuell gefärbt werden. Beim Erstellen der Blume wird pro Petal zufällig aus dem Pool gewählt.
-
 ---
 
 ## Garden – Vision & Layout
@@ -268,39 +272,19 @@ Blütenblätter können **gemischt** sein – jedes der 8 Petals bekommt zufäll
 
 Wir sind nah am Feld und schauen hinein – nicht von außen drauf. Die Blumen füllen den gesamten Screen. Vorne riesig, hinten klein. Blumen dürfen über alle Kanten rausgehen (angeschnitten ist gewollt). Der dunkle Hintergrund schaut oben zwischen den Blumen durch – wie Himmel.
 
-**Referenz:** Sonnenblumenfeld-Wallpaper, Close-up-Perspektive.
-
-### Startbildschirm – Wolkenhimmel
-
-Beim ersten Start: leerer Himmel. Ein Gradient oben (dunkel → blaugrau), ein paar Wolken. Stille.
-
-Mit jeder verdienten Blume wächst eine neue von unten ins Bild. Je mehr Blumen, desto mehr verdecken sie den Himmel. Am Ende: fast nur noch Blumenfeld.
-
-**Emotionale Logik:** Nichts → etwas → viel. Fortschritt ist buchstäblich sichtbar.
-
-### Wolkenhimmel – Detail
+### Wolkenhimmel
 
 **Gradient:**
 - Oben (Zenith): `#0a0817` – fast schwarz, leichter Lila-Stich
 - Unten (Horizont): `#2a1854` – warmes Sommerabend-Lila
 
-**Wolken:** 4–5 Puffs, je 3–4 überlappende Kreise, weiß bei ~0.05 Opacity, feste hardcoded Positionen, obere 55% des Screens. Keine Animation.
+**Wolken:** 5 Puffs, je 3–4 überlappende Kreise, weiß bei ~0.055 Opacity, feste hardcoded Positionen, obere 55% des Screens. Keine Animation. Braucht noch Feinschliff.
 
 **Blenden:** Keine extra Logik. Blumen wachsen davor, verdecken den Himmel natürlich.
 
-### Wachstums-Animation
-
-Wenn eine neue Blume fertig ist, wächst sie von unten in den Frame – Stiel zuerst, dann Blüte. Eigenes Feature, nach dem Reihen-System umzusetzen.
-
 ### Reihen-System
 
-- Koordinatenursprung Blume = Stieluntergrund (wächst nach oben)
-- Reihen von vorne nach hinten: vorne große y-Werte (unten im Screen), hinten kleine y-Werte (oben)
-- Jede Reihe: eigene scale-Range (vorne größer, hinten kleiner)
-- Blumen pro Reihe: zufällig verteilt, dürfen überlappen und angeschnitten werden
-- Erste Blume hat keinen Sonderplatz – wächst einfach als erste in der Vorderreihe
-- Hintere Reihen: opacity leicht reduziert (Tiefenwirkung)
-- zIndex ergibt sich aus der Reihe (vorne = höher)
+Koordinatenursprung Blume = Stieluntergrund. 5 Reihen von vorne nach hinten:
 
 | Reihe | y-Range | Scale | Opacity |
 |---|---|---|---|
@@ -312,27 +296,9 @@ Wenn eine neue Blume fertig ist, wächst sie von unten in den Frame – Stiel zu
 
 x: −60 bis 490 (Blumen dürfen angeschnitten werden). zIndex = Reihe + 0–0.5 random.
 
-## Next steps
+### Wachstums-Animation (future)
 
-1. **Wachstums-Animation** – neue Blume wächst von unten ins Bild
-3. **Wolkenhimmel Feinschliff** – sieht noch komisch aus, braucht Überarbeitung
-4. **Feel tuning** – tap ranges, drift speed, glow intensity, shard sizes *(ongoing)*
-
----
-
-## Open questions
-
-- [x] How organic is the flower build? → Fixed structure, curved stem, overlapping petals
-- [x] How many shards fill a bin? → Bin capacity = flower recipe (1/8/1/2)
-- [x] Fixed color per shape vs. per-flower variation? → Per-flower (bins are color queues, cheap, more unique)
-- [x] Garden screen separate from Mine? → Yes. Garden = start screen, Mine = game screen.
-- [x] Flower placement → random fixed coords, can go off-screen, random z-order
-- [x] Stem recipe count → 3 (matches 3 visible segments in reference sketch)
-- [x] Build time BASE_MS → 20s base, ±15% random variance
-- [ ] Max flowers in `done` array – needs playtesting (~20–30 to start)
-- [x] Crack/damage visuals → solved: wobble + rattle + drift + glow (no lines needed)
-- [ ] Does color → shape tendency add enough to be worth the complexity?
-- [x] **Shape-to-color mapping:** Jede Form hat ihre Pfingstrose-Farbe (Kreis=Creme, Herz=Rosa, Stiel=Mittelgrün, Blatt=Dunkelgrün). Block wird mehrfarbig. Farbe verrät Form → intuitives Sortieren.
+Wenn eine neue Blume fertig ist, wächst sie von unten in den Frame – Stiel zuerst, dann Blüte.
 
 ---
 
@@ -340,21 +306,22 @@ x: −60 bis 490 (Blumen dürfen angeschnitten werden). zIndex = Reihe + 0–0.5
 
 | Decision | Rationale |
 |---|---|
-| **Sort by shape, not color** | Color stays visual/emotional, no cognitive load of "I need X color now" |
+| **Sort by shape, not color** | Shape = sorting key. Color = visual hint. No extra cognitive load. |
 | **Size = hardness + yield** | Bigger block = more taps + more shards. Natural, physical feel. |
-| **Color follows shape** | Jede Form hat eine Pfingstrose-Farbe. Farbe = Hinweis auf Form → intuitiveres Sortieren, konsistentes Bild von Block bis Blume. |
+| **Color follows shape (Pfingstrose)** | Farbe verrät Form schon im Block. Konsistentes Bild von Block über Scherbe bis Blume. |
 | **Block is a cluster of its pieces** | Player sees what's inside before breaking. Visual language is consistent. |
 | **Drag & drop, not tap-select-tap** | More intuitive, direct manipulation |
 | **No tap counter shown** | Player feels the block through wobble/drift/glow – more tactile |
 | **Rattle accumulates (no spring-back)** | Stone rolls when hit – doesn't bounce back. More physical. |
 | **Glow as two-pass render** | Pass 1: shadowBlur for halo. Pass 2: sharp shapes on top. Crisp edges + glow. |
+| **Per-piece glow color** | Each piece glows in its own shape-color. Multi-color halo = more alive. |
 | **Jackpot size (12 shards)** | Rare, worth it. More sorting = more reward. Visible from block size. |
 | **knack! = lab only** | Learnings flow into "Blumen für Mutti", not into feature creep here |
-| **Per-flower color variation** | Bins are color queues → each flower gets the actual shard colors. Unique per player, cheap to store. |
-| **Garden + Mine as two screens** | Mine stays focused on breaking/sorting. Garden is the reward space – start screen, meadow, future home for tutorial/settings. |
+| **Garden + Mine as two screens** | Mine stays focused on breaking/sorting. Garden is the reward space. |
 | **Flowers get fixed coords at birth** | Placed once when done, never move. Stable, no layout recalculation. |
-| **Build time = scale × BASE_MS** | Larger flowers feel more earned. Range adds organic feel. |
-| **Spawn probability = recipe ratio** | Supply matches demand. Hearts spawn most (57%) because 8 are needed. No frustrating shortages of common parts. |
+| **Build time ±15% variance** | Organic feel. No two flowers take exactly the same time. |
+| **Spawn probability = recipe ratio** | Supply matches demand. Hearts spawn most (57%) because 8 are needed. No frustrating shortages. |
+| **Row-based perspective** | 5 Reihen von vorne (groß) nach hinten (klein). Tiefenwirkung ohne 3D. |
 
 ---
 
@@ -378,18 +345,16 @@ x: −60 bis 490 (Blumen dürfen angeschnitten werden). zIndex = Reihe + 0–0.5
 - *Feb 21:* Crack lines removed – all attempts looked bad (asterisk pattern, straight lines). Replaced by wobble + rattle + drift + glow.
 - *Feb 21:* Glow without sound/vibration feels noticeably gentler. Haptic + sound amplify visual feedback significantly – visuals alone carry more weight on silent devices.
 - *Feb 21:* Two-pass glow render (blur pass + sharp pass) solves the "blurry shapes" problem. Halo outside, crisp fill inside.
-- *Feb 21:* Crystal flower recipe settled: 1 Circle (center), 8 Hearts (overlapping petals), 1 Stem (curved), 2 Leaves. Bin capacity = recipe count.
-- *Feb 21:* Full system design: bins as color queues, building queue, done array with cap, meadow as separate zen/start screen. Per-flower color variation is free (600 strings max). Fixed coords at flower birth = stable meadow layout.
-- *Feb 21:* Stem recipe = 3 (not 1) – matches 3 visible segments in reference sketch. Recipe corrected to 1/8/3/2 = 14 parts. Spawn probability aligned to recipe ratios.
-- *Feb 21:* Garden + Mine screens implemented. Screen switching via state variable. Indicator shared, labels context-aware. Drag only active in Mine. Idle label on Garden invites action ("go to mine"), not status.
+- *Feb 21:* Crystal flower recipe settled: 1 Circle (center), 8 Hearts (overlapping petals), 3 Stem segments, 2 Leaves = 14 parts total.
+- *Feb 21:* Full system design: bins as queues, building queue, done array with cap, meadow as separate zen/start screen. Fixed coords at flower birth = stable meadow layout.
+- *Feb 21:* Garden + Mine screens implemented. Screen switching via state variable. Indicator shared, labels context-aware. Drag only active in Mine. Idle label on Garden invites action, not shows status.
 - *Feb 21:* `ctx.beginPath()` vor jeder Shape-Path zwingend – fehlt es, akkumulieren sich alle Pfade und der letzte `fill()` übermalt alles mit einer Farbe. Klassischer Canvas-Bug.
-- *Feb 21:* Canvas-Rotation: y zeigt nach unten → Blatt-Rotation war spiegelverkehrt. Für "nach oben zeigendes" Blatt links: positive Rotation, rechts: negative Rotation.
+- *Feb 21:* Canvas-Rotation: y zeigt nach unten → Blatt-Rotation war spiegelverkehrt.
 - *Feb 21:* Stiel als `lineTo`-Segmente statt rotierter Rounded-Rects → garantiert verbunden, per-Segment-Farbe, sauberer Look.
 - *Feb 21:* Flower-Ursprung am Stieluntergrund (`ctx.translate(0, -58)`) macht Row-Placement trivial: y = Bodenlinie, Blume wächst nach oben.
 - *Feb 21:* Opaker Basiskreis vor den Petals verhindert Durchscheinen von Hintergrundblumen durch Petal-Lücken.
-- *Feb 21:* Garden-Vision: Close-up-Perspektive ins Feld hinein, Blumen füllen Screen, angeschnitten erlaubt. Wolkenhimmel als Start, Blumen verdrängen ihn mit der Zeit. Erste Blume kein Sonderplatz – wächst als erste in der Vorderreihe.
-- *Feb 21:* Shape-to-color mapping umgesetzt. Jede Form hat eine feste Pfingstrose-Farbe. Block ist jetzt mehrfarbig – Farbe verrät die Form bereits im Block, bevor er bricht. Shard-Farben fließen konsistent in die Blume.
-- *Feb 21:* Pfingstrose-Farben implementiert. Shard-Farben aus Bins werden weiter konsumiert (Sortier-Feedback bleibt), aber beim Blumenbau sofort durch das Pfingstrose-Farbsystem überschrieben. `varyColor()` gibt organische Variation bei Grün/Creme. Blütenblätter random aus 7-Ton-Pool → jede Blume einzigartig.
-- *Feb 21:* Reihen-System implementiert. 5 Reihen von vorne (scale 2.0–2.5, y≈850) nach hinten (scale 0.3–0.55, y≈360). Opacity nimmt nach hinten ab (1.0→0.70). zIndex = Reihen-Index + random → Tiefensortierung funktioniert automatisch. x mit ±60px Bleed über Screenrand.
-- *Feb 21:* Wolkenhimmel implementiert. Gradient `#0a0817` → `#2a1854` (Sommerabend-Lila). Wolken als statische Puff-Cluster (überlappende Kreise, Opacity 0.055). Keine eigene Blende-Logik nötig – Blumen verdecken den Himmel natürlich.
-- *Feb 21:* Pfingstrose als Blumentyp gewählt. Grün (Blatt/Stiel) fix, Blütenblatt-Pool aus 7 Rosa-Tönen – jedes der 8 Petals zufällig gemischt.
+- *Feb 21:* Reihen-System: 5 Reihen mit scale + opacity von vorne nach hinten. zIndex = Reihen-Index + random → Tiefensortierung automatisch. x mit ±60px Bleed über Screenrand.
+- *Feb 21:* Wolkenhimmel: Gradient `#0a0817` → `#2a1854` (Sommerabend-Lila). Wolken als statische Puff-Cluster. Keine Blende-Logik nötig – Blumen verdecken den Himmel natürlich.
+- *Feb 21:* Shape-to-color: Farbe folgt Form (Pfingstrose-Palette). Block mehrfarbig – man sieht schon vor dem Brechen was drin ist. Konsistentes Bild von Block bis Blume.
+- *Feb 21:* `shapeToColor()` als zentrales System: eine Funktion für Blocks, Scherben und Blumen. Kein Duplikat-Code. Fallbacks in `drawFlower` ebenfalls auf Pfingstrose-Farben gesetzt.
+- *Feb 21:* Dead code konsequent entfernen: `COLORS`-Array, `selectShard()` (tap-select war durch drag-only ersetzt), doppelte Farbzuweisung in `startBuildingFlower()`.
