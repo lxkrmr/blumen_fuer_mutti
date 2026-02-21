@@ -243,7 +243,7 @@ function spawnBlock() {
     color, size,
     pieces:       genPieces(size.shards, size.blockPx),
     tapsRequired, tapsLeft: tapsRequired,
-    lastTapAt: 0,
+    lastTapAt: 0, angle: 0,
   };
   blockEnterStart = performance.now();
 }
@@ -253,7 +253,8 @@ function tapBlock() {
   if (state.phase !== 'block') return;
   const block = state.block;
 
-  block.lastTapAt = performance.now();
+  block.lastTapAt    = performance.now();
+  block.angle += (Math.random() - 0.5) * 0.25;
   block.tapsLeft--;
 
   if (block.tapsLeft <= 0) {
@@ -670,25 +671,41 @@ function drawBlock(now) {
   const enterT  = clamp01((now - blockEnterStart) / 300);
   const enterSc = easeOutBack(enterT);
 
-  // Tap wobble: quick outward punch, then settle
+  // Tap wobble: scale punch + rotation rattle, both decay together
   const wobbleAge = block.lastTapAt > 0 ? now - block.lastTapAt : Infinity;
-  const wobbleSc  = wobbleAge < 200 ? 1 + Math.sin(clamp01(wobbleAge / 200) * Math.PI) * 0.08 : 1;
+  const wobbleT   = wobbleAge < 220 ? clamp01(wobbleAge / 220) : 1;
+  const wobbleSc  = wobbleAge < 220 ? 1 + Math.sin(wobbleT * Math.PI) * 0.09 : 1;
+  const wobbleRot = block.angle;
+
+  // Damage progress (0 = fresh, approaches 1 as taps run out)
+  const progress = 1 - block.tapsLeft / block.tapsRequired;
+
+  // Piece drift: spread further with each tap
+  const drift = 1 + progress * 0.55;
+
+  // Pulsing glow: grows and pulses faster as damage increases
+  const pulse     = 0.65 + 0.35 * Math.sin(now / (170 - progress * 100));
+  const shadowBlr = 18 + progress * 28 * pulse;
 
   const sc = enterSc * wobbleSc;
 
-  // Draw each piece – cluster forms the block silhouette
+  // Draw pieces with block-level rotation
+  ctx.save();
+  ctx.translate(PLAY_CX, PLAY_CY);
+  ctx.rotate(wobbleRot);
   ctx.shadowColor = block.color.hex;
-  ctx.shadowBlur  = 20;
+  ctx.shadowBlur  = shadowBlr;
   ctx.fillStyle   = block.color.hex;
   for (const piece of block.pieces) {
     ctx.save();
-    ctx.translate(PLAY_CX + piece.x * sc, PLAY_CY + piece.y * sc);
+    ctx.translate(piece.x * sc * drift, piece.y * sc * drift);
     ctx.rotate(piece.angle);
     drawShapePath(ctx, piece.shape, 0, 0, piece.size * sc);
     ctx.fill();
     ctx.restore();
   }
   ctx.shadowBlur = 0;
+  ctx.restore();
 
 
 }
