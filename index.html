@@ -683,9 +683,6 @@ function drawBlock(now) {
   // Piece drift: spread further with each tap
   const drift = 1 + progress * 0.9;
 
-  // Pulsing glow: grows and pulses faster as damage increases
-  const pulse     = 0.65 + 0.35 * Math.sin(now / (170 - progress * 100));
-  const shadowBlr = 18 + progress * 28 * pulse;
 
   const sc = enterSc * wobbleSc;
 
@@ -693,9 +690,25 @@ function drawBlock(now) {
   ctx.save();
   ctx.translate(PLAY_CX, PLAY_CY);
   ctx.rotate(wobbleRot);
-  ctx.shadowColor = block.color.hex;
-  ctx.shadowBlur  = shadowBlr;
-  ctx.fillStyle   = block.color.hex;
+  // Pass 1 – glow halo (only after first tap, doesn't blur the shapes themselves)
+  if (progress > 0) {
+    const pulse    = 0.55 + 0.45 * Math.sin(now / (180 - progress * 110));
+    ctx.shadowColor = block.color.hex;
+    ctx.shadowBlur  = progress * 34 * pulse;
+    ctx.fillStyle   = block.color.hex;
+    for (const piece of block.pieces) {
+      ctx.save();
+      ctx.translate(piece.x * sc * drift, piece.y * sc * drift);
+      ctx.rotate(piece.angle);
+      drawShapePath(ctx, piece.shape, 0, 0, piece.size * sc);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  // Pass 2 – sharp shapes on top
+  ctx.fillStyle = block.color.hex;
   for (const piece of block.pieces) {
     ctx.save();
     ctx.translate(piece.x * sc * drift, piece.y * sc * drift);
@@ -704,7 +717,6 @@ function drawBlock(now) {
     ctx.fill();
     ctx.restore();
   }
-  ctx.shadowBlur = 0;
   ctx.restore();
 
 
