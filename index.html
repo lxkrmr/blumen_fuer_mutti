@@ -114,6 +114,15 @@ const COLORS = [
 const FLOWER_RECIPE = { circle: 1, heart: 8, stem: 3, leaf: 2 };
 const BUILD_BASE_MS = 20000;   // base build time in ms (±15% random variance)
 const DONE_MAX      = 30;      // max finished flowers kept in memory
+
+// Garden row system – 5 rows from front (0) to back (4)
+const GARDEN_ROWS = [
+  { yMin: 830, yMax: 870, scaleMin: 2.0, scaleMax: 2.5, opacity: 1.00 },
+  { yMin: 710, yMax: 750, scaleMin: 1.4, scaleMax: 1.8, opacity: 0.95 },
+  { yMin: 590, yMax: 630, scaleMin: 1.0, scaleMax: 1.3, opacity: 0.88 },
+  { yMin: 470, yMax: 510, scaleMin: 0.6, scaleMax: 0.9, opacity: 0.80 },
+  { yMin: 340, yMax: 380, scaleMin: 0.3, scaleMax: 0.55, opacity: 0.70 },
+];
 let   flowerIdCounter = 0;
 
 const BG       = '#0d1117';
@@ -422,13 +431,17 @@ function tickBuilding(now) {
   flowers.building = flowers.building.filter(f => now < f.completesAt);
 
   for (const flower of done) {
+    const rowIndex = Math.floor(Math.random() * GARDEN_ROWS.length);
+    const row      = GARDEN_ROWS[rowIndex];
+    const scale    = row.scaleMin + Math.random() * (row.scaleMax - row.scaleMin);
     flowers.done.push({
       ...flower,
-      x:        (Math.random() * 0.8 + 0.1) * W,
-      y:        (Math.random() * 0.8 + 0.1) * H,
-      rotation:  (Math.random() - 0.5) * 0.4,
-      scale:     0.6 + Math.random() * 0.5,
-      zIndex:    Math.random(),
+      x:        -60 + Math.random() * (W + 120),            // can bleed off edges
+      y:        row.yMin + Math.random() * (row.yMax - row.yMin),
+      rotation: (Math.random() - 0.5) * 0.3,
+      scale,
+      opacity:  row.opacity,
+      zIndex:   rowIndex + Math.random() * 0.5,             // back rows = low zIndex
     });
   }
   while (flowers.done.length > DONE_MAX) flowers.done.shift();
@@ -778,7 +791,9 @@ function drawSky() {
 function drawGardenFlowers() {
   const sorted = [...flowers.done].sort((a, b) => a.zIndex - b.zIndex);
   for (const flower of sorted) {
+    ctx.globalAlpha = flower.opacity ?? 1;
     drawFlower(ctx, flower.x, flower.y, flower.rotation, flower.scale, flower.parts);
+    ctx.globalAlpha = 1;
   }
 }
 

@@ -225,7 +225,7 @@ Building labels are identical on both screens.
 | Crystal flower render | ✅ |
 | Garden screen – flower meadow render | 🔄 in progress |
 | Blumen-Farbsystem (Pfingstrose) | ✅ designed, not yet implemented |
-| Garden – Reihen-System mit Perspektive | ❌ next |
+| Garden – Reihen-System mit Perspektive | ✅ |
 | Garden – Wolkenhimmel als Start | ✅ (braucht Feinschliff) |
 | Garden – Wachstums-Animation | ❌ planned |
 | Sound | ❌ out of scope for now |
@@ -302,22 +302,22 @@ Wenn eine neue Blume fertig ist, wächst sie von unten in den Frame – Stiel zu
 - Hintere Reihen: opacity leicht reduziert (Tiefenwirkung)
 - zIndex ergibt sich aus der Reihe (vorne = höher)
 
-| Element | Wert (vorläufig) |
-|---|---|
-| Koordinatenursprung | Stieluntergrund |
-| Vorderreihe y | ~780–850 |
-| Hinterste Reihe y | ~300–400 |
-| Scale vorne | 1.8–2.5 |
-| Scale hinten | 0.3–0.6 |
+| Reihe | y-Range | Scale | Opacity |
+|---|---|---|---|
+| 0 (vorne) | 830–870 | 2.0–2.5 | 1.00 |
+| 1 | 710–750 | 1.4–1.8 | 0.95 |
+| 2 | 590–630 | 1.0–1.3 | 0.88 |
+| 3 | 470–510 | 0.6–0.9 | 0.80 |
+| 4 (hinten) | 340–380 | 0.3–0.55 | 0.70 |
+
+x: −60 bis 490 (Blumen dürfen angeschnitten werden). zIndex = Reihe + 0–0.5 random.
 
 ## Next steps
 
-1. **Reihen-System** – Garden mit Perspektive-Reihen, Blumen wachsen von vorne nach hinten auf
-2. **Pfingstrose-Farben** – Farbsystem in die Blumen-Generierung einbauen
-3. **Wolkenhimmel** – Startbildschirm mit Gradient + Wolken, wird von Blumen verdrängt
-4. **Wachstums-Animation** – neue Blume wächst von unten ins Bild
-5. **Feel tuning** – laufend
-3. **Feel tuning** – tap ranges, drift speed, glow intensity, shard sizes *(ongoing)*
+1. **Pfingstrose-Farben** – Farbsystem in die Blumen-Generierung einbauen
+2. **Wachstums-Animation** – neue Blume wächst von unten ins Bild
+3. **Wolkenhimmel Feinschliff** – sieht noch komisch aus, braucht Überarbeitung
+4. **Feel tuning** – tap ranges, drift speed, glow intensity, shard sizes *(ongoing)*
 
 ---
 
@@ -389,5 +389,6 @@ Wenn eine neue Blume fertig ist, wächst sie von unten in den Frame – Stiel zu
 - *Feb 21:* Flower-Ursprung am Stieluntergrund (`ctx.translate(0, -58)`) macht Row-Placement trivial: y = Bodenlinie, Blume wächst nach oben.
 - *Feb 21:* Opaker Basiskreis vor den Petals verhindert Durchscheinen von Hintergrundblumen durch Petal-Lücken.
 - *Feb 21:* Garden-Vision: Close-up-Perspektive ins Feld hinein, Blumen füllen Screen, angeschnitten erlaubt. Wolkenhimmel als Start, Blumen verdrängen ihn mit der Zeit. Erste Blume kein Sonderplatz – wächst als erste in der Vorderreihe.
+- *Feb 21:* Reihen-System implementiert. 5 Reihen von vorne (scale 2.0–2.5, y≈850) nach hinten (scale 0.3–0.55, y≈360). Opacity nimmt nach hinten ab (1.0→0.70). zIndex = Reihen-Index + random → Tiefensortierung funktioniert automatisch. x mit ±60px Bleed über Screenrand.
 - *Feb 21:* Wolkenhimmel implementiert. Gradient `#0a0817` → `#2a1854` (Sommerabend-Lila). Wolken als statische Puff-Cluster (überlappende Kreise, Opacity 0.055). Keine eigene Blende-Logik nötig – Blumen verdecken den Himmel natürlich.
 - *Feb 21:* Pfingstrose als Blumentyp gewählt. Grün (Blatt/Stiel) fix, Blütenblatt-Pool aus 7 Rosa-Tönen – jedes der 8 Petals zufällig gemischt.
