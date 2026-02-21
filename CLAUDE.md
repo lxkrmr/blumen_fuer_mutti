@@ -9,7 +9,9 @@ Rules and context for the AI agent working on this project.
 
 ## Project
 
-A fidget game. Tap a block – it breaks into shards. Sort them by color. Watch a gem grow.
+A fidget game and prototype lab. Tap a block repeatedly until it breaks into shards. Sort them by shape into bins. Watch a crystal flower grow.
+
+knack! is the lab for the next game ("Blumen für Mutti"). We learn here what feels good before building the real thing.
 
 **Started:** February 20, 2026
 
