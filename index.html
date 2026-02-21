@@ -243,23 +243,11 @@ function spawnBlock() {
     color, size,
     pieces:       genPieces(size.shards, size.blockPx),
     tapsRequired, tapsLeft: tapsRequired,
-    cracks: [],   lastTapAt: 0,
+    lastTapAt: 0,
   };
   blockEnterStart = performance.now();
 }
 
-function addCracks(block, n) {
-  const hw = block.size.blockPx / 2 * 0.88;
-  for (let i = 0; i < n; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    block.cracks.push({
-      x1: Math.cos(angle) * hw * Math.random() * 0.2,
-      y1: Math.sin(angle) * hw * Math.random() * 0.2,
-      x2: Math.cos(angle) * hw * (0.5 + Math.random() * 0.5),
-      y2: Math.sin(angle) * hw * (0.5 + Math.random() * 0.5),
-    });
-  }
-}
 
 function tapBlock() {
   if (state.phase !== 'block') return;
@@ -273,8 +261,6 @@ function tapBlock() {
     doBreakBlock();
   } else {
     haptic(8);
-    const progress = 1 - block.tapsLeft / block.tapsRequired;
-    addCracks(block, 2 + Math.floor(progress * 3));
   }
 }
 
@@ -704,19 +690,7 @@ function drawBlock(now) {
   }
   ctx.shadowBlur = 0;
 
-  // Cracks – drawn over the cluster, visible on shapes, invisible on dark bg
-  if (block.cracks.length > 0) {
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-    ctx.lineWidth   = 1.2;
-    ctx.lineCap     = 'round';
-    for (const c of block.cracks) {
-      ctx.beginPath();
-      ctx.moveTo(PLAY_CX + c.x1 * sc, PLAY_CY + c.y1 * sc);
-      ctx.lineTo(PLAY_CX + c.x2 * sc, PLAY_CY + c.y2 * sc);
-      ctx.stroke();
-    }
-    ctx.lineCap = 'butt';
-  }
+
 }
 
 function drawShards(now, dragOnly = false) {
