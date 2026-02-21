@@ -142,9 +142,9 @@ Total: **14 parts** per flower.
 
 Finished flowers accumulate in the **indicator circle** as a bouquet:
 
-- All flowers share a common **anchor point** – shifted ~1/3 up the stem (the "hand holding the bouquet")
-- Each flower fans out with a slight rotation (−25° to +25°, evenly distributed)
-- Newest flower always on top (highest zIndex)
+- All flowers share a common **anchor point** at `cy + 38` – blooms sit in upper portion of circle, stems visible below
+- Each flower fans out with **±35° rotation** (70° total), evenly distributed
+- Draw order: left to right → newest flower on top
 - **Max 10 flowers** per bouquet
 
 When the bouquet reaches **10 flowers:**
@@ -152,15 +152,18 @@ When the bouquet reaches **10 flowers:**
 2. Bouquet resets (flowers cleared)
 3. Harry starts fresh with flower 1
 
-**Heart counter display:** Small ♥ with number, shown inside or directly below the indicator circle.
+**Badge:** Pill at the bottom of the indicator ring showing `♥ N  n / 10`. Overlaps ring slightly for a "badge attached to ring" look.
+
+**Label below badge:** `Harry baut X Blumen …` while building, `teile sortieren …` when idle. Plain language, no symbols.
 
 ### Indicator circle
 
-The single indicator at the top of the Mine screen. Larger than the original small ring.
+The single indicator at the top of the Mine screen. Radius 80px, centered at top of screen.
 
-- **Glows / pulses** when a flower is currently building (`building` queue not empty)
-- **Contains the bouquet** – flowers rendered inside
-- **Shows heart counter** – ♥ N below or inside
+- **Glows / pulses** when Harry is building (`building` queue not empty)
+- **Contains the bouquet** – flowers rendered with anchor at cy+38
+- **Badge at ring bottom** – ♥ counter + bouquet progress (n/10)
+- **Label below badge** – Harry's current activity in plain language
 
 ### Data model
 
@@ -184,6 +187,8 @@ bouquet = [ ...flower objects (max 10) ]
 // Hearts earned from completed bouquets
 hearts = 0
 ```
+
+**Build queue:** Unlimited. All flowers that can be built are queued immediately. Harry builds them **sequentially**, one at a time. `building.length` shows how many are waiting.
 
 **Bouquet trigger:** When flower completes → push to `bouquet`. If `bouquet.length >= 10` → hearts++ → bouquet = [].
 
@@ -213,8 +218,7 @@ hearts = 0
 | Wrong sort → snap back + shake | ✅ |
 | 4 bins as color queues (recipe-based capacity) | ✅ |
 | Bin saturation indicator (tint scales with multiples) | ✅ |
-| Building system (queue + done array) | ✅ |
-| Building indicator (glowing ring) | ✅ |
+| Building system – sequential queue, unlimited depth | ✅ |
 | Haptic feedback (Android) | ✅ |
 | i18n (DE + EN) | ✅ |
 | PWA (installable, offline) | ✅ |
@@ -222,9 +226,12 @@ hearts = 0
 | Flower render | ✅ |
 | Blumen-Farbsystem (Pfingstrose) | ✅ |
 | Shape-to-color mapping | ✅ |
-| Garden screen | ❌ removed |
-| Bouquet-in-circle (indicator redesign) | ❌ next |
-| Heart counter (bouquet complete → ♥ +1) | ❌ next |
+| Rename & rebrand (BfM, Harry, B♥M logo) | ✅ |
+| Garden screen removed | ✅ |
+| Bouquet-in-circle (indicator redesign, R=80) | ✅ |
+| Bouquet fan (±35°, anchor cy+38) | ✅ |
+| Heart counter + badge (♥ N  n/10) | ✅ |
+| "Harry baut X Blumen" label | ✅ |
 | Bag visual (silhouette over cluster) | ❌ future |
 | Harry (tutorial character) | ❌ future |
 
@@ -232,19 +239,18 @@ hearts = 0
 
 ## Next steps
 
-1. **Rename & rebrand** – folder, repo, HTML title, manifest, CLAUDE.md → "Blumen für Mutti / BfM"
-2. **Garden raus** – Garden-Screen-Code, Screen-Switching, Cloud/Row-Logic entfernen
-3. **Indikator redesign** – Kreis größer, Strauß darin, Herz-Counter
-4. **Bouquet-Loop** – 10 Blumen → ♥ +1 → reset
+- **Feel tuning** – tap ranges, build time, shard sizes, fan spread *(ongoing)*
+- **Bag visual** – silhouette over piece-cluster when tapping
+- **Harry** – appears as tutorial character (help screen)
 
 ---
 
 ## Open questions
 
-- [ ] Exact size of indicator circle (px)
 - [ ] Harry reactions to completed bouquets (future)
 - [ ] Bag visual (silhouette, future)
-- [ ] Max hearts display (just a number for now)
+- [ ] Max hearts – is there a cap, or does the counter just grow forever?
+- [ ] Feel tuning – build time 20s right? Fan spread 70° right? Needs playtesting.
 
 ---
 
@@ -264,10 +270,14 @@ hearts = 0
 | **Bouquet in indicator circle** | Reward visible at all times. Common anchor + rotation = natural bouquet shape. |
 | **Bouquet reset at 10 → heart** | Cleaner loop than a growing-forever done-array. Hearts are the persistent score. |
 | **B♥M logo** | Short, warm, the heart doubles as game symbol and reward icon. |
-| **Flowers get fixed rotation at birth** | Assigned when flower completes, never recalculated. Stable bouquet layout. |
+| **Bouquet anchor at cy+38** | Blooms in upper circle, stems visible below. Feels like a hand holding the bouquet. |
+| **Fan spread ±35° (70° total)** | Enough spread to see individual flowers without losing the bouquet silhouette. |
+| **Sequential build queue, unlimited depth** | Simpler than parallel building. More honest – shows true queue size. Harry is one cat. |
+| **"Harry baut X Blumen" not "✦ X"** | Plain language beats symbols. Player shouldn't need to learn what ✦ means. |
+| **Badge at ring bottom for hearts/progress** | Pill overlapping ring = compact, attached to the indicator. No extra screen space needed. |
 | **Build time ±15% variance** | Organic feel. No two flowers take exactly the same time. |
 | **Spawn probability = recipe ratio** | Supply matches demand. Hearts spawn most (57%) because 8 are needed. |
-| **Persist `building` queue** | Shards are consumed when a build starts. Timers restarted on load without timestamps. |
+| **Persist `building` queue** | Parts are consumed when a build starts. Timer restarted on load. |
 
 ---
 
@@ -327,3 +337,7 @@ hearts = 0
 - *Feb 21:* Persistence via localStorage (bins, building, done) implemented.
 - *Feb 21:* Garden screen removed – sorting takes long enough that players rarely switched screens. The reward (bouquet) stays visible in the indicator circle instead.
 - *Feb 21:* knack! was the lab. BfM (Blumen für Mutti) is the real game. The lab has served its purpose.
+- *Feb 21:* MAX_BUILDING=3 (parallel builds) was over-engineering from the start. Sequential queue is simpler, more honest, and narratively correct. One cat, one task.
+- *Feb 21:* Cryptic symbols (✦) are worse than plain language. "Harry baut 3 Blumen" is immediately clear; "✦ 3" requires the player to learn the symbol.
+- *Feb 21:* Bouquet anchor tuning is iterative – start too high/low, adjust by feel. cy+38 feels right: blooms in the upper half, stems visible as "hands holding the bouquet".
+- *Feb 21:* Badge overlapping the ring bottom is a compact way to attach info to the circle without needing extra layout space.

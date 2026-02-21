@@ -76,22 +76,16 @@ function canvasCoords(e) {
 // ── i18n ──────────────────────────────────────────────────────────────────
 const STRINGS = {
   de: {
-    lang_toggle:          'EN',
-    building_one:         '✦ blume wächst …',
-    building_many:        (n) => `✦ ${n} blumen wachsen …`,
-    building_idle_mine:   'scherben abbauen um blumen zu erschaffen',
-    building_idle_garden: 'geh zur mine um scherben abzubauen',
-    go_mine:              'zur Mine →',
-    go_garden:            '← Garten',
+    lang_toggle:        'EN',
+    building_one:       'Harry baut 1 Blume …',
+    building_many:      (n) => `Harry baut ${n} Blumen …`,
+    building_idle_mine: 'teile sortieren um blumen zu erschaffen',
   },
   en: {
-    lang_toggle:          'DE',
-    building_one:         '✦ flower growing …',
-    building_many:        (n) => `✦ ${n} flowers growing …`,
-    building_idle_mine:   'mine shards to grow flowers',
-    building_idle_garden: 'go to the mine to mine shards',
-    go_mine:              'to Mine →',
-    go_garden:            '← Garden',
+    lang_toggle:        'DE',
+    building_one:       'Harry is building 1 flower …',
+    building_many:      (n) => `Harry is building ${n} flowers …`,
+    building_idle_mine: 'sort parts to grow flowers',
   },
 };
 
@@ -107,16 +101,7 @@ function t(key, ...args) {
 // Flower recipe – how many sorted shards per bin make one flower part
 const FLOWER_RECIPE = { circle: 1, heart: 8, stem: 3, leaf: 2 };
 const BUILD_BASE_MS = 20000;   // base build time in ms (±15% random variance)
-const DONE_MAX      = 30;      // max finished flowers kept in memory
-
-// Garden row system – 5 rows from front (0) to back (4)
-const GARDEN_ROWS = [
-  { yMin: 830, yMax: 870, scaleMin: 2.0, scaleMax: 2.5, opacity: 1.00 },
-  { yMin: 710, yMax: 750, scaleMin: 1.4, scaleMax: 1.8, opacity: 0.95 },
-  { yMin: 590, yMax: 630, scaleMin: 1.0, scaleMax: 1.3, opacity: 0.88 },
-  { yMin: 470, yMax: 510, scaleMin: 0.6, scaleMax: 0.9, opacity: 0.80 },
-  { yMin: 340, yMax: 380, scaleMin: 0.3, scaleMax: 0.55, opacity: 0.70 },
-];
+const BOUQUET_MAX   = 10;      // flowers per bouquet before sending to Mutti
 let   flowerIdCounter = 0;
 
 const BG       = '#0d1117';
@@ -151,19 +136,22 @@ function randomShape() {
 }
 
 // ── Layout ─────────────────────────────────────────────────────────────────
-const HEADER_H  = 70;
-const GEM_H     = 130;
+const HEADER_H    = 50;
+const INDICATOR_R = 80;
+const INDICATOR_CX = W / 2;                                      // 215
+const INDICATOR_CY = HEADER_H + INDICATOR_R + 10;                // 140
 const BIN_H     = 96,  BIN_W = 80, BIN_GAP = 12, BIN_R = 12;
-const BIN_Y     = H - 36 - BIN_H;
-const BIN_TOTAL = 4 * BIN_W + 3 * BIN_GAP;             // 356
-const BIN_LEFT  = (W - BIN_TOTAL) / 2;                 // 37
-const PLAY_Y    = HEADER_H + GEM_H;                    // 200
-const PLAY_H    = BIN_Y - PLAY_Y - 20;                 // 580
-const PLAY_CX   = W / 2;                               // 215
-const PLAY_CY   = PLAY_Y + PLAY_H / 2;                 // 490
-const GEM_CX    = W / 2;
-const GEM_CY    = HEADER_H + GEM_H / 2 - 10;           // 125
-const GEM_R     = 38;
+const BIN_Y     = H - 36 - BIN_H;                               // 800
+const BIN_TOTAL = 4 * BIN_W + 3 * BIN_GAP;                      // 356
+const BIN_LEFT  = (W - BIN_TOTAL) / 2;                          // 37
+const PLAY_Y    = INDICATOR_CY + INDICATOR_R + 32;               // 252
+const PLAY_H    = BIN_Y - PLAY_Y - 20;                          // 528
+const PLAY_CX   = W / 2;                                        // 215
+const PLAY_CY   = PLAY_Y + PLAY_H / 2;                          // ~516
+// Aliases used in drawIndicator
+const GEM_CX    = INDICATOR_CX;
+const GEM_CY    = INDICATOR_CY;
+const GEM_R     = INDICATOR_R;
 
 // Shard landing zones – offsets from play-area center (12 for jackpot blocks)
 const SHARD_ZONES = [
@@ -233,13 +221,8 @@ function haptic(pattern) {
   if (navigator.vibrate) navigator.vibrate(pattern);
 }
 
-// ── Screen state ──────────────────────────────────────────────────────────
-let screen = 'garden'; // 'garden' | 'mine'
-
 // Button bounds – set each frame during draw, used by hitTest
-let langBtnBounds   = null;
-let mineBtnBounds   = null;
-let gardenBtnBounds = null;
+let langBtnBounds = null;
 
 // ── Drag state ────────────────────────────────────────────────────────────
 const drag = {
@@ -262,8 +245,9 @@ const state = {
 
 // Flower system – separate from game state
 const flowers = {
-  building: [],   // { id, parts }
-  done:     [],   // { id, parts, x, y, rotation, scale, opacity, zIndex }
+  building: [],   // { id, parts } – currently growing
+  bouquet:  [],   // { id, parts } – finished, up to BOUQUET_MAX
+  hearts:   0,    // bouquets sent to Mutti
 };
 
 // Build timer – runtime only, not persisted
@@ -412,8 +396,7 @@ function flowersReady() {
 }
 
 function checkBuildTrigger() {
-  const MAX_BUILDING = 3;
-  while (flowersReady() > 0 && flowers.building.length < MAX_BUILDING) {
+  while (flowersReady() > 0) {
     // Consume shards from bins
     for (const s of SHAPES) {
       state.bins.find(b => b.shape.id === s.id).shards.splice(0, FLOWER_RECIPE[s.id]);
@@ -450,21 +433,16 @@ function completeBuilding() {
   const flower = flowers.building.shift();
   if (!flower) return;
 
-  const rowIndex = Math.floor(Math.random() * GARDEN_ROWS.length);
-  const row      = GARDEN_ROWS[rowIndex];
-  const scale    = row.scaleMin + Math.random() * (row.scaleMax - row.scaleMin);
-  flowers.done.push({
-    ...flower,
-    x:        -60 + Math.random() * (W + 120),
-    y:        row.yMin + Math.random() * (row.yMax - row.yMin),
-    rotation: (Math.random() - 0.5) * 0.3,
-    scale,
-    opacity:  row.opacity,
-    zIndex:   rowIndex + Math.random() * 0.5,
-  });
-  while (flowers.done.length > DONE_MAX) flowers.done.shift();
+  flowers.bouquet.push({ id: flower.id, parts: flower.parts });
 
-  haptic([20, 12, 20, 12, 35]);
+  if (flowers.bouquet.length >= BOUQUET_MAX) {
+    // Bouquet complete – Mutti sends a heart!
+    flowers.hearts++;
+    flowers.bouquet = [];
+    haptic([20, 12, 20, 12, 35, 15, 50]);
+  } else {
+    haptic([20, 12, 20, 12, 35]);
+  }
 
   buildTimerActive = false;
   checkBuildTrigger(); // Will save state
@@ -562,21 +540,9 @@ function inRect(x, y, rx, ry, rw, rh) {
 }
 
 function hitTest(x, y, now) {
-  // Lang button – both screens
+  // Lang button
   if (langBtnBounds && inRect(x, y, langBtnBounds.x, langBtnBounds.y, langBtnBounds.w, langBtnBounds.h)) {
     return { type: 'lang' };
-  }
-
-  if (screen === 'garden') {
-    if (mineBtnBounds && inRect(x, y, mineBtnBounds.x, mineBtnBounds.y, mineBtnBounds.w, mineBtnBounds.h)) {
-      return { type: 'mine_btn' };
-    }
-    return null;
-  }
-
-  // Mine screen
-  if (gardenBtnBounds && inRect(x, y, gardenBtnBounds.x, gardenBtnBounds.y, gardenBtnBounds.w, gardenBtnBounds.h)) {
-    return { type: 'garden_btn' };
   }
 
   // Shards (reverse so topmost is checked first)
@@ -612,7 +578,6 @@ function hitTest(x, y, now) {
 let lastTouchEnd = 0;
 
 function initDrag(coords) {
-  if (screen !== 'mine') return;
   const now = performance.now();
   const hit = hitTest(coords.x, coords.y, now);
   if (!hit || hit.type !== 'shard') return;
@@ -695,10 +660,8 @@ function handleTap({ x, y }) {
   const hit = hitTest(x, y, now);
   if (!hit) return;
   switch (hit.type) {
-    case 'lang':       toggleLang();       break;
-    case 'mine_btn':   screen = 'mine';    break;
-    case 'garden_btn': screen = 'garden';  break;
-    case 'block':      tapBlock();         break;
+    case 'lang':  toggleLang(); break;
+    case 'block': tapBlock();   break;
   }
 }
 
@@ -779,46 +742,23 @@ function drawFlower(ctx, cx, cy, rotation, scale, parts) {
   ctx.restore();
 }
 
-// ── Sky (Garden background) ───────────────────────────────────────────────
-function drawSky() {
-  // Gradient: dark purple-black at zenith → warm summer-evening purple at horizon
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#0a0817');
-  grad.addColorStop(1, '#2a1854');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-
-  // Clouds: subtle puffs of overlapping circles, fixed positions, upper 55% of screen
-  const CLOUDS = [
-    { cx:  75, cy: 105, puffs: [{ dx: -28, dy:  8, r: 28 }, { dx:  0, dy:  0, r: 35 }, { dx: 28, dy: 10, r: 26 }, { dx: 12, dy: 18, r: 20 }] },
-    { cx: 310, cy: 155, puffs: [{ dx: -32, dy: 12, r: 24 }, { dx:  0, dy:  0, r: 34 }, { dx: 30, dy:  8, r: 28 }, { dx: 14, dy: 16, r: 18 }] },
-    { cx: 165, cy: 255, puffs: [{ dx: -25, dy:  6, r: 22 }, { dx:  0, dy:  0, r: 30 }, { dx: 24, dy:  8, r: 20 }] },
-    { cx: 368, cy: 345, puffs: [{ dx: -22, dy:  5, r: 20 }, { dx:  0, dy:  0, r: 28 }, { dx: 20, dy:  8, r: 18 }, { dx: 10, dy: 14, r: 14 }] },
-    { cx:  52, cy: 405, puffs: [{ dx: -20, dy:  5, r: 18 }, { dx:  0, dy:  0, r: 26 }, { dx: 18, dy:  6, r: 16 }] },
-  ];
-
-  ctx.fillStyle = 'rgba(255,255,255,0.055)';
-  for (const cloud of CLOUDS) {
-    for (const p of cloud.puffs) {
-      ctx.beginPath();
-      ctx.arc(cloud.cx + p.dx, cloud.cy + p.dy, p.r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-}
-
-// ── Garden flowers ────────────────────────────────────────────────────────
-function drawGardenFlowers() {
-  const sorted = [...flowers.done].sort((a, b) => a.zIndex - b.zIndex);
-  for (const flower of sorted) {
-    ctx.globalAlpha = flower.opacity ?? 1;
-    drawFlower(ctx, flower.x, flower.y, flower.rotation, flower.scale, flower.parts);
-    ctx.globalAlpha = 1;
-  }
-}
-
 // ── Draw functions ────────────────────────────────────────────────────────
 
+
+// Draws the bouquet of finished flowers around the indicator anchor
+function drawBouquet(cx, cy) {
+  const n = flowers.bouquet.length;
+  if (n === 0) return;
+
+  const FAN_RAD     = 70 * Math.PI / 180;  // ±35° total spread
+  const BOUQ_SCALE  = 1.0;
+
+  for (let i = 0; i < n; i++) {
+    const t        = n === 1 ? 0 : (i / (n - 1) - 0.5);
+    const rotation = t * FAN_RAD;
+    drawFlower(ctx, cx, cy, rotation, BOUQ_SCALE, flowers.bouquet[i].parts);
+  }
+}
 
 function drawIndicator(now) {
   const active = buildTimerActive || flowers.building.length > 0;
@@ -832,10 +772,13 @@ function drawIndicator(now) {
   // Pulse factor (only when active)
   const pulse = active ? 0.6 + 0.4 * Math.sin(now / 700) : 0;
 
-  // Background fill
+  // Draw bouquet – anchor shifted down so blooms sit in upper portion of circle
+  drawBouquet(cx, cy + 38);
+
+  // Circle background (subtle, over stem bases)
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = active ? `rgba(88,166,255,${0.05 + pulse * 0.05})` : 'rgba(110,118,129,0.05)';
+  ctx.fillStyle = active ? `rgba(13,17,23,${0.55 + pulse * 0.05})` : 'rgba(13,17,23,0.55)';
   ctx.fill();
 
   // Track ring
@@ -859,13 +802,59 @@ function drawIndicator(now) {
     ctx.lineCap     = 'butt';
   }
 
-  // Center dot
-  ctx.beginPath();
-  ctx.arc(cx, cy, 5, 0, Math.PI * 2);
-  ctx.fillStyle = active ? `rgba(88,166,255,${0.4 + pulse * 0.6})` : 'rgba(110,118,129,0.3)';
-  ctx.fill();
+  // Center dot when circle is empty and idle
+  if (flowers.bouquet.length === 0 && flowers.hearts === 0) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+    ctx.fillStyle = active ? `rgba(88,166,255,${0.4 + pulse * 0.6})` : 'rgba(110,118,129,0.3)';
+    ctx.fill();
+  }
 
-  // Label – context-aware
+  // Hearts badge – pill overlapping the bottom of the circle ring
+  if (flowers.hearts > 0 || flowers.bouquet.length > 0) {
+    const badgeY   = cy + r;           // sits right on the ring bottom
+    const ph = 22, pad = 12;
+    ctx.font = '12px system-ui';
+
+    // Build the two text segments
+    const heartStr = flowers.hearts > 0 ? `♥ ${flowers.hearts}` : '';
+    const sepStr   = flowers.hearts > 0 ? '  ' : '';
+    const countStr = `${flowers.bouquet.length} / ${BOUQUET_MAX}`;
+    const heartW   = ctx.measureText(heartStr + sepStr).width;
+    const countW   = ctx.measureText(countStr).width;
+    const totalW   = (flowers.hearts > 0 ? heartW : 0) + countW;
+    const pw       = totalW + pad * 2;
+    const px       = cx - pw / 2;
+    const py       = badgeY - ph / 2;
+
+    // Pill background
+    ctx.fillStyle = BG;
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, ph / 2);
+    ctx.fill();
+    ctx.strokeStyle = BORDER;
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, ph / 2);
+    ctx.stroke();
+
+    // Text: hearts in pink, count in dim
+    ctx.textBaseline = 'middle';
+    ctx.textAlign    = 'left';
+    const textStartX = cx - totalW / 2;
+    if (flowers.hearts > 0) {
+      ctx.fillStyle = '#f48fb1';
+      ctx.fillText(heartStr + sepStr, textStartX, badgeY);
+      ctx.fillStyle = TEXT_DIM;
+      ctx.fillText(countStr, textStartX + heartW, badgeY);
+    } else {
+      ctx.fillStyle = TEXT_DIM;
+      ctx.fillText(countStr, textStartX, badgeY);
+    }
+    ctx.textAlign = 'left';
+  }
+
+  // Label below badge
   ctx.fillStyle    = TEXT_DIM;
   ctx.font         = '11px system-ui';
   ctx.textAlign    = 'center';
@@ -875,36 +864,28 @@ function drawIndicator(now) {
     label = t('building_many', flowers.building.length);
   } else if (flowers.building.length === 1) {
     label = t('building_one');
-  } else if (screen === 'garden') {
-    label = t('building_idle_garden');
   } else {
     label = t('building_idle_mine');
   }
-  if (label) ctx.fillText(label, cx, cy + r + 20);
+  ctx.fillText(label, cx, cy + r + 32);
   ctx.textAlign = 'left';
 }
 
-// ── Garden draw ───────────────────────────────────────────────────────────
-function drawGardenHeader() {
+function drawHeader() {
+  // B♥M logo left
   ctx.fillStyle    = TEXT_HI;
-  ctx.font         = 'bold 22px system-ui';
-  ctx.textBaseline = 'alphabetic';
-  ctx.textAlign    = 'left';
-  ctx.fillText('knack!', 22, 46);
-
-  drawLangButton();
-}
-
-function drawMineHeader() {
-  // Back button left
-  const label = t('go_garden');
-  ctx.font         = '13px system-ui';
-  ctx.fillStyle    = TEXT_DIM;
+  ctx.font         = 'bold 18px system-ui';
   ctx.textBaseline = 'middle';
   ctx.textAlign    = 'left';
-  ctx.fillText(label, 22, 35);
-  const tw = ctx.measureText(label).width;
-  gardenBtnBounds = { x: 18, y: 22, w: tw + 8, h: 26 };
+  ctx.fillStyle    = '#f48fb1';
+  ctx.fillText('B', 22, HEADER_H / 2);
+  const bw = ctx.measureText('B').width;
+  ctx.fillStyle = '#f06292';
+  ctx.fillText('♥', 22 + bw, HEADER_H / 2);
+  const hw = ctx.measureText('♥').width;
+  ctx.fillStyle = TEXT_HI;
+  ctx.fillText('M', 22 + bw + hw, HEADER_H / 2);
+  ctx.textAlign = 'left';
 
   drawLangButton();
 }
@@ -928,34 +909,8 @@ function drawLangButton() {
   ctx.fillText(label, bx + 10, by + bh / 2);
 }
 
-function drawMineButton() {
-  const label = t('go_mine');
-  ctx.font     = '15px system-ui';
-  const bw = 180, bh = 52, bx = W / 2 - 90, by = H - 110;
-  mineBtnBounds = { x: bx, y: by, w: bw, h: bh };
-
-  ctx.fillStyle = BORDER;
-  ctx.beginPath();
-  ctx.roundRect(bx, by, bw, bh, 26);
-  ctx.fill();
-
-  ctx.fillStyle    = TEXT_HI;
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(label, W / 2, by + bh / 2);
-  ctx.textAlign = 'left';
-}
-
-function drawGarden(now) {
-  drawSky();
-  drawGardenHeader();
-  drawGardenFlowers();
-  drawIndicator(now);
-  drawMineButton();
-}
-
 function drawMine(now) {
-  drawMineHeader();
+  drawHeader();
   drawIndicator(now);
   drawBlock(now);
   drawShards(now, false);
@@ -1113,13 +1068,7 @@ function drawBins(now) {
 function draw(now) {
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
-
-  if (screen === 'garden') {
-    drawGarden(now);
-  } else {
-    drawMine(now);
-  }
-
+  drawMine(now);
   requestAnimationFrame(draw);
 }
 
@@ -1128,9 +1077,10 @@ const SAVE_KEY = 'bfm-save';
 
 function saveState() {
   const saveData = {
-    bins:    state.bins,
-    building: flowers.building,
-    done:     flowers.done,
+    bins:           state.bins,
+    building:       flowers.building,
+    bouquet:        flowers.bouquet,
+    hearts:         flowers.hearts,
     flowerIdCounter,
   };
   localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
@@ -1144,13 +1094,14 @@ function loadState() {
     const saveData = JSON.parse(raw);
     if (!saveData) return;
 
-    state.bins    = saveData.bins || SHAPES.map(s => ({ shape: s, shards: [] }));
+    state.bins       = saveData.bins     || SHAPES.map(s => ({ shape: s, shards: [] }));
     flowers.building = saveData.building || [];
-    flowers.done     = saveData.done || [];
-    flowerIdCounter = saveData.flowerIdCounter || 0;
+    flowers.bouquet  = saveData.bouquet  || [];
+    flowers.hearts   = saveData.hearts   || 0;
+    flowerIdCounter  = saveData.flowerIdCounter || 0;
 
   } catch (e) {
-    console.error("Failed to load state", e);
+    console.error('Failed to load state', e);
   }
 }
 
