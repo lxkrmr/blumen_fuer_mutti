@@ -220,16 +220,18 @@ Building labels are identical on both screens.
 | Haptic feedback (Android) | ✅ |
 | i18n (DE + EN) | ✅ |
 | PWA (installable, offline) | ✅ |
+| Garden screen (navigation, indicator, mine button) | ✅ |
+| Mine screen (back button, screen switching) | ✅ |
 | Crystal flower render | ❌ next |
-| Garden screen (start, meadow, indicator) | ❌ planned, separate feature |
+| Garden screen – flower meadow render | ❌ planned |
 | Sound | ❌ out of scope for now |
 
 ---
 
 ## Next steps
 
-1. **Crystal flower render** – draw the actual flower shape on canvas (for done array + eventually Garden)
-2. **Garden screen** – separate start screen, full meadow of finished flowers, prominent indicator, button to Mine *(separate feature)*
+1. **Crystal flower render** – draw the actual flower shape on canvas
+2. **Garden meadow** – render finished flowers from `done` array on Garden screen
 3. **Feel tuning** – tap ranges, drift speed, glow intensity, shard sizes *(ongoing)*
 
 ---
@@ -295,3 +297,4 @@ Building labels are identical on both screens.
 - *Feb 21:* Crystal flower recipe settled: 1 Circle (center), 8 Hearts (overlapping petals), 1 Stem (curved), 2 Leaves. Bin capacity = recipe count.
 - *Feb 21:* Full system design: bins as color queues, building queue, done array with cap, meadow as separate zen/start screen. Per-flower color variation is free (600 strings max). Fixed coords at flower birth = stable meadow layout.
 - *Feb 21:* Stem recipe = 3 (not 1) – matches 3 visible segments in reference sketch. Recipe corrected to 1/8/3/2 = 14 parts. Spawn probability aligned to recipe ratios.
+- *Feb 21:* Garden + Mine screens implemented. Screen switching via state variable. Indicator shared, labels context-aware. Drag only active in Mine. Idle label on Garden invites action ("go to mine"), not status.
