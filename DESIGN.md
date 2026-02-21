@@ -88,6 +88,17 @@ Sorting is by **shape**, not color. 4 shapes, each has its own bin.
 
 Shard **colors are wild** – inherited from the block, no sorting meaning. Keeps colors beautiful without pressure.
 
+**Shape spawn probability** matches the flower recipe ratios so supply meets demand:
+
+| Shape | Recipe | Probability |
+|---|---|---|
+| Circle | 1 / 14 | 7.1% |
+| Heart | 8 / 14 | 57.1% |
+| Stem | 3 / 14 | 21.4% |
+| Leaf | 2 / 14 | 14.3% |
+
+A weighted random draw per piece ensures the right mix over time.
+
 Sorting via **drag & drop** – drag shard directly to bin. Wrong bin: snap back + shake.
 
 ### Crystal flower (reward) – not yet built
@@ -102,10 +113,10 @@ Replaces the hexagon gem. Built organically from sorted shapes.
 |---|---|---|
 | Circle | Bloom center | 1 |
 | Heart | Petals (overlapping, full bloom) | 8 |
-| Stem | Stem (curved, 3–4 segments) | 1 |
+| Stem | Stem segments (3 visible kinks) | 3 |
 | Leaf | Leaves on stem (one left, one right) | 2 |
 
-Total: **12 parts** per flower.
+Total: **14 parts** per flower.
 
 The stem curves gently (not straight up). The right leaf sits slightly behind the stem, lower than the left.
 
@@ -125,7 +136,7 @@ bins = {
 flowersReady = Math.min(
   bins.circle.length,
   Math.floor(bins.heart.length / 8),
-  bins.stem.length,
+  Math.floor(bins.stem.length / 3),
   Math.floor(bins.leaf.length / 2)
 )
 
@@ -210,6 +221,7 @@ A dedicated start screen – the "zen garden". Shows the full meadow of finished
 - [x] Fixed color per shape vs. per-flower variation? → Per-flower (bins are color queues, cheap, more unique)
 - [x] Meadow on same screen or separate? → Separate zen/start screen
 - [x] Flower placement → random fixed coords, can go off-screen, random z-order
+- [x] Stem recipe count → 3 (matches 3 visible segments in reference sketch)
 - [ ] Build time BASE_MS – needs a felt value (likely 20–40s, scale * base)
 - [ ] Max flowers in `done` array – needs playtesting (~20–30 to start)
 - [ ] Crack/damage visuals – how to communicate progress without lines?
@@ -236,6 +248,7 @@ A dedicated start screen – the "zen garden". Shows the full meadow of finished
 | **Meadow as separate screen** | Sorting screen stays focused. Zen screen is the reward space + future home for tutorial/settings. |
 | **Flowers get fixed coords at birth** | Placed once when done, never move. Stable, no layout recalculation. |
 | **Build time = scale × BASE_MS** | Larger flowers feel more earned. Range adds organic feel. |
+| **Spawn probability = recipe ratio** | Supply matches demand. Hearts spawn most (57%) because 8 are needed. No frustrating shortages of common parts. |
 
 ---
 
@@ -261,3 +274,4 @@ A dedicated start screen – the "zen garden". Shows the full meadow of finished
 - *Feb 21:* Two-pass glow render (blur pass + sharp pass) solves the "blurry shapes" problem. Halo outside, crisp fill inside.
 - *Feb 21:* Crystal flower recipe settled: 1 Circle (center), 8 Hearts (overlapping petals), 1 Stem (curved), 2 Leaves. Bin capacity = recipe count.
 - *Feb 21:* Full system design: bins as color queues, building queue, done array with cap, meadow as separate zen/start screen. Per-flower color variation is free (600 strings max). Fixed coords at flower birth = stable meadow layout.
+- *Feb 21:* Stem recipe = 3 (not 1) – matches 3 visible segments in reference sketch. Recipe corrected to 1/8/3/2 = 14 parts. Spawn probability aligned to recipe ratios.
