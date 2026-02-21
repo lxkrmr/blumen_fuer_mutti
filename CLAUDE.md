@@ -54,6 +54,7 @@ The human starts the server. The AI does not run `python3 -m http.server` or sim
 - **Questions get answers** – if the human asks a question, answer it. Don't just start doing things.
 - **Dialogue over assumptions** – if something doesn't make sense, ask. Don't silently interpret and execute.
 - **Human navigates** – never prompt "ready for X?" or push the next step. After finishing, say "Ich bin bereit – Nächstes in DESIGN.md: [item]" and wait.
+- **Structure review questions** – when asking multiple questions (e.g. during cleanup), number them: (1) … (2) … (3) … so the human can answer (1) yes (2) ok etc.
 - **Plan before code** – design decisions go into DESIGN.md first. Only write code after the human explicitly says to build it. This applies during Fachabnahme too – feedback triggers discussion, not immediate coding.
 - **Plan step by step** – when planning, think in numbered steps. Start with just a few, continue when done. Don't plan everything at once.
 - **Clean up before starting** – before every new feature: check if DESIGN.md is current, mark done items, remove stale notes.
