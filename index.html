@@ -104,12 +104,6 @@ function t(key, ...args) {
 }
 
 // ── Colors ─────────────────────────────────────────────────────────────────
-const COLORS = [
-  { id: 'blue',   hex: '#58a6ff' },
-  { id: 'orange', hex: '#f0883e' },
-  { id: 'purple', hex: '#bc8cff' },
-];
-
 // Flower recipe – how many sorted shards per bin make one flower part
 const FLOWER_RECIPE = { circle: 1, heart: 8, stem: 3, leaf: 2 };
 const BUILD_BASE_MS = 20000;   // base build time in ms (±15% random variance)
@@ -313,20 +307,18 @@ function spawnBlock() {
   state.shards   = [];
   state.selected = null;
 
-  const color = COLORS[Math.floor(Math.random() * COLORS.length)];
   const size  = SIZES[Math.floor(Math.random() * SIZES.length)];
   const [tMin, tMax] = size.taps;
   const tapsRequired = tMin + Math.floor(Math.random() * (tMax - tMin + 1));
 
-  state.block    = {
-    color, size,
+  state.block = {
+    size,
     pieces:       genPieces(size.shards, size.blockPx),
     tapsRequired, tapsLeft: tapsRequired,
     lastTapAt: 0, angle: 0,
   };
   blockEnterStart = performance.now();
 }
-
 
 function tapBlock() {
   if (state.phase !== 'block') return;
@@ -364,28 +356,6 @@ function doBreakBlock() {
       shakeStart: 0,
     });
   });
-}
-
-function selectShard(id) {
-  haptic(8);
-
-  if (state.selected === id) {
-    // Tap same shard → deselect
-    const s = state.shards.find(s => s.id === id);
-    if (s) s.phase = 'idle';
-    state.selected = null;
-    return;
-  }
-
-  // Deselect previous
-  if (state.selected !== null) {
-    const prev = state.shards.find(s => s.id === state.selected);
-    if (prev) prev.phase = 'idle';
-  }
-
-  state.selected = id;
-  const shard = state.shards.find(s => s.id === id);
-  if (shard) shard.phase = 'selected';
 }
 
 function trySortShard(binIndex) {
@@ -443,19 +413,18 @@ function checkBuildTrigger() {
 }
 
 function startBuildingFlower() {
-  const parts = {};
+  // Consume shards from bins
   for (const s of SHAPES) {
-    const bin = state.bins.find(b => b.shape.id === s.id);
-    parts[s.id] = bin.shards.splice(0, FLOWER_RECIPE[s.id]);
+    state.bins.find(b => b.shape.id === s.id).shards.splice(0, FLOWER_RECIPE[s.id]);
   }
 
-  // Pfingstrose color system – overwrite shard colors with peony palette
-  parts.circle = [{ color: varyColor('#fff176', 10) }];
-  parts.heart  = Array.from({ length: 8 }, () => ({
-    color: PEONY_PETAL_POOL[Math.floor(Math.random() * PEONY_PETAL_POOL.length)],
-  }));
-  parts.stem   = Array.from({ length: 3 }, () => ({ color: varyColor('#52b788', 12) }));
-  parts.leaf   = Array.from({ length: 2 }, () => ({ color: varyColor('#1e4d2b', 10) }));
+  // Assign Pfingstrose colors via shapeToColor
+  const parts = {
+    circle: [{ color: shapeToColor('circle') }],
+    heart:  Array.from({ length: 8 }, () => ({ color: shapeToColor('heart') })),
+    stem:   Array.from({ length: 3 }, () => ({ color: shapeToColor('stem')  })),
+    leaf:   Array.from({ length: 2 }, () => ({ color: shapeToColor('leaf')  })),
+  };
 
   const now     = performance.now();
   const buildMs = BUILD_BASE_MS * (0.85 + Math.random() * 0.3);
@@ -1038,8 +1007,6 @@ function drawBlock(now) {
     ctx.restore();
   }
   ctx.restore();
-
-
 }
 
 function drawShards(now, dragOnly = false) {
