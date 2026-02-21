@@ -3,6 +3,7 @@
 Rules and context for the AI agent working on this project.
 
 → Game idea, design decisions, and learnings: [DESIGN.md](DESIGN.md)
+→ Project scaffold skill (suggest updates when patterns emerge): `web-prototype`
 
 ---
 
@@ -18,6 +19,16 @@ A fidget game. Tap a block – it breaks into shards. Sort them by color. Watch 
 - **No dependencies:** No framework, no build tools
 - **Files:** `index.html` (game), `manifest.json` + `sw.js` + `icon.svg` (PWA)
 - **Target:** Browser, touch + mouse, installable as PWA
+
+## Documentation
+
+| File | Purpose |
+|---|---|
+| **CLAUDE.md** | My operating instructions – rules, constraints, how to behave. Directed at the AI. |
+| **DESIGN.md** | The process – why decisions were made, what's implemented, what's open. Living document. |
+| **README.md** | The statement – what this project is, for anyone visiting the repo. Stable, public. |
+
+**Faustregel:** README is a statement. DESIGN.md is a process.
 
 ## Rules
 
@@ -40,6 +51,8 @@ The human starts the server. The AI does not run `python3 -m http.server` or sim
 ### AI behavior
 - **Questions get answers** – if the human asks a question, answer it. Don't just start doing things.
 - **Dialogue over assumptions** – if something doesn't make sense, ask. Don't silently interpret and execute.
+- **Keep DESIGN.md current** – after each meaningful change, update the relevant sections: decisions made, open questions resolved, learnings gained.
+- **No system-specific content** – avoid absolute paths, usernames, or local IPs in any file that may be shared (CLAUDE.md, DESIGN.md, README.md, source files).
 
 ### Iteration
 - Small steps, each committable independently

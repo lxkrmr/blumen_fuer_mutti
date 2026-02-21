@@ -47,6 +47,23 @@ Gem complete → new gem begins
 | Haptic + animation feedback | Score / stats |
 | DE + EN | Achievements |
 
+## Current state
+
+*(What is actually implemented right now – updated after each change)*
+
+| What | Status |
+|---|---|
+| Block appears | ✅ |
+| Tap → breaks into shards | ✅ |
+| Select shard → sort into bin | ✅ |
+| Wrong sort → shake feedback | ✅ |
+| Bins persist across rounds | ✅ |
+| Bin full → gem grows a facet | ✅ |
+| Gem complete → new gem begins | ✅ |
+| Haptic feedback (Android) | ✅ |
+| i18n (DE + EN) | ✅ |
+| PWA (installable, offline) | ✅ |
+
 ## Values
 
 - **No dark patterns** – no manipulation, no fake urgency
