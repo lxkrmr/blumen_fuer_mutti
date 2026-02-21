@@ -174,6 +174,15 @@ Start screen. Shows all finished flowers from the `done` array.
 
 **Indicator:** Same size and style as on the Mine screen – subtle feedback, not a focal point.
 
+| State | DE | EN |
+|---|---|---|
+| Garden idle | "geh zur mine um scherben abzubauen" | "go to the mine to mine shards" |
+| Building (1 flower) | "✦ blume wächst …" | "✦ flower growing …" |
+| Building (n flowers) | "✦ n blumen wachsen …" | "✦ n flowers growing …" |
+| Mine idle | "scherben abbauen um blumen zu erschaffen" | "mine shards to grow flowers" |
+
+Building labels are identical on both screens.
+
 **Navigation:**
 - Garden → Mine: button at bottom (or natural position). Text works for now, an illustration/image would be nicer later.
 - Mine → Garden: back button top left. Same idea – plain button for now, image later.
