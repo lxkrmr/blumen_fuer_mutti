@@ -76,16 +76,22 @@ function canvasCoords(e) {
 // ── i18n ──────────────────────────────────────────────────────────────────
 const STRINGS = {
   de: {
-    lang_toggle:    'EN',
-    building_one:   '✦ blume wächst …',
-    building_many:  (n) => `✦ ${n} blumen wachsen …`,
-    building_idle:  'sortiere um blumen zu züchten',
+    lang_toggle:          'EN',
+    building_one:         '✦ blume wächst …',
+    building_many:        (n) => `✦ ${n} blumen wachsen …`,
+    building_idle_mine:   'scherben abbauen um blumen zu erschaffen',
+    building_idle_garden: 'geh zur mine um scherben abzubauen',
+    go_mine:              'zur Mine →',
+    go_garden:            '← Garten',
   },
   en: {
-    lang_toggle:    'DE',
-    building_one:   '✦ flower growing …',
-    building_many:  (n) => `✦ ${n} flowers growing …`,
-    building_idle:  'sort shards to grow flowers',
+    lang_toggle:          'DE',
+    building_one:         '✦ flower growing …',
+    building_many:        (n) => `✦ ${n} flowers growing …`,
+    building_idle_mine:   'mine shards to grow flowers',
+    building_idle_garden: 'go to the mine to mine shards',
+    go_mine:              'to Mine →',
+    go_garden:            '← Garden',
   },
 };
 
@@ -196,6 +202,14 @@ function clamp01(t)     { return clamp(t, 0, 1); }
 function haptic(pattern) {
   if (navigator.vibrate) navigator.vibrate(pattern);
 }
+
+// ── Screen state ──────────────────────────────────────────────────────────
+let screen = 'garden'; // 'garden' | 'mine'
+
+// Button bounds – set each frame during draw, used by hitTest
+let langBtnBounds   = null;
+let mineBtnBounds   = null;
+let gardenBtnBounds = null;
 
 // ── Drag state ────────────────────────────────────────────────────────────
 const drag = {
@@ -514,13 +528,22 @@ function inRect(x, y, rx, ry, rw, rh) {
   return x >= rx && x <= rx + rw && y >= ry && y <= ry + rh;
 }
 
-let langBtnBounds = null; // set during drawHeader each frame
-
 function hitTest(x, y, now) {
-  // Lang button
-  if (langBtnBounds) {
-    const b = langBtnBounds;
-    if (inRect(x, y, b.x, b.y, b.w, b.h)) return { type: 'lang' };
+  // Lang button – both screens
+  if (langBtnBounds && inRect(x, y, langBtnBounds.x, langBtnBounds.y, langBtnBounds.w, langBtnBounds.h)) {
+    return { type: 'lang' };
+  }
+
+  if (screen === 'garden') {
+    if (mineBtnBounds && inRect(x, y, mineBtnBounds.x, mineBtnBounds.y, mineBtnBounds.w, mineBtnBounds.h)) {
+      return { type: 'mine_btn' };
+    }
+    return null;
+  }
+
+  // Mine screen
+  if (gardenBtnBounds && inRect(x, y, gardenBtnBounds.x, gardenBtnBounds.y, gardenBtnBounds.w, gardenBtnBounds.h)) {
+    return { type: 'garden_btn' };
   }
 
   // Shards (reverse so topmost is checked first)
@@ -556,6 +579,7 @@ function hitTest(x, y, now) {
 let lastTouchEnd = 0;
 
 function initDrag(coords) {
+  if (screen !== 'mine') return;
   const now = performance.now();
   const hit = hitTest(coords.x, coords.y, now);
   if (!hit || hit.type !== 'shard') return;
@@ -638,8 +662,10 @@ function handleTap({ x, y }) {
   const hit = hitTest(x, y, now);
   if (!hit) return;
   switch (hit.type) {
-    case 'lang':  toggleLang(); break;
-    case 'block': tapBlock();   break;
+    case 'lang':       toggleLang();       break;
+    case 'mine_btn':   screen = 'mine';    break;
+    case 'garden_btn': screen = 'garden';  break;
+    case 'block':      tapBlock();         break;
   }
 }
 
@@ -649,31 +675,7 @@ function toggleLang() {
 }
 
 // ── Draw functions ────────────────────────────────────────────────────────
-function drawHeader() {
-  // Title
-  ctx.fillStyle    = TEXT_HI;
-  ctx.font         = 'bold 22px system-ui';
-  ctx.textBaseline = 'alphabetic';
-  ctx.textAlign    = 'left';
-  ctx.fillText('knack!', 22, 46);
 
-  // Lang button
-  const label = t('lang_toggle');
-  ctx.font     = '12px system-ui';
-  const tw     = ctx.measureText(label).width;
-  const bw = tw + 20, bh = 26, bx = W - bw - 20, by = 22;
-  langBtnBounds = { x: bx, y: by, w: bw, h: bh };
-
-  ctx.strokeStyle  = BORDER;
-  ctx.lineWidth    = 1;
-  ctx.beginPath();
-  ctx.roundRect(bx, by, bw, bh, 6);
-  ctx.stroke();
-
-  ctx.fillStyle    = TEXT_DIM;
-  ctx.textBaseline = 'middle';
-  ctx.fillText(label, bx + 10, by + bh / 2);
-}
 
 function drawIndicator(now) {
   const active  = flowers.building.length > 0;
@@ -721,21 +723,100 @@ function drawIndicator(now) {
   ctx.fillStyle = active ? `rgba(88,166,255,${0.4 + pulse * 0.6})` : 'rgba(110,118,129,0.3)';
   ctx.fill();
 
-  // Label
+  // Label – context-aware
   ctx.fillStyle    = TEXT_DIM;
   ctx.font         = '11px system-ui';
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'alphabetic';
   let label;
-  if (!active) {
-    label = t('building_idle');
+  if (flowers.building.length > 1) {
+    label = t('building_many', flowers.building.length);
   } else if (flowers.building.length === 1) {
     label = t('building_one');
+  } else if (screen === 'garden') {
+    label = t('building_idle_garden');
   } else {
-    label = t('building_many', flowers.building.length);
+    label = t('building_idle_mine');
   }
-  ctx.fillText(label, cx, cy + r + 20);
+  if (label) ctx.fillText(label, cx, cy + r + 20);
   ctx.textAlign = 'left';
+}
+
+// ── Garden draw ───────────────────────────────────────────────────────────
+function drawGardenHeader() {
+  ctx.fillStyle    = TEXT_HI;
+  ctx.font         = 'bold 22px system-ui';
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign    = 'left';
+  ctx.fillText('knack!', 22, 46);
+
+  drawLangButton();
+}
+
+function drawMineHeader() {
+  // Back button left
+  const label = t('go_garden');
+  ctx.font         = '13px system-ui';
+  ctx.fillStyle    = TEXT_DIM;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign    = 'left';
+  ctx.fillText(label, 22, 35);
+  const tw = ctx.measureText(label).width;
+  gardenBtnBounds = { x: 18, y: 22, w: tw + 8, h: 26 };
+
+  drawLangButton();
+}
+
+function drawLangButton() {
+  const label = t('lang_toggle');
+  ctx.font     = '12px system-ui';
+  const tw     = ctx.measureText(label).width;
+  const bw = tw + 20, bh = 26, bx = W - bw - 20, by = 22;
+  langBtnBounds = { x: bx, y: by, w: bw, h: bh };
+
+  ctx.strokeStyle  = BORDER;
+  ctx.lineWidth    = 1;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, bw, bh, 6);
+  ctx.stroke();
+
+  ctx.fillStyle    = TEXT_DIM;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign    = 'left';
+  ctx.fillText(label, bx + 10, by + bh / 2);
+}
+
+function drawMineButton() {
+  const label = t('go_mine');
+  ctx.font     = '15px system-ui';
+  const bw = 180, bh = 52, bx = W / 2 - 90, by = H - 110;
+  mineBtnBounds = { x: bx, y: by, w: bw, h: bh };
+
+  ctx.fillStyle = BORDER;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, bw, bh, 26);
+  ctx.fill();
+
+  ctx.fillStyle    = TEXT_HI;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, W / 2, by + bh / 2);
+  ctx.textAlign = 'left';
+}
+
+function drawGarden(now) {
+  drawGardenHeader();
+  drawIndicator(now);
+  drawMineButton();
+}
+
+function drawMine(now) {
+  drawMineHeader();
+  drawIndicator(now);
+  drawBlock(now);
+  drawShards(now, false);
+  drawBins(now);
+  drawShards(now, true);
 }
 
 function drawBlock(now) {
@@ -894,12 +975,11 @@ function draw(now) {
 
   tickBuilding(now);
 
-  drawHeader();
-  drawIndicator(now);
-  drawBlock(now);
-  drawShards(now, false);
-  drawBins(now);
-  drawShards(now, true);
+  if (screen === 'garden') {
+    drawGarden(now);
+  } else {
+    drawMine(now);
+  }
 
   requestAnimationFrame(draw);
 }
