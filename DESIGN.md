@@ -373,3 +373,10 @@ Wenn eine neue Blume fertig ist, wächst sie von unten in den Frame – Stiel zu
 - *Feb 21:* Full system design: bins as color queues, building queue, done array with cap, meadow as separate zen/start screen. Per-flower color variation is free (600 strings max). Fixed coords at flower birth = stable meadow layout.
 - *Feb 21:* Stem recipe = 3 (not 1) – matches 3 visible segments in reference sketch. Recipe corrected to 1/8/3/2 = 14 parts. Spawn probability aligned to recipe ratios.
 - *Feb 21:* Garden + Mine screens implemented. Screen switching via state variable. Indicator shared, labels context-aware. Drag only active in Mine. Idle label on Garden invites action ("go to mine"), not status.
+- *Feb 21:* `ctx.beginPath()` vor jeder Shape-Path zwingend – fehlt es, akkumulieren sich alle Pfade und der letzte `fill()` übermalt alles mit einer Farbe. Klassischer Canvas-Bug.
+- *Feb 21:* Canvas-Rotation: y zeigt nach unten → Blatt-Rotation war spiegelverkehrt. Für "nach oben zeigendes" Blatt links: positive Rotation, rechts: negative Rotation.
+- *Feb 21:* Stiel als `lineTo`-Segmente statt rotierter Rounded-Rects → garantiert verbunden, per-Segment-Farbe, sauberer Look.
+- *Feb 21:* Flower-Ursprung am Stieluntergrund (`ctx.translate(0, -58)`) macht Row-Placement trivial: y = Bodenlinie, Blume wächst nach oben.
+- *Feb 21:* Opaker Basiskreis vor den Petals verhindert Durchscheinen von Hintergrundblumen durch Petal-Lücken.
+- *Feb 21:* Garden-Vision: Close-up-Perspektive ins Feld hinein, Blumen füllen Screen, angeschnitten erlaubt. Wolkenhimmel als Start, Blumen verdrängen ihn mit der Zeit. Erste Blume kein Sonderplatz – wächst als erste in der Vorderreihe.
+- *Feb 21:* Pfingstrose als Blumentyp gewählt. Grün (Blatt/Stiel) fix, Blütenblatt-Pool aus 7 Rosa-Tönen – jedes der 8 Petals zufällig gemischt.
