@@ -35,7 +35,7 @@ Bins persist across rounds – next block appears immediately
         ↓
 Enough parts for a flower → building starts automatically in background (20–40s)
         ↓
-Flower complete → placed on the Wiese (zen screen) with fixed random coords
+Flower complete → placed on the Garden with fixed random coords
 ```
 
 ---
@@ -159,9 +159,26 @@ Bin background fills with color based on how many multiples of the recipe are av
 **Game screen indicator (top – replaces hex gem):**
 Crystal glows and animates when a flower is currently building. Gray/inactive when `building` is empty. Shows at most a count if multiple are queued.
 
-### Wiese / Zen screen – planned, separate feature
+### Screens
 
-A dedicated start screen – the zen garden. Shows all finished flowers from the `done` array. Also displays the building indicator.
+| Screen | Name | Description |
+|---|---|---|
+| Start / Zen | **Garden** | Meadow of finished flowers, building indicator, button to Mine |
+| Game | **Mine** | Break blocks, sort shards into bins, building indicator (compact) |
+
+Navigation: Garden → Mine via button. Mine → Garden via back/swipe.
+
+### Garden screen – planned, separate feature
+
+Start screen. Shows all finished flowers from the `done` array.
+
+**Indicator:** Same size and style as on the Mine screen – subtle feedback, not a focal point.
+
+**Navigation:**
+- Garden → Mine: button at bottom (or natural position). Text works for now, an illustration/image would be nicer later.
+- Mine → Garden: back button top left. Same idea – plain button for now, image later.
+
+**Future home for:** tutorial, settings, other screens.
 
 **Layout:**
 - Flowers placed at random fixed `{ x, y, rotation, scale, zIndex }` assigned at creation – they never move after placed
@@ -195,15 +212,15 @@ A dedicated start screen – the zen garden. Shows all finished flowers from the
 | i18n (DE + EN) | ✅ |
 | PWA (installable, offline) | ✅ |
 | Crystal flower render | ❌ next |
-| Wiese / Zen screen | ❌ planned, separate feature |
+| Garden screen (start, meadow, indicator) | ❌ planned, separate feature |
 | Sound | ❌ out of scope for now |
 
 ---
 
 ## Next steps
 
-1. **Crystal flower render** – draw the actual flower shape on canvas (for done array + eventually Wiese)
-2. **Wiese / Zen screen** – separate start screen, full meadow of finished flowers *(separate feature)*
+1. **Crystal flower render** – draw the actual flower shape on canvas (for done array + eventually Garden)
+2. **Garden screen** – separate start screen, full meadow of finished flowers, prominent indicator, button to Mine *(separate feature)*
 3. **Feel tuning** – tap ranges, drift speed, glow intensity, shard sizes *(ongoing)*
 
 ---
@@ -213,7 +230,7 @@ A dedicated start screen – the zen garden. Shows all finished flowers from the
 - [x] How organic is the flower build? → Fixed structure, curved stem, overlapping petals
 - [x] How many shards fill a bin? → Bin capacity = flower recipe (1/8/1/2)
 - [x] Fixed color per shape vs. per-flower variation? → Per-flower (bins are color queues, cheap, more unique)
-- [x] Wiese on same screen or separate? → Separate zen/start screen
+- [x] Garden screen separate from Mine? → Yes. Garden = start screen, Mine = game screen.
 - [x] Flower placement → random fixed coords, can go off-screen, random z-order
 - [x] Stem recipe count → 3 (matches 3 visible segments in reference sketch)
 - [x] Build time BASE_MS → 20s base, ±15% random variance
@@ -239,7 +256,7 @@ A dedicated start screen – the zen garden. Shows all finished flowers from the
 | **Jackpot size (12 shards)** | Rare, worth it. More sorting = more reward. Visible from block size. |
 | **knack! = lab only** | Learnings flow into "Blumen für Mutti", not into feature creep here |
 | **Per-flower color variation** | Bins are color queues → each flower gets the actual shard colors. Unique per player, cheap to store. |
-| **Wiese as separate screen** | Sorting screen stays focused. Zen screen is the reward space + future home for tutorial/settings. |
+| **Garden + Mine as two screens** | Mine stays focused on breaking/sorting. Garden is the reward space – start screen, meadow, future home for tutorial/settings. |
 | **Flowers get fixed coords at birth** | Placed once when done, never move. Stable, no layout recalculation. |
 | **Build time = scale × BASE_MS** | Larger flowers feel more earned. Range adds organic feel. |
 | **Spawn probability = recipe ratio** | Supply matches demand. Hearts spawn most (57%) because 8 are needed. No frustrating shortages of common parts. |
