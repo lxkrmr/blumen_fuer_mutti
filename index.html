@@ -681,7 +681,7 @@ function drawBlock(now) {
   const progress = 1 - block.tapsLeft / block.tapsRequired;
 
   // Piece drift: spread further with each tap
-  const drift = 1 + progress * 0.55;
+  const drift = 1 + progress * 0.9;
 
   // Pulsing glow: grows and pulses faster as damage increases
   const pulse     = 0.65 + 0.35 * Math.sin(now / (170 - progress * 100));
