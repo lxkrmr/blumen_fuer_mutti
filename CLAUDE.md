@@ -56,6 +56,11 @@ The human starts the server. The AI does not run `python3 -m http.server` or sim
 - **Keep DESIGN.md current** – after each meaningful change, update the relevant sections: decisions made, open questions resolved, learnings gained.
 - **No system-specific content** – avoid absolute paths, usernames, or local IPs in any file that may be shared (CLAUDE.md, DESIGN.md, README.md, source files).
 
+### Screenshots (browser-tools)
+- **Ask before screenshotting** – don't take screenshots autonomously or in loops.
+- **Human drives the browser** – the human clicks/plays until a good moment, then says something like "anschauen" or "screenshot". Only then take one.
+- **One shot** – take a single screenshot, show it, discuss. No loops.
+
 ### Iteration
 - Small steps, each committable independently
 - Test, feel, adjust
