@@ -220,6 +220,7 @@ hearts = 0
 | **Mutti upgrades** | Schulung | Sell bouquets for more coins (permanent multiplier) |
 | | Schrumpf-flation | Smaller bouquet (8 flowers?) for nearly the same price |
 | | Sparschwein | Idle interest – coins slowly accumulate over time |
+| **Bin upgrades** | Magnetischer Bin | Bin attracts nearby matching parts automatically (radius X) – enabled by free placement |
 | **Special bags** | Herz-Packung | Next bag contains only heart-shaped parts |
 | | Große Packung | More parts per bag, better value than small bags |
 | **Goal** | Alpakafarm 🦙 | Win condition. Absurdly expensive. |
@@ -258,7 +259,7 @@ hearts = 0
 | Opens into parts with defined shapes | ✅ |
 | Shape spawn probability weighted by recipe | ✅ |
 | Drag & drop sorting by shape | ✅ |
-| Wrong sort → snap back + shake | ✅ |
+| Wrong sort → stays at drop position + shake | ✅ |
 | 4 bins as color queues (recipe-based capacity) | ✅ |
 | Bin fill bar (fills once, stays full) + counter below (n/recipe) | ✅ |
 | Building system – sequential queue, unlimited depth | ✅ |
@@ -314,6 +315,8 @@ hearts = 0
 | **Color follows shape (Pfingstrose)** | Farbe verrät Form schon in der Tüte. Konsistentes Bild von Tüte über Teil bis Blume. |
 | **Bag is a cluster of its pieces** | Player sees what's inside before opening. Visual language is consistent. |
 | **Drag & drop, not tap-select-tap** | More intuitive, direct manipulation |
+| **Free placement on drop** | Elements stay where dropped (no snap-back). Feels natural. Prerequisite for future "magnetic bin" upgrade. |
+| **Drop position fixes sort flash** | Correct sort animates from drag.x/y, not targetX/Y – prevents 1-frame flash at origin. |
 | **No tap counter shown** | Player feels the bag through wobble/drift/glow – more tactile |
 | **Rattle accumulates (no spring-back)** | Feels physical – like shaking a real bag |
 | **Glow as two-pass render** | Pass 1: shadowBlur for halo. Pass 2: sharp shapes on top. Crisp edges + glow. |
@@ -400,5 +403,7 @@ hearts = 0
 - *Feb 21:* Cryptic symbols (✦) are worse than plain language. "Harry baut 3 Blumen" is immediately clear; "✦ 3" requires the player to learn the symbol.
 - *Feb 21:* Bouquet anchor tuning is iterative – start too high/low, adjust by feel. cy+38 feels right: blooms in the upper half, stems visible as "hands holding the bouquet".
 - *Feb 21:* Badge overlapping the ring bottom is a compact way to attach info to the circle without needing extra layout space.
+- *Feb 22:* Free placement (no snap-back) feels more natural and enables future magnetic bin mechanic. Snap-back was solving a problem that doesn't need solving. Emergent bonus: players can pre-sort by forming small piles before sorting into bins.
+- *Feb 22:* Sort flash caused by animating from targetX/Y instead of drag position. Fix: set targetX/Y = drag.x/y before switching to 'sorting' phase.
 - *Feb 22:* Bin fill cycling was misleading – adding a 9th heart to an 8-slot bin looked like the bin emptied. Fill-bar now clamps at 100% and counter below (`n / recipe`) makes stock readable at a glance. Side effect: devs can now spot probability imbalances in real-time.
 - *Feb 22:* Hearts renamed to Coins. `toLocaleString('de-DE'/'en-US')` handles thousand separators cleanly per language. Gold `#e3b341` reads well on dark bg as currency color.

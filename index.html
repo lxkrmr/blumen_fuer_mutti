@@ -360,13 +360,20 @@ function trySortShard(binIndex) {
   if (!shard) return;
 
   if (shard.shape.id !== state.bins[binIndex].shape.id) {
+    // Wrong bin – place at drop position, shake for feedback
     haptic([8, 30, 8]);
+    shard.targetX   = drag.x;
+    shard.targetY   = drag.y;
+    shard.phase     = 'idle';
     shard.shakeStart = performance.now();
+    state.selected  = null;
     return;
   }
 
-  // ✓ Correct sort
+  // ✓ Correct sort – animate from drop position (prevents flash at origin)
   haptic(12);
+  shard.targetX   = drag.x;
+  shard.targetY   = drag.y;
   shard.phase     = 'sorting';
   shard.sortStart = performance.now();
   state.selected  = null;
@@ -478,19 +485,7 @@ function shardAnim(shard, now) {
     return { x: drag.x, y: drag.y, scale: 1.18, opacity: 1 };
   }
 
-  if (shard.phase === 'snapping') {
-    const t = clamp01((now - shard.snapStart) / 280);
-    const e = easeOutBack(t);
-    if (t >= 1) shard.phase = 'idle';
-    return {
-      x:       lerp(shard.snapFrom.x, shard.targetX, e),
-      y:       lerp(shard.snapFrom.y, shard.targetY, e),
-      scale:   lerp(1.18, 1, t),
-      opacity: 1,
-    };
-  }
-
-  // idle / selected – optional shake
+  // idle – optional shake
   let shakeX = 0;
   if (shard.shakeStart) {
     const st = clamp01((now - shard.shakeStart) / 350);
@@ -624,16 +619,15 @@ function endDrag(coords) {
   if (binIndex >= 0) {
     state.selected = shard.id;
     trySortShard(binIndex);
-    // trySortShard sets phase='sorting' on success – if still 'dragging', it failed
+    // trySortShard always resolves the shard phase
+    return;
   }
 
-  // Snap back if not successfully sorted
-  if (shard.phase === 'dragging') {
-    shard.snapFrom  = { x: drag.x, y: drag.y };
-    shard.snapStart = performance.now();
-    shard.phase     = 'snapping';
-    state.selected  = null;
-  }
+  // Dropped on empty space – place freely at drop position
+  shard.targetX  = coords.x;
+  shard.targetY  = coords.y;
+  shard.phase    = 'idle';
+  state.selected = null;
 }
 
 canvas.addEventListener('touchstart', (e) => {
@@ -919,8 +913,8 @@ function drawMine(now) {
   drawHeader();
   drawIndicator(now);
   drawBlock(now);
-  drawShards(now, false);
   drawBins(now);
+  drawShards(now, false);
   drawShards(now, true);
 }
 
@@ -989,9 +983,9 @@ function drawShards(now, dragOnly = false) {
     if (a.opacity < 0.01) continue;
 
     ctx.globalAlpha = a.opacity;
-    if (shard.phase === 'selected' || shard.phase === 'dragging' || shard.phase === 'snapping') {
+    if (shard.phase === 'dragging') {
       ctx.shadowColor = shard.color.hex;
-      ctx.shadowBlur  = shard.phase === 'dragging' ? 22 : 14;
+      ctx.shadowBlur  = 22;
     }
 
     ctx.fillStyle = shard.color.hex;
