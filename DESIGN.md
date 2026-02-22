@@ -6,6 +6,23 @@ Game idea, design decisions, and learnings. Living document – updated as the p
 
 ---
 
+## Ubiquitous Language
+
+Shared vocabulary – used consistently in code, DESIGN.md, and conversation.
+
+| Concept | EN | DE | Code |
+|---|---|---|---|
+| The thing the player opens | Pack | Pack | `pack` |
+| What comes out of a Pack | Piece | Teil | `piece` |
+| The sorting containers | Bin | Fach | `bin` |
+| What Harry builds | Flower | Blume | `flower` |
+| Harry's build queue | Build queue | Bauschleife | `buildQueue` |
+| Finished flowers waiting for Mutti | Stock | Lager | `stock` |
+| Currency | Coins | Münzen | `coins` |
+| The seller | Mutti | Mutti | `mutti` |
+
+---
+
 ## Branding
 
 | | |
@@ -439,4 +456,5 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 - *Feb 22:* Foil bag replaces piece cluster. `drawFoilBag` drawn centered at (0,0) in transformed space – caller applies translate/rotate/scale, keeps concerns separated. Deformation via bezier curves on the bag path itself (not transforms) gives natural crumple feel.
 - *Feb 22:* Sort flash caused by animating from targetX/Y instead of drag position. Fix: set targetX/Y = drag.x/y before switching to 'sorting' phase.
 - *Feb 22:* Bin fill cycling was misleading – adding a 9th heart to an 8-slot bin looked like the bin emptied. Fill-bar now clamps at 100% and counter below (`n / recipe`) makes stock readable at a glance. Side effect: devs can now spot probability imbalances in real-time.
+- *Feb 22:* Ubiquitous Language refactor: `block`→`pack`, `shard`→`piece`, `bin.shards`→`bin.pieces`, `flowers.building`→`flowers.buildQueue`, `trySortShard`→`trySortPiece`, `drawShards`→`drawPieces`. One pass, no functionality changed – code now matches domain language throughout.
 - *Feb 22:* Hearts renamed to Coins. `toLocaleString('de-DE'/'en-US')` handles thousand separators cleanly per language. Gold `#e3b341` reads well on dark bg as currency color.

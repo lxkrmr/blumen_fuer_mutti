@@ -47,6 +47,14 @@ The human starts the server. The AI does not run `python3 -m http.server` or sim
 - **CLAUDE.md & README:** English
 - **In-game text:** Via i18n (DE + EN)
 
+### Ubiquitous Language
+
+The project maintains a glossary in `DESIGN.md` under **Ubiquitous Language**. That is the single source of truth.
+
+- Use UL terms exactly in code, comments, docs, and conversation – no synonyms, no old names
+- When a new concept emerges, define it in DESIGN.md first, then use the agreed term everywhere
+- During cleanup: check for drift between code and glossary, rename immediately if found
+
 ### Code style
 - Simple > clever
 - Readable > short

@@ -157,7 +157,7 @@ const PLAY_CY   = PLAY_Y + PLAY_H / 2;                          // ~516
 const INDICATOR_OUTER_R = 88;   // inner=80 Harry, outer=88 Mutti (8px gap)
 
 // Shard landing zones – offsets from play-area center (12 for jackpot blocks)
-const SHARD_ZONES = [
+const PIECE_ZONES = [
   { dx:    0, dy: -115 },
   { dx: -100, dy:  -55 },
   { dx: -100, dy:   60 },
@@ -172,7 +172,7 @@ const SHARD_ZONES = [
   { dx:   60, dy:  160 },
 ];
 
-const SHARD_SIZE = 60;
+const PIECE_SIZE = 60;
 
 // Bag properties – fixed for now, upgrades will scale these later
 const BAG_PX       = 90;   // visual size of the bag
@@ -232,20 +232,20 @@ let langBtnBounds = null;
 // ── Drag state ────────────────────────────────────────────────────────────
 const drag = {
   active:  false,
-  shardId: null,
+  pieceId: null,
   x:       0,
   y:       0,
 };
 
 // ── Game state ────────────────────────────────────────────────────────────
-let shardIdCounter = 0;
+let pieceIdCounter = 0;
 
 const state = {
-  phase:    'block',   // 'block' | 'shards'
-  block:    null,
+  phase:    'pack',    // 'pack' | 'pieces'
+  pack:     null,
   shards:   [],
   selected: null,
-  bins:     SHAPES.map(s => ({ shape: s, shards: [] })),
+  bins:     SHAPES.map(s => ({ shape: s, pieces: [] })),
 };
 
 // Dev counter – bags opened, useful for economy calibration
@@ -269,7 +269,7 @@ let sellStartedAt   = 0;
 let sellDurationMs  = 0;
 
 // ── Animation state ───────────────────────────────────────────────────────
-let blockEnterStart = 0;
+let packEnterStart = 0;
 const binFillAnim   = Array(4).fill(0);  // lerps toward fill target (0→1, clamps at 1)
 const binFlashAt    = Array(4).fill(0);  // timestamp of last recipe-threshold event
 
@@ -297,12 +297,12 @@ function genPieces() {
   });
 }
 
-function spawnBlock() {
-  state.phase    = 'block';
-  state.shards   = [];
+function spawnPack() {
+  state.phase    = 'pack';
+  state.pieces   = [];
   state.selected = null;
 
-  state.block = {
+  state.pack = {
     px:           BAG_PX,
     pieces:       genPieces(),
     tapsRequired: BAG_TAPS,
@@ -310,36 +310,36 @@ function spawnBlock() {
     lastTapAt:    0,
     angle:        0,
   };
-  blockEnterStart = performance.now();
+  packEnterStart = performance.now();
 }
 
-function tapBlock() {
-  if (state.phase !== 'block') return;
-  const block = state.block;
+function tapPack() {
+  if (state.phase !== 'pack') return;
+  const pack = state.pack;
 
-  block.lastTapAt    = performance.now();
-  block.angle += (Math.random() - 0.5) * 0.25;
-  block.tapsLeft--;
+  pack.lastTapAt    = performance.now();
+  pack.angle += (Math.random() - 0.5) * 0.25;
+  pack.tapsLeft--;
 
-  if (block.tapsLeft <= 0) {
+  if (pack.tapsLeft <= 0) {
     haptic([10, 20, 10]);
-    doBreakBlock();
+    openPack();
   } else {
     haptic(8);
   }
 }
 
-function doBreakBlock() {
-  if (state.phase !== 'block') return;
+function openPack() {
+  if (state.phase !== 'pack') return;
 
-  state.phase = 'shards';
+  state.phase = 'pieces';
   bagsOpened++;
   const now   = performance.now();
-  const zones = [...SHARD_ZONES].sort(() => Math.random() - 0.5);
+  const zones = [...PIECE_ZONES].sort(() => Math.random() - 0.5);
 
-  state.block.pieces.forEach((piece, i) => {
-    state.shards.push({
-      id:         shardIdCounter++,
+  state.pack.pieces.forEach((piece, i) => {
+    state.pieces.push({
+      id:         pieceIdCounter++,
       color:      { hex: piece.color },
       shape:      piece.shape,
       targetX:    PLAY_CX + jitter(zones[i].dx),
@@ -352,48 +352,48 @@ function doBreakBlock() {
   });
 }
 
-function trySortShard(binIndex) {
+function trySortPiece(binIndex) {
   if (state.selected === null) return;
 
-  const shard = state.shards.find(s => s.id === state.selected);
-  if (!shard) return;
+  const piece = state.pieces.find(p => p.id === state.selected);
+  if (!piece) return;
 
-  if (shard.shape.id !== state.bins[binIndex].shape.id) {
+  if (piece.shape.id !== state.bins[binIndex].shape.id) {
     // Wrong bin – place at drop position, shake for feedback
     haptic([8, 30, 8]);
-    shard.targetX   = drag.x;
-    shard.targetY   = drag.y;
-    shard.phase     = 'idle';
-    shard.shakeStart = performance.now();
-    state.selected  = null;
+    piece.targetX    = drag.x;
+    piece.targetY    = drag.y;
+    piece.phase      = 'idle';
+    piece.shakeStart = performance.now();
+    state.selected   = null;
     return;
   }
 
   // ✓ Correct sort
   haptic(12);
-  shard.targetX   = drag.x;
-  shard.targetY   = drag.y;
-  shard.phase     = 'sorting';
-  shard.sortStart = performance.now();
+  piece.targetX   = drag.x;
+  piece.targetY   = drag.y;
+  piece.phase     = 'sorting';
+  piece.sortStart = performance.now();
   state.selected  = null;
 
   setTimeout(() => {
-    state.shards = state.shards.filter(s => s.id !== shard.id);
+    state.pieces = state.pieces.filter(p => p.id !== piece.id);
 
     const bin    = state.bins[binIndex];
     const recipe = FLOWER_RECIPE[bin.shape.id];
-    bin.shards.push({ color: shard.color.hex });
+    bin.pieces.push({ color: piece.color.hex });
 
     // Flash when we cross a recipe threshold
-    if (bin.shards.length % recipe === 0) {
+    if (bin.pieces.length % recipe === 0) {
       binFlashAt[binIndex] = performance.now();
       haptic([18, 10, 18]);
     }
 
     checkBuildTrigger();
 
-    if (state.shards.length === 0) {
-      setTimeout(spawnBlock, 350);
+    if (state.pieces.length === 0) {
+      setTimeout(spawnPack, 350);
     }
     saveState();
   }, 230);
@@ -403,7 +403,7 @@ function trySortShard(binIndex) {
 function flowersReady() {
   return Math.min(...SHAPES.map(s => {
     const bin = state.bins.find(b => b.shape.id === s.id);
-    return Math.floor(bin.shards.length / FLOWER_RECIPE[s.id]);
+    return Math.floor(bin.pieces.length / FLOWER_RECIPE[s.id]);
   }));
 }
 
@@ -411,7 +411,7 @@ function checkBuildTrigger() {
   while (flowersReady() > 0) {
     // Consume shards from bins
     for (const s of SHAPES) {
-      state.bins.find(b => b.shape.id === s.id).shards.splice(0, FLOWER_RECIPE[s.id]);
+      state.bins.find(b => b.shape.id === s.id).pieces.splice(0, FLOWER_RECIPE[s.id]);
     }
 
     // Assign Pfingstrose colors via shapeToColor
@@ -421,11 +421,11 @@ function checkBuildTrigger() {
       stem:   Array.from({ length: 3 }, () => ({ color: shapeToColor('stem')  })),
       leaf:   Array.from({ length: 2 }, () => ({ color: shapeToColor('leaf')  })),
     };
-    flowers.building.push({ id: flowerIdCounter++, parts });
+    flowers.buildQueue.push({ id: flowerIdCounter++, parts });
     haptic([15, 10, 15]);
   }
 
-  if (flowers.building.length > 0 && !buildTimerActive) {
+  if (flowers.buildQueue.length > 0 && !buildTimerActive) {
     startBuildTimer();
   }
   saveState();
@@ -449,17 +449,17 @@ function completeSelling() {
 }
 
 function startBuildTimer() {
-  if (buildTimerActive || flowers.building.length === 0) return;
+  if (buildTimerActive || flowers.buildQueue.length === 0) return;
 
   buildTimerActive = true;
   buildDurationMs  = BUILD_BASE_MS * (0.85 + Math.random() * 0.3);
   buildStartedAt   = performance.now();
 
-  setTimeout(completeBuilding, buildDurationMs);
+  setTimeout(completeBuild, buildDurationMs);
 }
 
-function completeBuilding() {
-  const flower = flowers.building.shift();
+function completeBuild() {
+  const flower = flowers.buildQueue.shift();
   if (!flower) return;
 
   flowers.stock.push({ id: flower.id, parts: flower.parts });
@@ -472,37 +472,37 @@ function completeBuilding() {
 
 // ── Shard animation helper ────────────────────────────────────────────────
 // Returns { x, y, scale, opacity } for the current frame
-function shardAnim(shard, now) {
-  if (shard.phase === 'flying') {
-    const t = clamp01((now - shard.flyStart) / 450);
+function pieceAnim(piece, now) {
+  if (piece.phase === 'flying') {
+    const t = clamp01((now - piece.flyStart) / 450);
     const e = easeOutBack(t);
-    if (t >= 1) shard.phase = 'idle';
+    if (t >= 1) piece.phase = 'idle';
     return {
-      x:       lerp(PLAY_CX, shard.targetX, e),
-      y:       lerp(PLAY_CY, shard.targetY, e),
+      x:       lerp(PLAY_CX, piece.targetX, e),
+      y:       lerp(PLAY_CY, piece.targetY, e),
       scale:   clamp01(t * 2.5),
       opacity: clamp01(t * 3),
     };
   }
 
-  if (shard.phase === 'sorting') {
-    const t = clamp01((now - shard.sortStart) / 220);
-    return { x: shard.targetX, y: shard.targetY, scale: lerp(1, 0.2, t), opacity: 1 - t };
+  if (piece.phase === 'sorting') {
+    const t = clamp01((now - piece.sortStart) / 220);
+    return { x: piece.targetX, y: piece.targetY, scale: lerp(1, 0.2, t), opacity: 1 - t };
   }
 
-  if (shard.phase === 'dragging') {
+  if (piece.phase === 'dragging') {
     return { x: drag.x, y: drag.y, scale: 1.18, opacity: 1 };
   }
 
   // idle – optional shake
   let shakeX = 0;
-  if (shard.shakeStart) {
-    const st = clamp01((now - shard.shakeStart) / 350);
+  if (piece.shakeStart) {
+    const st = clamp01((now - piece.shakeStart) / 350);
     shakeX = Math.sin(st * Math.PI * 4.5) * 12 * (1 - st);
-    if (st >= 1) shard.shakeStart = 0;
+    if (st >= 1) piece.shakeStart = 0;
   }
 
-  return { x: shard.targetX + shakeX, y: shard.targetY, scale: 1, opacity: 1 };
+  return { x: piece.targetX + shakeX, y: piece.targetY, scale: 1, opacity: 1 };
 }
 
 // ── Shape paths ───────────────────────────────────────────────────────────
@@ -555,24 +555,24 @@ function hitTest(x, y, now) {
     return { type: 'lang' };
   }
 
-  // Shards (reverse so topmost is checked first)
-  if (state.phase === 'shards') {
-    for (const shard of [...state.shards].reverse()) {
-      if (shard.phase === 'sorting') continue;
-      const a  = shardAnim(shard, now);
+  // Pieces (reverse so topmost is checked first)
+  if (state.phase === 'pieces') {
+    for (const piece of [...state.pieces].reverse()) {
+      if (piece.phase === 'sorting') continue;
+      const a  = pieceAnim(piece, now);
       const dx = x - a.x, dy = y - a.y;
-      if (Math.sqrt(dx * dx + dy * dy) < SHARD_SIZE * 0.45 * a.scale) {
-        return { type: 'shard', id: shard.id };
+      if (Math.sqrt(dx * dx + dy * dy) < PIECE_SIZE * 0.45 * a.scale) {
+        return { type: 'piece', id: piece.id };
       }
     }
   }
 
   // Block
-  if (state.phase === 'block') {
-    const bw = state.block.px * 0.72;
-    const bh = state.block.px * 1.05;
+  if (state.phase === 'pack') {
+    const bw = state.pack.px * 0.72;
+    const bh = state.pack.px * 1.05;
     if (inRect(x, y, PLAY_CX - bw / 2, PLAY_CY - bh / 2, bw, bh)) {
-      return { type: 'block' };
+      return { type: 'pack' };
     }
   }
 
@@ -591,17 +591,17 @@ let lastTouchEnd = 0;
 function initDrag(coords) {
   const now = performance.now();
   const hit = hitTest(coords.x, coords.y, now);
-  if (!hit || hit.type !== 'shard') return;
+  if (!hit || hit.type !== 'piece') return;
 
-  const shard = state.shards.find(s => s.id === hit.id);
-  if (!shard || shard.phase === 'sorting') return;
+  const piece = state.pieces.find(p => p.id === hit.id);
+  if (!piece || piece.phase === 'sorting') return;
 
   haptic(8);
   drag.active  = true;
-  drag.shardId = hit.id;
+  drag.pieceId = hit.id;
   drag.x       = coords.x;
   drag.y       = coords.y;
-  shard.phase  = 'dragging';
+  piece.phase  = 'dragging';
   state.selected = null;
 }
 
@@ -615,9 +615,9 @@ function endDrag(coords) {
   if (!drag.active) return;
   drag.active = false;
 
-  const shard = state.shards.find(s => s.id === drag.shardId);
-  drag.shardId = null;
-  if (!shard) return;
+  const piece = state.pieces.find(p => p.id === drag.pieceId);
+  drag.pieceId = null;
+  if (!piece) return;
 
   // Check if dropped on a bin
   let binIndex = -1;
@@ -627,15 +627,15 @@ function endDrag(coords) {
   }
 
   if (binIndex >= 0) {
-    state.selected = shard.id;
-    trySortShard(binIndex);
+    state.selected = piece.id;
+    trySortPiece(binIndex);
     return;
   }
 
   // Dropped on empty space – place freely at drop position
-  shard.targetX  = coords.x;
-  shard.targetY  = coords.y;
-  shard.phase    = 'idle';
+  piece.targetX  = coords.x;
+  piece.targetY  = coords.y;
+  piece.phase    = 'idle';
   state.selected = null;
 }
 
@@ -670,7 +670,7 @@ function handleTap({ x, y }) {
   if (!hit) return;
   switch (hit.type) {
     case 'lang':  toggleLang(); break;
-    case 'block': tapBlock();   break;
+    case 'pack': tapPack();   break;
   }
 }
 
@@ -775,7 +775,7 @@ function drawHarryIndicator(now) {
   const ro = INDICATOR_OUTER_R;  // outer ring – Mutti
 
   // Harry
-  const harryActive   = buildTimerActive || flowers.building.length > 0;
+  const harryActive   = buildTimerActive || flowers.buildQueue.length > 0;
   const harryProgress = buildTimerActive ? clamp01((now - buildStartedAt) / buildDurationMs) : 0;
   const harryPulse    = harryActive ? 0.6 + 0.4 * Math.sin(now / 700) : 0;
 
@@ -872,8 +872,8 @@ function drawHarryIndicator(now) {
   ctx.textAlign = 'center';
 
   let harryLabel;
-  if (flowers.building.length > 1)     harryLabel = t('building_many', flowers.building.length);
-  else if (flowers.building.length === 1) harryLabel = t('building_one');
+  if (flowers.buildQueue.length > 1)     harryLabel = t('building_many', flowers.buildQueue.length);
+  else if (flowers.buildQueue.length === 1) harryLabel = t('building_one');
   else                                  harryLabel = t('building_idle_mine');
 
   ctx.fillStyle    = TEXT_DIM;
@@ -936,35 +936,35 @@ function drawLangButton() {
 function drawMine(now) {
   drawHeader();
   drawHarryIndicator(now);
-  drawBlock(now);
+  drawPack(now);
   drawBins(now);
-  drawShards(now, false);
-  drawShards(now, true);
+  drawPieces(now, false);
+  drawPieces(now, true);
 }
 
-function drawBlock(now) {
-  if (state.phase !== 'block' || !state.block) return;
+function drawPack(now) {
+  if (state.phase !== 'pack' || !state.pack) return;
 
-  const block = state.block;
+  const pack = state.pack;
 
   // Enter animation
-  const enterT  = clamp01((now - blockEnterStart) / 300);
+  const enterT  = clamp01((now - packEnterStart) / 300);
   const enterSc = easeOutBack(enterT);
 
   // Tap wobble: scale punch + rotation rattle
-  const wobbleAge = block.lastTapAt > 0 ? now - block.lastTapAt : Infinity;
+  const wobbleAge = pack.lastTapAt > 0 ? now - pack.lastTapAt : Infinity;
   const wobbleT   = wobbleAge < 220 ? clamp01(wobbleAge / 220) : 1;
   const wobbleSc  = wobbleAge < 220 ? 1 + Math.sin(wobbleT * Math.PI) * 0.09 : 1;
 
   // Damage progress (0 = fresh, 1 = about to burst)
-  const progress = 1 - block.tapsLeft / block.tapsRequired;
+  const progress = 1 - pack.tapsLeft / pack.tapsRequired;
 
-  const bw = block.px * 0.72;
-  const bh = block.px * 1.05;
+  const bw = pack.px * 0.72;
+  const bh = pack.px * 1.05;
 
   ctx.save();
   ctx.translate(PLAY_CX, PLAY_CY);
-  ctx.rotate(block.angle);
+  ctx.rotate(pack.angle);
   ctx.scale(enterSc * wobbleSc, enterSc * wobbleSc);
   drawFoilBag(ctx, bw, bh, progress, now);
   ctx.restore();
@@ -1086,21 +1086,21 @@ function drawFoilBag(ctx, bw, bh, progress, now) {
   ctx.stroke();
 }
 
-function drawShards(now, dragOnly = false) {
-  for (const shard of state.shards) {
-    const isDragged = shard.phase === 'dragging';
+function drawPieces(now, dragOnly = false) {
+  for (const piece of state.pieces) {
+    const isDragged = piece.phase === 'dragging';
     if (dragOnly !== isDragged) continue;
-    const a = shardAnim(shard, now);
+    const a = pieceAnim(piece, now);
     if (a.opacity < 0.01) continue;
 
     ctx.globalAlpha = a.opacity;
-    if (shard.phase === 'dragging') {
-      ctx.shadowColor = shard.color.hex;
+    if (piece.phase === 'dragging') {
+      ctx.shadowColor = piece.color.hex;
       ctx.shadowBlur  = 22;
     }
 
-    ctx.fillStyle = shard.color.hex;
-    drawShapePath(ctx, shard.shape, a.x, a.y, SHARD_SIZE * a.scale);
+    ctx.fillStyle = piece.color.hex;
+    drawShapePath(ctx, piece.shape, a.x, a.y, PIECE_SIZE * a.scale);
     ctx.fill();
 
     ctx.shadowBlur  = 0;
@@ -1114,7 +1114,7 @@ function drawBins(now) {
     const bx     = BIN_LEFT + i * (BIN_W + BIN_GAP);
     const by     = BIN_Y;
     const recipe = FLOWER_RECIPE[bin.shape.id];
-    const count  = bin.shards.length;
+    const count  = bin.pieces.length;
 
     // Fill target: 0→1 as count reaches recipe, clamps at full
     const fillTarget = Math.min(count / recipe, 1);
@@ -1199,7 +1199,7 @@ const SAVE_KEY = 'bfm-save';
 function saveState() {
   const saveData = {
     bins:           state.bins,
-    building:       flowers.building,
+    building:       flowers.buildQueue,
     stock:          flowers.stock,
     coins:          flowers.coins,
     flowerIdCounter,
@@ -1216,8 +1216,8 @@ function loadState() {
     const saveData = JSON.parse(raw);
     if (!saveData) return;
 
-    state.bins       = saveData.bins     || SHAPES.map(s => ({ shape: s, shards: [] }));
-    flowers.building = saveData.building || [];
+    state.bins       = saveData.bins     || SHAPES.map(s => ({ shape: s, pieces: [] }));
+    flowers.buildQueue = saveData.buildQueue || [];
     flowers.stock    = saveData.stock    || [];
     flowers.coins    = saveData.coins    || 0;
     flowerIdCounter  = saveData.flowerIdCounter || 0;
@@ -1237,7 +1237,7 @@ if ('serviceWorker' in navigator) {
 loadState();
 checkBuildTrigger(); // restart build timer if flowers were building
 startSellTimer();    // restart sell timer if stock was waiting
-spawnBlock();
+spawnPack();
 requestAnimationFrame(draw);
 </script>
 
