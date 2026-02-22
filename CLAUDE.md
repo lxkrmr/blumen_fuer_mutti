@@ -51,6 +51,7 @@ The human starts the server. The AI does not run `python3 -m http.server` or sim
 - Simple > clever
 - Readable > short
 - Works > perfect
+- **Comments explain why, not what** – mark sections or describe non-obvious intent. Never describe what old code used to do or what was removed. That belongs in git history, not in comments.
 
 ### AI behavior
 - **Questions get answers** – if the human asks a question, answer it. Don't just start doing things.

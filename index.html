@@ -370,7 +370,7 @@ function trySortShard(binIndex) {
     return;
   }
 
-  // ✓ Correct sort – animate from drop position (prevents flash at origin)
+  // ✓ Correct sort
   haptic(12);
   shard.targetX   = drag.x;
   shard.targetY   = drag.y;
@@ -619,7 +619,6 @@ function endDrag(coords) {
   if (binIndex >= 0) {
     state.selected = shard.id;
     trySortShard(binIndex);
-    // trySortShard always resolves the shard phase
     return;
   }
 
@@ -1005,7 +1004,7 @@ function drawBins(now) {
     const recipe = FLOWER_RECIPE[bin.shape.id];
     const count  = bin.shards.length;
 
-    // Fill target: grows 0→1 as count reaches recipe, then stays at 1 (no cycling)
+    // Fill target: 0→1 as count reaches recipe, clamps at full
     const fillTarget = Math.min(count / recipe, 1);
     binFillAnim[i] += (fillTarget - binFillAnim[i]) * 0.15;
 
