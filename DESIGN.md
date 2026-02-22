@@ -32,7 +32,7 @@ The family saves up coins until they can finally afford the alpaca farm. That's 
 
 ## Idea
 
-A fidget game. A bag of parts appears – tap it open, sort the pieces by shape into bins. Harry builds Klemmbaustein flowers from the sorted parts. Flowers accumulate into a bouquet. Finish a bouquet → Mutti sends a heart.
+A fidget game. A bag of parts appears – tap it open, sort the pieces by shape into bins. Harry builds Klemmbaustein flowers. Mutti sells them one by one and sends coins.
 
 **Inspiration:** Satisfying sorting videos (TikTok/YouTube). Montessori shape sorters. The good part of mobile sorting games – without the dark patterns.
 
@@ -56,11 +56,11 @@ Bins persist across rounds – next bag appears immediately
         ↓
 Enough parts for a flower → Harry starts building (20–40s, sequential queue)
         ↓
-Flower complete → added to bouquet (visible in indicator circle)
+Flower complete → added to Lager (visible in Harry's indicator)
         ↓
-Bouquet reaches 10 flowers → Mutti sells it → +coins → bouquet resets
+Mutti takes flower from Lager → sell timer → +coins per flower
         ↓
-Coins accumulate → spend in shop (upgrades, special bags)
+Coins accumulate → spend in shop (upgrades)
         ↓
 Enough coins → buy the alpaca farm → 🦙 win
 ```
@@ -139,32 +139,39 @@ Total: **14 parts** per flower.
 
 **Build time:** `BASE_MS * (0.85–1.15)` random range. `BASE_MS = 20000ms`.
 
-### Bouquet & Coin counter
+### Lager & Mutti
 
-Finished flowers accumulate in the **indicator circle** as a bouquet:
+Harry builds flowers into the **Lager** (stock). Mutti sells them one by one, earning coins per flower.
 
-- All flowers share a common **anchor point** at `cy + 38` – blooms sit in upper portion of circle, stems visible below
-- Each flower fans out with **±35° rotation** (70° total), evenly distributed
-- Draw order: left to right → newest flower on top
-- **Max 10 flowers** per bouquet
+**No bouquet concept.** Each flower sells individually. Faster feedback loop.
 
-When the bouquet reaches **10 flowers:**
-1. Mutti sells it → **+100 coins** (base value, upgradeable via shop)
-2. Bouquet resets (flowers cleared)
-3. Harry starts fresh with flower 1
+**Lager:** All flowers Harry has finished, waiting for Mutti. No maximum – they accumulate until Mutti sells them.
 
-**Badge:** Pill at the bottom of the indicator ring showing coin total + bouquet progress (`💰 1.250  n / 10`). Overlaps ring slightly for a "badge attached to ring" look.
+**Mutti sells sequentially:** one flower at a time. When she finishes, she takes the next from the Lager. She's idle when the Lager is empty.
 
-**Label below badge:** `Harry baut X Blumen …` while building, `teile sortieren …` when idle. Plain language, no symbols.
+**Sell time:** `SELL_BASE_MS * (0.85–1.15)` random range. `SELL_BASE_MS` TBD – shorter than Harry's build time feels right. Upgradeable via shop.
 
-### Indicator circle
+**Coins per flower:** `FLOWER_COIN_VALUE` (TBD, replaces per-bouquet value).
 
-The single indicator at the top of the Mine screen. Radius 80px, centered at top of screen.
+**Badge:** Pill at the bottom of the Harry indicator showing coin total only (`💰 1.250`). No progress counter.
 
-- **Glows / pulses** when Harry is building (`building` queue not empty)
-- **Contains the bouquet** – flowers rendered with anchor at cy+38
-- **Badge at ring bottom** – coin counter + bouquet progress (n/10)
-- **Label below badge** – Harry's current activity in plain language
+**Labels:**
+- Harry indicator: `Harry baut X Blumen …` / `teile sortieren …`
+- Mutti indicator: `Mutti verkauft …` / hidden when idle
+
+### Indicators
+
+**One indicator, two rings (Option A – chosen):**
+
+One circle at center top. Always visible.
+
+- **Inner ring R=80 (Harry):** blue arc traces build progress. Glows and pulses while active.
+- **Outer ring R=88 (Mutti):** gold arc traces sell progress. Track ring always visible (faint) to prevent layout jump. Gold arc lights up when she is selling.
+- **Inside:** flower stock (Lager) – flowers fanning from anchor cy+38. Up to 7 flowers rendered, rest implied.
+- **Badge:** pill at outer ring bottom – `💰 1.250` (coins only, no progress counter).
+- **Labels below:** Harry's current activity. Mutti's label (`Mutti verkauft …`, gold) added below when selling or stock > 0.
+
+*Option B (alternative, not built): single ring + gold fill from bottom. Calmer but less readable.*
 
 ### Data model
 
@@ -177,27 +184,27 @@ bins = {
   leaf:   [{ color: '...' }, { color: '...' }],
 }
 
-// Building queue – flowers currently growing
+// Harry's build queue – flowers currently growing (sequential)
 building = [
   { id, parts: { circle, heart[], stem[], leaf[] } },
 ]
 
-// Bouquet – finished flowers, up to 10
-bouquet = [ ...flower objects (max 10) ]
+// Lager – finished flowers waiting for Mutti to sell
+stock = [ ...flower objects ]
 
-// Hearts earned from completed bouquets
-hearts = 0
+// Coins earned from Mutti's sales
+coins = 0
 ```
 
-**Build queue:** Unlimited. All flowers that can be built are queued immediately. Harry builds them **sequentially**, one at a time. `building.length` shows how many are waiting.
+**Build queue:** Unlimited depth. Harry builds sequentially. When a flower completes → pushed to `stock`.
 
-**Bouquet trigger:** When flower completes → push to `bouquet`. If `bouquet.length >= 10` → hearts++ → bouquet = [].
+**Mutti's sell queue:** Mutti takes one flower from `stock` at a time. Sell timer runs. On complete → `coins += FLOWER_COIN_VALUE`, next flower taken. Mutti is idle when `stock` is empty.
 
 ### Economy & Shop
 
-**Currency:** Coins. Earned when Mutti sells a completed bouquet.
+**Currency:** Coins. Earned when Mutti sells a flower (per flower, not per bouquet).
 
-**Economy principle:** Always net positive. The player can never go broke. Coins earned per bouquet always exceed the cost of the next bag. Upgrades increase the magnitude – early game: small profit, late game: large profit.
+**Economy principle:** Always net positive. The player can never go broke. Coins earned per flower always exceed the amortised bag cost. Upgrades increase the magnitude – early game: small profit per flower, late game: large profit per flower.
 
 **Starting capital:** Player starts with enough coins to buy the first several bags without sorting a single flower. Bootstrap problem doesn't exist.
 
@@ -226,7 +233,7 @@ No targeted/transparent bags in the base game – upgrades improve quantity and 
 |---|---|---|
 | **Schere** (Basic / Pro / Profi) | Passive, permanent | Reduces taps to open a bag. Baseline: 5. Basic: 3. Profi: 1. Game flows faster. |
 | **Tüten-Quantität** (Stufen) | Passive, permanent | More parts per bag → one bag fills more bin slots → fewer bags to open per flower cycle. |
-| **Tüten-Qualität** (Stufen) | Passive, permanent | Higher coin value per bouquet + visual color shift of parts. All bouquets from this point earn the new rate (including any in-progress bouquet). |
+| **Tüten-Qualität** (Stufen) | Passive, permanent | Higher coin value per flower + visual color shift of parts. All flowers sold from this point earn the new rate. |
 | **Harry Snackies** | Consumable (counter) | Harry builds next X flowers at 2× speed. Counter decrements per flower started. |
 | **Magnetischer Bin** | Passive, permanent | A bin attracts nearby matching parts automatically within radius X. Enabled by free placement mechanic. |
 | **Sparschwein** | Passive, permanent | Idle interest – small coin trickle over time while not actively playing. |
@@ -245,7 +252,7 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 
 | Area | Content |
 |---|---|
-| Top | Indicator circle (bouquet + glow + coin/progress badge) |
+| Top | Indicator: two rings (Harry inner blue + Mutti outer gold), flower stock inside, coin badge |
 | Middle | Current bag / piece cluster |
 | Bottom | 4 bins + shop icon |
 
@@ -274,16 +281,15 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 | Shape-to-color mapping | ✅ |
 | Rename & rebrand (BfM, Harry, B♥M logo) | ✅ |
 | Garden screen removed | ✅ |
-| Bouquet-in-circle (indicator redesign, R=80) | ✅ |
-| Bouquet fan (±35°, anchor cy+38) | ✅ |
-| Coin counter + badge (💰 N  n/10) | ✅ |
-| "Harry baut X Blumen" label | ✅ |
+| Harry indicator (inner R=80 blue arc) + Mutti outer ring (R=88 gold arc) | ✅ |
+| Coin badge (💰 N) at outer ring bottom | ✅ |
+| "Harry baut X Blumen" + "Mutti verkauft …" labels | ✅ |
 | Bag visual (opaque surprise bag, Option C) | ✅ |
 | Bag economy (Harry auto-orders, starting capital, coin cost) | ❌ next |
 | Shop skeleton (icon, overlay, Harry with mustache) | ❌ future |
 | Upgrade: Schere (tap reduction) | ❌ future |
 | Upgrade: Tüten-Quantität (more parts per bag) | ❌ future |
-| Upgrade: Tüten-Qualität (higher bouquet value + visual shift) | ❌ future |
+| Upgrade: Tüten-Qualität (higher flower value + visual shift) | ❌ future |
 | Upgrade: Harry Snackies (build speed boost) | ❌ future |
 | Upgrade: Magnetischer Bin | ❌ future |
 | Upgrade: Sparschwein (idle interest) | ❌ future |
@@ -295,21 +301,22 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 ## Next steps
 
 1. **Bag economy** – starting capital, Harry auto-orders at coin cost, economy always net positive
-2. **Feel tuning** – tap ranges, build time, fan spread *(ongoing)*
+2. **Feel tuning** – tap ranges, build time, sell time *(ongoing)*
 3. **Shop skeleton** – icon, overlay, Harry-with-mustache placeholder
-4. **First upgrades** – Schere (simplest: just reduces tapsRequired), then Tüten-Quantität
+4. **First upgrades** – Schere (reduces tapsRequired), then Tüten-Quantität
 
 ---
 
 ## Open questions
 
-- [ ] Starting capital amount – enough for a few bags without being overwhelmingly generous
-- [ ] Surprise bag cost – must be clearly less than coins earned per bouquet (playtesting)
+- [ ] `FLOWER_COIN_VALUE` = 10 – needs playtesting to calibrate against bag cost
+- [ ] `SELL_BASE_MS` = 8000ms – needs playtesting (shorter than build time feels right so far)
+- [ ] Starting capital = 100 (placeholder) – real value after bag cost is defined
+- [ ] Surprise bag cost – must be clearly less than coins earned per flower cycle (playtesting)
 - [ ] Upgrade prices – need balancing once base economy loop is playable
 - [ ] Alpaka farm price – absurdly high, exact number TBD
 - [ ] Tüten-Qualität visual shift – which color palette for upgraded parts? (needs design pass)
 - [ ] Sparschwein mechanic – idle interest rate TBD
-- [ ] Harry reactions to completed bouquets (future)
 - [ ] Magnetischer Bin radius and feel (future)
 - [ ] Feel tuning – build time 20s right? Fan spread 70° right? Needs playtesting.
 
@@ -329,11 +336,11 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 | **Rattle accumulates (no spring-back)** | Feels physical – like shaking a real bag |
 | **Glow as two-pass render** | Pass 1: shadowBlur for halo. Pass 2: sharp shapes on top. Crisp edges + glow. |
 | **One screen only (Mine)** | Garden felt useless – sorting takes long enough that players rarely switched. Bouquet-in-circle keeps reward visible without context switch. |
-| **Bouquet in indicator circle** | Reward visible at all times. Common anchor + rotation = natural bouquet shape. |
-| **Bouquet reset at 10 → heart** | Cleaner loop than a growing-forever done-array. Hearts are the persistent score. |
+| **Flower stock in Harry's indicator** | Lager visible at all times in the indicator. Shows how many flowers are waiting for Mutti. |
+| **No bouquet, per-flower sales** | Cleaner loop. Hearts/bouquets were slow feedback. Per-flower coins are immediate and honest. |
 | **B♥M logo** | Short, warm, the heart doubles as game symbol and reward icon. |
-| **Bouquet anchor at cy+38** | Blooms in upper circle, stems visible below. Feels like a hand holding the bouquet. |
-| **Fan spread ±35° (70° total)** | Enough spread to see individual flowers without losing the bouquet silhouette. |
+| **Flower anchor at cy+38 in indicator** | Blooms in upper circle, stems visible below. Feels like a hand holding the flowers. |
+| **Fan spread ±35° (70° total)** | Enough spread to see individual flowers in the Lager without losing the overall shape. |
 | **Sequential build queue, unlimited depth** | Simpler than parallel building. More honest – shows true queue size. Harry is one cat. |
 | **"Harry baut X Blumen" not "✦ X"** | Plain language beats symbols. Player shouldn't need to learn what ✦ means. |
 | **Badge at ring bottom for coins/progress** | Pill overlapping ring = compact, attached to the indicator. No extra screen space needed. |
@@ -342,12 +349,16 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 | **Harry speed bonus as counter not timer** | "Next X flowers at 2×" avoids timestamp complexity and feels more concrete than "2 minutes". |
 | **Pack opening = Surprise bags only** | No targeted bags – upgrades improve the bag pool instead. Surprise feel without manipulation. |
 | **Idle layer via Mutti upgrades** | Mutti handles the "away" progression (interest, better prices). Harry handles the "active" progression (faster builds). Clear separation of concerns. |
+| **Per-flower sales, no bouquet** | Bouquet of 10 was too slow. Per-flower sales give faster feedback. Simpler state, shorter wait, more Mutti upgrades possible. |
+| **Mutti as a separate actor with sell timer** | Creates a second progression axis. Mutti upgrades (sell speed, sell value) are now meaningful and distinct from Harry upgrades. |
+| **Lager as stock between Harry and Mutti** | Decouples Harry's build pace from Mutti's sell pace. If Harry is fast, stock builds up – a visible queue the player can see. |
+| **Outer ring always visible (faint track)** | Prevents layout jump when Mutti's arc lights up. The ring is always there – the gold arc is the reward signal, not the ring itself. |
 | **Surprise bags only, no targeted bags** | Transparency comes from upgrades (you know what you paid for), not from bag contents. Simpler shop, cleaner progression. |
 | **Bag visual: opaque foil pouch (Option C)** | Fits pack-opening feel. Mystery element without dark-pattern mechanics (in-game coins only, can't lose). |
 | **Harry auto-orders bags, no manual trigger** | Removes friction from the core loop. Player never waits for a new bag – Harry just handles it. |
 | **Starting capital solves bootstrap** | Player starts with enough coins. Economy is always self-sustaining by design – not by luck. |
-| **Progression via 3 orthogonal axes** | Schere (speed), Quantität (parts per bag), Qualität (value per bouquet). Each feels different, all compound. |
-| **Qualität-Upgrade applies to all bouquets immediately** | No per-flower value tracking. Clean and fair. Transition bouquet gets the new price too. |
+| **Progression via 3 orthogonal axes** | Schere (open speed), Quantität (parts per bag), Qualität (value per flower). Each feels different, all compound. |
+| **Qualität-Upgrade applies immediately** | No per-flower value tracking. All flowers sold after the upgrade earn the new rate. Clean and fair. |
 | **Schere as passive permanent upgrade** | Tap reduction is a flow improvement, not a consumable. You buy it once and the game permanently feels better. |
 | **Game ends happily with alpaca farm** | Clear win condition. No soft resets, no prestige loops (for now). The game has a destination. |
 | **Bin counter `n / recipe` instead of cycling fill** | Cycling fill looked like the bin emptied when overfull. Counter makes stock immediately readable: 0/8 → 8/8 → 9/8. Fill bar now clamps at full and stays there. |
@@ -420,6 +431,9 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 - *Feb 21:* Bouquet anchor tuning is iterative – start too high/low, adjust by feel. cy+38 feels right: blooms in the upper half, stems visible as "hands holding the bouquet".
 - *Feb 21:* Badge overlapping the ring bottom is a compact way to attach info to the circle without needing extra layout space.
 - *Feb 22:* Free placement (no snap-back) feels more natural and enables future magnetic bin mechanic. Snap-back was solving a problem that doesn't need solving. Emergent bonus: players can pre-sort by forming small piles before sorting into bins.
+- *Feb 22:* Two-ring indicator (Option A): inner R=80 blue arc for Harry, outer R=88 gold arc for Mutti. Single center, no second circle. Option B (gold fill from bottom) noted as calmer alternative, not built.
+- *Feb 22:* Outer track ring must always render to prevent layout jump. The "empty" faint ring is the stable shape; the gold arc appearing on top is the signal.
+- *Feb 22:* Lager & Mutti: bouquet replaced by stock array + separate sell timer. Two indicators (Harry builds, Mutti sells). Faster feedback loop – coins per flower instead of per 10-flower bouquet.
 - *Feb 22:* Simplified to one bag size (small). `SIZES` array and `PIECE_LAYOUTS` object removed – replaced with `BAG_PX`, `BAG_SHARDS`, `BAG_TAPS_MIN/MAX` constants. Upgrades will scale these later, possibly differently than the old size system.
 - *Feb 22:* Foil bag replaces piece cluster. `drawFoilBag` drawn centered at (0,0) in transformed space – caller applies translate/rotate/scale, keeps concerns separated. Deformation via bezier curves on the bag path itself (not transforms) gives natural crumple feel.
 - *Feb 22:* Sort flash caused by animating from targetX/Y instead of drag position. Fix: set targetX/Y = drag.x/y before switching to 'sorting' phase.
