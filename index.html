@@ -100,8 +100,9 @@ function t(key, ...args) {
 // ── Colors ─────────────────────────────────────────────────────────────────
 // Flower recipe – how many sorted shards per bin make one flower part
 const FLOWER_RECIPE = { circle: 1, heart: 8, stem: 3, leaf: 2 };
-const BUILD_BASE_MS = 20000;   // base build time in ms (±15% random variance)
-const BOUQUET_MAX   = 10;      // flowers per bouquet before sending to Mutti
+const BUILD_BASE_MS      = 20000;   // base build time in ms (±15% random variance)
+const BOUQUET_MAX        = 10;      // flowers per bouquet before sending to Mutti
+const BOUQUET_COIN_VALUE = 100;     // coins earned when Mutti sells a bouquet
 let   flowerIdCounter = 0;
 
 const BG       = '#0d1117';
@@ -216,6 +217,11 @@ function lerp(a, b, t)  { return a + (b - a) * t; }
 function clamp(t, a, b) { return Math.max(a, Math.min(b, t)); }
 function clamp01(t)     { return clamp(t, 0, 1); }
 
+// Format coins with locale-aware thousand separator (DE: 1.250, EN: 1,250)
+function formatCoins(n) {
+  return n.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US');
+}
+
 // ── Haptics ───────────────────────────────────────────────────────────────
 function haptic(pattern) {
   if (navigator.vibrate) navigator.vibrate(pattern);
@@ -247,7 +253,7 @@ const state = {
 const flowers = {
   building: [],   // { id, parts } – currently growing
   bouquet:  [],   // { id, parts } – finished, up to BOUQUET_MAX
-  hearts:   0,    // bouquets sent to Mutti
+  coins:    0,    // coins earned from bouquets sold by Mutti
 };
 
 // Build timer – runtime only, not persisted
@@ -436,8 +442,8 @@ function completeBuilding() {
   flowers.bouquet.push({ id: flower.id, parts: flower.parts });
 
   if (flowers.bouquet.length >= BOUQUET_MAX) {
-    // Bouquet complete – Mutti sends a heart!
-    flowers.hearts++;
+    // Bouquet complete – Mutti sells it and sends coins!
+    flowers.coins += BOUQUET_COIN_VALUE;
     flowers.bouquet = [];
     haptic([20, 12, 20, 12, 35, 15, 50]);
   } else {
@@ -803,26 +809,26 @@ function drawIndicator(now) {
   }
 
   // Center dot when circle is empty and idle
-  if (flowers.bouquet.length === 0 && flowers.hearts === 0) {
+  if (flowers.bouquet.length === 0 && flowers.coins === 0) {
     ctx.beginPath();
     ctx.arc(cx, cy, 5, 0, Math.PI * 2);
     ctx.fillStyle = active ? `rgba(88,166,255,${0.4 + pulse * 0.6})` : 'rgba(110,118,129,0.3)';
     ctx.fill();
   }
 
-  // Hearts badge – pill overlapping the bottom of the circle ring
-  if (flowers.hearts > 0 || flowers.bouquet.length > 0) {
-    const badgeY   = cy + r;           // sits right on the ring bottom
+  // Coins badge – pill overlapping the bottom of the circle ring
+  if (flowers.coins > 0 || flowers.bouquet.length > 0) {
+    const badgeY = cy + r;           // sits right on the ring bottom
     const ph = 22, pad = 12;
     ctx.font = '12px system-ui';
 
     // Build the two text segments
-    const heartStr = flowers.hearts > 0 ? `♥ ${flowers.hearts}` : '';
-    const sepStr   = flowers.hearts > 0 ? '  ' : '';
+    const coinStr  = flowers.coins > 0 ? `💰 ${formatCoins(flowers.coins)}` : '';
+    const sepStr   = flowers.coins > 0 ? '  ' : '';
     const countStr = `${flowers.bouquet.length} / ${BOUQUET_MAX}`;
-    const heartW   = ctx.measureText(heartStr + sepStr).width;
+    const coinW    = ctx.measureText(coinStr + sepStr).width;
     const countW   = ctx.measureText(countStr).width;
-    const totalW   = (flowers.hearts > 0 ? heartW : 0) + countW;
+    const totalW   = (flowers.coins > 0 ? coinW : 0) + countW;
     const pw       = totalW + pad * 2;
     const px       = cx - pw / 2;
     const py       = badgeY - ph / 2;
@@ -838,15 +844,15 @@ function drawIndicator(now) {
     ctx.roundRect(px, py, pw, ph, ph / 2);
     ctx.stroke();
 
-    // Text: hearts in pink, count in dim
+    // Text: coins in gold, bouquet progress in dim
     ctx.textBaseline = 'middle';
     ctx.textAlign    = 'left';
     const textStartX = cx - totalW / 2;
-    if (flowers.hearts > 0) {
-      ctx.fillStyle = '#f48fb1';
-      ctx.fillText(heartStr + sepStr, textStartX, badgeY);
+    if (flowers.coins > 0) {
+      ctx.fillStyle = '#e3b341';
+      ctx.fillText(coinStr + sepStr, textStartX, badgeY);
       ctx.fillStyle = TEXT_DIM;
-      ctx.fillText(countStr, textStartX + heartW, badgeY);
+      ctx.fillText(countStr, textStartX + coinW, badgeY);
     } else {
       ctx.fillStyle = TEXT_DIM;
       ctx.fillText(countStr, textStartX, badgeY);
@@ -1080,7 +1086,7 @@ function saveState() {
     bins:           state.bins,
     building:       flowers.building,
     bouquet:        flowers.bouquet,
-    hearts:         flowers.hearts,
+    coins:          flowers.coins,
     flowerIdCounter,
   };
   localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
@@ -1097,7 +1103,7 @@ function loadState() {
     state.bins       = saveData.bins     || SHAPES.map(s => ({ shape: s, shards: [] }));
     flowers.building = saveData.building || [];
     flowers.bouquet  = saveData.bouquet  || [];
-    flowers.hearts   = saveData.hearts   || 0;
+    flowers.coins    = saveData.coins    || 0;
     flowerIdCounter  = saveData.flowerIdCounter || 0;
 
   } catch (e) {

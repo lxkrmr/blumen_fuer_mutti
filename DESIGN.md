@@ -162,7 +162,7 @@ When the bouquet reaches **10 flowers:**
 2. Bouquet resets (flowers cleared)
 3. Harry starts fresh with flower 1
 
-**Badge:** Pill at the bottom of the indicator ring showing coin total + bouquet progress (`🪙 1.250  n / 10`). Overlaps ring slightly for a "badge attached to ring" look.
+**Badge:** Pill at the bottom of the indicator ring showing coin total + bouquet progress (`💰 1.250  n / 10`). Overlaps ring slightly for a "badge attached to ring" look.
 
 **Label below badge:** `Harry baut X Blumen …` while building, `teile sortieren …` when idle. Plain language, no symbols.
 
@@ -273,7 +273,7 @@ hearts = 0
 | Garden screen removed | ✅ |
 | Bouquet-in-circle (indicator redesign, R=80) | ✅ |
 | Bouquet fan (±35°, anchor cy+38) | ✅ |
-| Coin counter + badge (🪙 N  n/10) | ❌ next |
+| Coin counter + badge (💰 N  n/10) | ✅ |
 | "Harry baut X Blumen" label | ✅ |
 | Shop (overlay, Harry with mustache) | ❌ future |
 | Harry speed bonus (Snackies) | ❌ future |
@@ -287,10 +287,9 @@ hearts = 0
 
 ## Next steps
 
-1. **Hearts → Coins** – rename in state, badge, persistence. Base coin value per bouquet TBD.
-2. **Feel tuning** – tap ranges, build time, fan spread *(ongoing)*
-3. **Shop skeleton** – icon, overlay, Harry-with-mustache placeholder
-4. **First shop item** – probably Harry Snackies (simplest mechanic, big fun)
+1. **Feel tuning** – tap ranges, build time, fan spread *(ongoing)*
+2. **Shop skeleton** – icon, overlay, Harry-with-mustache placeholder
+3. **First shop item** – probably Harry Snackies (simplest mechanic, big fun)
 
 ---
 
@@ -332,6 +331,8 @@ hearts = 0
 | **Harry speed bonus as counter not timer** | "Next X flowers at 2×" avoids timestamp complexity and feels more concrete than "2 minutes". |
 | **Special bags = same mechanic, different contents** | Player still opens and sorts. No new mechanics to learn. Reward is time savings, not different gameplay. |
 | **Idle layer via Mutti upgrades** | Mutti handles the "away" progression (interest, better prices). Harry handles the "active" progression (faster builds). Clear separation of concerns. |
+| **💰 money bag, not 🪙 coin** | Money bag fits the business theme better visually. Coin felt too flat at small badge size. |
+| **Coin color `#e3b341`** | GitHub Dark's warning yellow – warm gold, readable on dark bg, unambiguous as currency. |
 | **Build time ±15% variance** | Organic feel. No two flowers take exactly the same time. |
 | **Spawn probability = recipe ratio** | Supply matches demand. Hearts spawn most (57%) because 8 are needed. |
 | **Persist `building` queue** | Parts are consumed when a build starts. Timer restarted on load. |
@@ -398,3 +399,4 @@ hearts = 0
 - *Feb 21:* Cryptic symbols (✦) are worse than plain language. "Harry baut 3 Blumen" is immediately clear; "✦ 3" requires the player to learn the symbol.
 - *Feb 21:* Bouquet anchor tuning is iterative – start too high/low, adjust by feel. cy+38 feels right: blooms in the upper half, stems visible as "hands holding the bouquet".
 - *Feb 21:* Badge overlapping the ring bottom is a compact way to attach info to the circle without needing extra layout space.
+- *Feb 22:* Hearts renamed to Coins. `toLocaleString('de-DE'/'en-US')` handles thousand separators cleanly per language. Gold `#e3b341` reads well on dark bg as currency color.
