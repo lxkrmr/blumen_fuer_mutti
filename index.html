@@ -248,6 +248,9 @@ const state = {
   bins:     SHAPES.map(s => ({ shape: s, shards: [] })),
 };
 
+// Dev counter – bags opened, useful for economy calibration
+let bagsOpened = 0;
+
 // Flower system – separate from game state
 const flowers = {
   building: [],   // { id, parts } – Harry's build queue (sequential)
@@ -330,6 +333,7 @@ function doBreakBlock() {
   if (state.phase !== 'block') return;
 
   state.phase = 'shards';
+  bagsOpened++;
   const now   = performance.now();
   const zones = [...SHARD_ZONES].sort(() => Math.random() - 0.5);
 
@@ -898,6 +902,13 @@ function drawHeader() {
   const hw = ctx.measureText('♥').width;
   ctx.fillStyle = TEXT_HI;
   ctx.fillText('M', 22 + bw + hw, HEADER_H / 2);
+
+  // Bag counter – center of header, dim (dev aid for economy tuning)
+  ctx.fillStyle    = TEXT_DIM;
+  ctx.font         = '11px system-ui';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`🛍 ${bagsOpened}`, W / 2, HEADER_H / 2);
   ctx.textAlign = 'left';
 
   drawLangButton();
@@ -1192,6 +1203,7 @@ function saveState() {
     stock:          flowers.stock,
     coins:          flowers.coins,
     flowerIdCounter,
+    bagsOpened,
   };
   localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
 }
@@ -1209,6 +1221,7 @@ function loadState() {
     flowers.stock    = saveData.stock    || [];
     flowers.coins    = saveData.coins    || 0;
     flowerIdCounter  = saveData.flowerIdCounter || 0;
+    bagsOpened       = saveData.bagsOpened      || 0;
 
   } catch (e) {
     console.error('Failed to load state', e);

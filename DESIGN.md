@@ -285,6 +285,7 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 | Coin badge (💰 N) at outer ring bottom | ✅ |
 | "Harry baut X Blumen" + "Mutti verkauft …" labels | ✅ |
 | Bag visual (opaque surprise bag, Option C) | ✅ |
+| Bag counter (`🛍 N`) in header center – dev aid for economy calibration | ✅ |
 | Bag economy (Harry auto-orders, starting capital, coin cost) | ❌ next |
 | Shop skeleton (icon, overlay, Harry with mustache) | ❌ future |
 | Upgrade: Schere (tap reduction) | ❌ future |
