@@ -254,9 +254,9 @@ let bagsOpened = 0;
 
 // Flower system – separate from game state
 const flowers = {
-  building: [],   // { id, parts } – Harry's build queue (sequential)
-  stock:    [],   // { id, parts } – Lager: finished, waiting for Mutti
-  coins:    100,  // TODO: replace with proper starting capital (Bag economy step)
+  buildQueue: [],   // { id, parts } – Harry's build queue (sequential)
+  stock:      [],   // { id, parts } – Lager: finished, waiting for Mutti
+  coins:      100,  // TODO: replace with proper starting capital (Bag economy step)
 };
 
 // Build timer – runtime only, not persisted
@@ -1220,7 +1220,7 @@ const SAVE_KEY = 'bfm-save';
 function saveState() {
   const saveData = {
     bins:           state.bins,
-    building:       flowers.buildQueue,
+    buildQueue:     flowers.buildQueue,
     stock:          flowers.stock,
     coins:          flowers.coins,
     flowerIdCounter,

@@ -202,7 +202,7 @@ bins = {
 }
 
 // Harry's build queue – flowers currently growing (sequential)
-building = [
+buildQueue = [
   { id, parts: { circle, heart[], stem[], leaf[] } },
 ]
 
@@ -384,7 +384,7 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 | **Coin color `#e3b341`** | GitHub Dark's warning yellow – warm gold, readable on dark bg, unambiguous as currency. |
 | **Build time ±15% variance** | Organic feel. No two flowers take exactly the same time. |
 | **Spawn probability = recipe ratio** | Supply matches demand. Hearts spawn most (57%) because 8 are needed. |
-| **Persist `building` queue** | Parts are consumed when a build starts. Timer restarted on load. |
+| **Persist `buildQueue`** | Parts are consumed when a build starts. Timer restarted on load. |
 
 ---
 
@@ -457,4 +457,5 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 - *Feb 22:* Sort flash caused by animating from targetX/Y instead of drag position. Fix: set targetX/Y = drag.x/y before switching to 'sorting' phase.
 - *Feb 22:* Bin fill cycling was misleading – adding a 9th heart to an 8-slot bin looked like the bin emptied. Fill-bar now clamps at 100% and counter below (`n / recipe`) makes stock readable at a glance. Side effect: devs can now spot probability imbalances in real-time.
 - *Feb 22:* Ubiquitous Language refactor: `block`→`pack`, `shard`→`piece`, `bin.shards`→`bin.pieces`, `flowers.building`→`flowers.buildQueue`, `trySortShard`→`trySortPiece`, `drawShards`→`drawPieces`. One pass, no functionality changed – code now matches domain language throughout.
-- *Feb 22:* Hearts renamed to Coins. `toLocaleString('de-DE'/'en-US')` handles thousand separators cleanly per language. Gold `#e3b341` reads well on dark bg as currency color.
+- *Feb 22:* Hearts renamed to Coins.
+- *Feb 22:* UL refactor pitfall: renaming a JS property requires updating both the *definition site* (`const flowers = { building: [] }`) and all *call sites*. The refactor renamed all usages to `buildQueue` but left the object definition and the `saveState` key as `building` – causing a silent `undefined` at runtime. JS never throws on a missing property read. `toLocaleString('de-DE'/'en-US')` handles thousand separators cleanly per language. Gold `#e3b341` reads well on dark bg as currency color.
