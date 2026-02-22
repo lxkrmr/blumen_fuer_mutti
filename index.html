@@ -1217,8 +1217,6 @@ function loadState() {
     if (!saveData) return;
 
     state.bins       = saveData.bins     || SHAPES.map(s => ({ shape: s, pieces: [] }));
-    // Migrate old save data: bins used to store sorted pieces as `shards`
-    state.bins.forEach(bin => { if (!bin.pieces) bin.pieces = bin.shards ?? []; });
     flowers.buildQueue = saveData.buildQueue || [];
     flowers.stock    = saveData.stock    || [];
     flowers.coins    = saveData.coins    || 0;
