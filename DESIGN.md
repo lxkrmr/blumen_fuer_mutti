@@ -85,16 +85,9 @@ The bag is an **opaque foil pouch** (metallic, dark – Option C visual). Conten
 
 | Property | Meaning |
 |---|---|
-| **Size** | How many parts inside – bigger = more taps + more shards |
-| **Color** | Follows shape – each shape has its Pfingstrose color |
-
-**Sizes:**
-| Size | Taps | Shards | Feel |
-|---|---|---|---|
-| small | 1–2 | 3 | quick, easy |
-| medium | 2–4 | 5 | comfortable |
-| large | 4–7 | 7 | satisfying |
-| jackpot | 7–12 | 12 | rare, worth it |
+| **Size** | Visual size of the bag – currently always small (upgrades will scale this) |
+| **Parts** | 3 parts per bag currently (Tüten-Quantität upgrade increases this) |
+| **Taps** | 5 taps to open baseline – Schere upgrade: Basic 3 taps, Profi 1 tap |
 
 **Damage feedback:**
 - **Wobble** – scale punch on each tap
@@ -231,7 +224,7 @@ No targeted/transparent bags in the base game – upgrades improve quantity and 
 
 | Upgrade | Type | Effect |
 |---|---|---|
-| **Schere** (Basic / Pro / Profi) | Passive, permanent | Reduces taps to open a bag. Basic: ~3 taps. Profi: 1 tap. Game flows faster. |
+| **Schere** (Basic / Pro / Profi) | Passive, permanent | Reduces taps to open a bag. Baseline: 5. Basic: 3. Profi: 1. Game flows faster. |
 | **Tüten-Quantität** (Stufen) | Passive, permanent | More parts per bag → one bag fills more bin slots → fewer bags to open per flower cycle. |
 | **Tüten-Qualität** (Stufen) | Passive, permanent | Higher coin value per bouquet + visual color shift of parts. All bouquets from this point earn the new rate (including any in-progress bouquet). |
 | **Harry Snackies** | Consumable (counter) | Harry builds next X flowers at 2× speed. Counter decrements per flower started. |
@@ -262,7 +255,7 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 
 | What | Status |
 |---|---|
-| Bag appears (size = hardness + yield) | ✅ |
+| Bag appears (always small for now, upgrades scale later) | ✅ |
 | Multi-tap open (N taps by size) | ✅ |
 | Damage feedback: wobble + rattle + drift + glow | ✅ |
 | Opens into parts with defined shapes | ✅ |
@@ -427,6 +420,7 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 - *Feb 21:* Bouquet anchor tuning is iterative – start too high/low, adjust by feel. cy+38 feels right: blooms in the upper half, stems visible as "hands holding the bouquet".
 - *Feb 21:* Badge overlapping the ring bottom is a compact way to attach info to the circle without needing extra layout space.
 - *Feb 22:* Free placement (no snap-back) feels more natural and enables future magnetic bin mechanic. Snap-back was solving a problem that doesn't need solving. Emergent bonus: players can pre-sort by forming small piles before sorting into bins.
+- *Feb 22:* Simplified to one bag size (small). `SIZES` array and `PIECE_LAYOUTS` object removed – replaced with `BAG_PX`, `BAG_SHARDS`, `BAG_TAPS_MIN/MAX` constants. Upgrades will scale these later, possibly differently than the old size system.
 - *Feb 22:* Foil bag replaces piece cluster. `drawFoilBag` drawn centered at (0,0) in transformed space – caller applies translate/rotate/scale, keeps concerns separated. Deformation via bezier curves on the bag path itself (not transforms) gives natural crumple feel.
 - *Feb 22:* Sort flash caused by animating from targetX/Y instead of drag position. Fix: set targetX/Y = drag.x/y before switching to 'sorting' phase.
 - *Feb 22:* Bin fill cycling was misleading – adding a 9th heart to an 8-slot bin looked like the bin emptied. Fill-bar now clamps at 100% and counter below (`n / recipe`) makes stock readable at a glance. Side effect: devs can now spot probability imbalances in real-time.
