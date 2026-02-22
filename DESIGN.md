@@ -81,9 +81,7 @@ Enough coins → buy the alpaca farm → 🦙 win
 
 ### Bags (formerly: blocks)
 
-The bag is not a rectangle – it's a **cluster of its own pieces**, overlapping and merged into an organic shape. The player can already see what shapes are inside before opening – including their colors.
-
-Visually: a bag silhouette over the piece-cluster (future visual detail – mechanics unchanged).
+The bag is an **opaque foil pouch** (metallic, dark – Option C visual). Contents are unknown until opened. Surprise is part of the fun – no dark pattern because only in-game coins are at stake and the economy never lets you lose.
 
 | Property | Meaning |
 |---|---|
@@ -206,35 +204,47 @@ hearts = 0
 
 **Currency:** Coins. Earned when Mutti sells a completed bouquet.
 
-**Base value:** TBD – needs playtesting against alpaca farm price.
+**Economy principle:** Always net positive. The player can never go broke. Coins earned per bouquet always exceed the cost of the next bag. Upgrades increase the magnitude – early game: small profit, late game: large profit.
 
-**Win condition:** Buy the alpaca farm. Price is absurdly high (think: 1 trillion coins) to make the idle progression feel meaningful.
+**Starting capital:** Player starts with enough coins to buy the first several bags without sorting a single flower. Bootstrap problem doesn't exist.
+
+**Win condition:** Buy the alpaca farm 🦙. Price is absurdly high. Buying it ends the game happily – no bad game over exists.
 
 **Shop:** Accessible via a shop icon on the Mine screen. Opens as an overlay. Shopkeeper: Harry with a mustache 🥸
 
-**Upgrade categories:**
+---
 
-| Category | Example | Effect |
+#### Bags
+
+Harry automatically orders the next surprise bag as soon as the play area is empty. Cost is deducted automatically. Player never has to manage ordering.
+
+**Bag type: Surprise bag (standard)**
+- Visually opaque (Option C – foil pouch). Contents unknown until opened.
+- Randomly sized (small → jackpot), weighted toward small/medium early game.
+- Cheap. Always affordable given the economy design.
+
+No targeted/transparent bags in the base game – upgrades improve quantity and quality instead.
+
+---
+
+#### Upgrade categories
+
+| Upgrade | Type | Effect |
 |---|---|---|
-| **Harry upgrades** | Snackies | Harry builds the next X flowers at 2× speed. X consumed per flower, no timestamps. |
-| **Mutti upgrades** | Schulung | Sell bouquets for more coins (permanent multiplier) |
-| | Schrumpf-flation | Smaller bouquet (8 flowers?) for nearly the same price |
-| | Sparschwein | Idle interest – coins slowly accumulate over time |
-| **Bin upgrades** | Magnetischer Bin | Bin attracts nearby matching parts automatically (radius X) – enabled by free placement |
-| **Special bags** | Herz-Packung | Next bag contains only heart-shaped parts |
-| | Große Packung | More parts per bag, better value than small bags |
-| **Goal** | Alpakafarm 🦙 | Win condition. Absurdly expensive. |
+| **Schere** (Basic / Pro / Profi) | Passive, permanent | Reduces taps to open a bag. Basic: ~3 taps. Profi: 1 tap. Game flows faster. |
+| **Tüten-Quantität** (Stufen) | Passive, permanent | More parts per bag → one bag fills more bin slots → fewer bags to open per flower cycle. |
+| **Tüten-Qualität** (Stufen) | Passive, permanent | Higher coin value per bouquet + visual color shift of parts. All bouquets from this point earn the new rate (including any in-progress bouquet). |
+| **Harry Snackies** | Consumable (counter) | Harry builds next X flowers at 2× speed. Counter decrements per flower started. |
+| **Magnetischer Bin** | Passive, permanent | A bin attracts nearby matching parts automatically within radius X. Enabled by free placement mechanic. |
+| **Sparschwein** | Passive, permanent | Idle interest – small coin trickle over time while not actively playing. |
+| **Alpakafarm 🦙** | Goal / Win | Absurdly expensive. Buying it ends the game. |
 
-**Harry speed bonus (Snackies):**
-- Bought in the shop as "X snackies"
-- Each snacky consumed when Harry starts a flower: build time halved
-- No timer, no timestamps – just a counter that decrements
-- Shows remaining snackies somewhere near the indicator
-
-**Special bags:**
-- Bought in shop, queued as the next bag to open
-- Player still taps to open and sorts – same mechanic, guaranteed contents
-- Small bags cheaper, large bags more bang for buck
+**Progression arc:**
+```
+Early:  small bags  +  5 taps  +  low value   →  slow, satisfying grind
+Mid:    medium bags +  3 taps  +  mid value   →  flowing
+Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flows
+```
 
 ### Screen
 
@@ -253,7 +263,6 @@ hearts = 0
 | What | Status |
 |---|---|
 | Bag appears (size = hardness + yield) | ✅ (visual: still looks like block cluster) |
-| Bag is a cluster of its pieces (organic shape) | ✅ |
 | Multi-tap open (N taps by size) | ✅ |
 | Damage feedback: wobble + rattle + drift + glow | ✅ |
 | Opens into parts with defined shapes | ✅ |
@@ -276,32 +285,40 @@ hearts = 0
 | Bouquet fan (±35°, anchor cy+38) | ✅ |
 | Coin counter + badge (💰 N  n/10) | ✅ |
 | "Harry baut X Blumen" label | ✅ |
-| Shop (overlay, Harry with mustache) | ❌ future |
-| Harry speed bonus (Snackies) | ❌ future |
-| Mutti upgrades (Schulung, Schrumpf-flation, Sparschwein) | ❌ future |
-| Special bags (shop-bought, guaranteed parts) | ❌ future |
-| Alpaka farm (win condition) | ❌ future |
-| Bag visual (silhouette over cluster) | ❌ future |
+| Bag visual (opaque surprise bag, Option C) | ❌ next |
+| Bag economy (Harry auto-orders, starting capital, coin cost) | ❌ next |
+| Shop skeleton (icon, overlay, Harry with mustache) | ❌ future |
+| Upgrade: Schere (tap reduction) | ❌ future |
+| Upgrade: Tüten-Quantität (more parts per bag) | ❌ future |
+| Upgrade: Tüten-Qualität (higher bouquet value + visual shift) | ❌ future |
+| Upgrade: Harry Snackies (build speed boost) | ❌ future |
+| Upgrade: Magnetischer Bin | ❌ future |
+| Upgrade: Sparschwein (idle interest) | ❌ future |
+| Alpaka farm (win condition, happy end) | ❌ future |
 | Harry (tutorial / shopkeeper character) | ❌ future |
 
 ---
 
 ## Next steps
 
-1. **Feel tuning** – tap ranges, build time, fan spread *(ongoing)*
-2. **Shop skeleton** – icon, overlay, Harry-with-mustache placeholder
-3. **First shop item** – probably Harry Snackies (simplest mechanic, big fun)
+1. **Bag visual** – opaque surprise bag (Option C: foil pouch) replacing the current piece cluster
+2. **Bag economy** – starting capital, Harry auto-orders at coin cost, economy always net positive
+3. **Feel tuning** – tap ranges, build time, fan spread *(ongoing)*
+4. **Shop skeleton** – icon, overlay, Harry-with-mustache placeholder
+5. **First upgrades** – Schere (simplest: just reduces tapsRequired), then Tüten-Quantität
 
 ---
 
 ## Open questions
 
-- [ ] Base coin value per bouquet – needs playtesting against farm price
-- [ ] Alpaka farm price – absurdly high, exact number TBD (1 trillion placeholder)
-- [ ] Shop upgrade prices – need balancing once base loop is playable
-- [ ] Sparschwein mechanic – time-based interest rate, how much per interval?
+- [ ] Starting capital amount – enough for a few bags without being overwhelmingly generous
+- [ ] Surprise bag cost – must be clearly less than coins earned per bouquet (playtesting)
+- [ ] Upgrade prices – need balancing once base economy loop is playable
+- [ ] Alpaka farm price – absurdly high, exact number TBD
+- [ ] Tüten-Qualität visual shift – which color palette for upgraded parts? (needs design pass)
+- [ ] Sparschwein mechanic – idle interest rate TBD
 - [ ] Harry reactions to completed bouquets (future)
-- [ ] Bag visual (silhouette, future)
+- [ ] Magnetischer Bin radius and feel (future)
 - [ ] Feel tuning – build time 20s right? Fan spread 70° right? Needs playtesting.
 
 ---
@@ -313,7 +330,6 @@ hearts = 0
 | **Sort by shape, not color** | Shape = sorting key. Color = visual hint. No extra cognitive load. |
 | **Size = hardness + yield** | Bigger bag = more taps + more parts. Natural, physical feel. |
 | **Color follows shape (Pfingstrose)** | Farbe verrät Form schon in der Tüte. Konsistentes Bild von Tüte über Teil bis Blume. |
-| **Bag is a cluster of its pieces** | Player sees what's inside before opening. Visual language is consistent. |
 | **Drag & drop, not tap-select-tap** | More intuitive, direct manipulation |
 | **Free placement on drop** | Elements stay where dropped (no snap-back). Feels natural. Prerequisite for future "magnetic bin" upgrade. |
 | **Drop position fixes sort flash** | Correct sort animates from drag.x/y, not targetX/Y – prevents 1-frame flash at origin. |
@@ -332,8 +348,16 @@ hearts = 0
 | **Coins not hearts** | Hearts were confusing – already used in flower petals. Coins are unambiguous and fit the business theme. |
 | **Alpaka farm as win condition** | Gives the game a clear endpoint and emotional goal. Absurd price = long idle progression without feeling like a grind. |
 | **Harry speed bonus as counter not timer** | "Next X flowers at 2×" avoids timestamp complexity and feels more concrete than "2 minutes". |
-| **Special bags = same mechanic, different contents** | Player still opens and sorts. No new mechanics to learn. Reward is time savings, not different gameplay. |
+| **Pack opening = Surprise bags only** | No targeted bags – upgrades improve the bag pool instead. Surprise feel without manipulation. |
 | **Idle layer via Mutti upgrades** | Mutti handles the "away" progression (interest, better prices). Harry handles the "active" progression (faster builds). Clear separation of concerns. |
+| **Surprise bags only, no targeted bags** | Transparency comes from upgrades (you know what you paid for), not from bag contents. Simpler shop, cleaner progression. |
+| **Bag visual: opaque foil pouch (Option C)** | Fits pack-opening feel. Mystery element without dark-pattern mechanics (in-game coins only, can't lose). |
+| **Harry auto-orders bags, no manual trigger** | Removes friction from the core loop. Player never waits for a new bag – Harry just handles it. |
+| **Starting capital solves bootstrap** | Player starts with enough coins. Economy is always self-sustaining by design – not by luck. |
+| **Progression via 3 orthogonal axes** | Schere (speed), Quantität (parts per bag), Qualität (value per bouquet). Each feels different, all compound. |
+| **Qualität-Upgrade applies to all bouquets immediately** | No per-flower value tracking. Clean and fair. Transition bouquet gets the new price too. |
+| **Schere as passive permanent upgrade** | Tap reduction is a flow improvement, not a consumable. You buy it once and the game permanently feels better. |
+| **Game ends happily with alpaca farm** | Clear win condition. No soft resets, no prestige loops (for now). The game has a destination. |
 | **Bin counter `n / recipe` instead of cycling fill** | Cycling fill looked like the bin emptied when overfull. Counter makes stock immediately readable: 0/8 → 8/8 → 9/8. Fill bar now clamps at full and stays there. |
 | **💰 money bag, not 🪙 coin** | Money bag fits the business theme better visually. Coin felt too flat at small badge size. |
 | **Coin color `#e3b341`** | GitHub Dark's warning yellow – warm gold, readable on dark bg, unambiguous as currency. |

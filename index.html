@@ -560,8 +560,9 @@ function hitTest(x, y, now) {
 
   // Block
   if (state.phase === 'block') {
-    const hw = state.block.size.blockPx / 2;
-    if (inRect(x, y, PLAY_CX - hw, PLAY_CY - hw, state.block.size.blockPx, state.block.size.blockPx)) {
+    const bw = state.block.size.blockPx * 0.72;
+    const bh = state.block.size.blockPx * 1.05;
+    if (inRect(x, y, PLAY_CX - bw / 2, PLAY_CY - bh / 2, bw, bh)) {
       return { type: 'block' };
     }
   }
@@ -926,52 +927,139 @@ function drawBlock(now) {
   const enterT  = clamp01((now - blockEnterStart) / 300);
   const enterSc = easeOutBack(enterT);
 
-  // Tap wobble: scale punch + rotation rattle, both decay together
+  // Tap wobble: scale punch + rotation rattle
   const wobbleAge = block.lastTapAt > 0 ? now - block.lastTapAt : Infinity;
   const wobbleT   = wobbleAge < 220 ? clamp01(wobbleAge / 220) : 1;
   const wobbleSc  = wobbleAge < 220 ? 1 + Math.sin(wobbleT * Math.PI) * 0.09 : 1;
-  const wobbleRot = block.angle;
 
-  // Damage progress (0 = fresh, approaches 1 as taps run out)
+  // Damage progress (0 = fresh, 1 = about to burst)
   const progress = 1 - block.tapsLeft / block.tapsRequired;
 
-  // Piece drift: spread further with each tap
-  const drift = 1 + progress * 0.9;
+  const bw = block.size.blockPx * 0.72;
+  const bh = block.size.blockPx * 1.05;
 
-
-  const sc = enterSc * wobbleSc;
-
-  // Draw pieces with block-level rotation
   ctx.save();
   ctx.translate(PLAY_CX, PLAY_CY);
-  ctx.rotate(wobbleRot);
-  // Pass 1 – glow halo (only after first tap, doesn't blur the shapes themselves)
+  ctx.rotate(block.angle);
+  ctx.scale(enterSc * wobbleSc, enterSc * wobbleSc);
+  drawFoilBag(ctx, bw, bh, progress, now);
+  ctx.restore();
+}
+
+// Draws an opaque foil bag centered at (0, 0) in the current transform space.
+// Deforms and glows as progress (0→1) increases.
+function drawFoilBag(ctx, bw, bh, progress, now) {
+  const bx = -bw / 2, by = -bh / 2;
+  const r  = 8;
+  const deform = progress * bw * 0.12;
+
+  // Bag outline path – deforms with damage
+  const bagPath = () => {
+    ctx.beginPath();
+    if (progress > 0.08) {
+      ctx.moveTo(bx + r, by);
+      ctx.lineTo(bx + bw - r, by);
+      ctx.bezierCurveTo(bx + bw, by,        bx + bw, by + r,
+                        bx + bw - deform * 0.3, by + bh * 0.38);
+      ctx.lineTo(bx + bw, by + bh - r);
+      ctx.bezierCurveTo(bx + bw, by + bh,   bx + bw - r, by + bh,
+                        bx + bw * 0.5 + deform * 0.2, by + bh);
+      ctx.lineTo(bx + bw * 0.5 - deform * 0.2, by + bh);
+      ctx.bezierCurveTo(bx + r, by + bh,    bx, by + bh,
+                        bx + deform * 0.3, by + bh * 0.38);
+      ctx.lineTo(bx, by + r);
+      ctx.bezierCurveTo(bx, by, bx + r, by, bx + r, by);
+    } else {
+      ctx.roundRect(bx, by, bw, bh, r);
+    }
+    ctx.closePath();
+  };
+
+  // Glow aura – pulses faster as damage increases
   if (progress > 0) {
-    const pulse = 0.55 + 0.45 * Math.sin(now / (180 - progress * 110));
-    for (const piece of block.pieces) {
-      ctx.save();
-      ctx.translate(piece.x * sc * drift, piece.y * sc * drift);
-      ctx.rotate(piece.angle);
-      ctx.shadowColor = piece.color;
-      ctx.shadowBlur  = progress * 34 * pulse;
-      ctx.fillStyle   = piece.color;
-      drawShapePath(ctx, piece.shape, 0, 0, piece.size * sc);
-      ctx.fill();
-      ctx.restore();
+    const pulse = 0.6 + 0.4 * Math.sin(now / (220 - progress * 120));
+    ctx.save();
+    ctx.shadowColor = `rgba(140,185,255,${0.7 * pulse})`;
+    ctx.shadowBlur  = progress * 32 * pulse;
+    ctx.strokeStyle = `rgba(140,185,255,${progress * 0.45 * pulse})`;
+    ctx.lineWidth   = 2.5;
+    bagPath();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Main fill – dark metallic gradient
+  const grad = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
+  grad.addColorStop(0.00, '#1e2e44');
+  grad.addColorStop(0.25, '#253550');
+  grad.addColorStop(0.55, '#1b2a3e');
+  grad.addColorStop(1.00, '#131e30');
+  bagPath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Left-edge highlight (like light catching the foil)
+  ctx.save();
+  bagPath();
+  ctx.clip();
+  const hGrad = ctx.createLinearGradient(bx, by, bx + bw * 0.32, by);
+  hGrad.addColorStop(0, 'rgba(255,255,255,0.07)');
+  hGrad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hGrad;
+  ctx.fillRect(bx, by, bw * 0.32, bh);
+  ctx.restore();
+
+  // Heat seal at top
+  ctx.fillStyle = 'rgba(200,215,255,0.08)';
+  ctx.beginPath();
+  ctx.roundRect(bx + 2, by, bw - 4, 15, [r, r, 0, 0]);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth   = 1;
+  for (let i = 0; i < 2; i++) {
+    ctx.beginPath();
+    ctx.moveTo(bx + 8, by + 4 + i * 4);
+    ctx.lineTo(bx + bw - 8, by + 4 + i * 4);
+    ctx.stroke();
+  }
+
+  // Placeholder label area
+  ctx.strokeStyle = 'rgba(255,255,255,0.055)';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.roundRect(bx + 10, by + bh * 0.30, bw - 20, bh * 0.24, 3);
+  ctx.stroke();
+  for (let i = 0; i < 2; i++) {
+    ctx.beginPath();
+    ctx.moveTo(bx + 18, by + bh * 0.38 + i * 7);
+    ctx.lineTo(bx + bw - 18, by + bh * 0.38 + i * 7);
+    ctx.stroke();
+  }
+
+  // Crumple marks – appear gradually from 30% damage
+  if (progress > 0.3) {
+    const a = (progress - 0.3) / 0.7;
+    ctx.strokeStyle = `rgba(255,255,255,${a * 0.18})`;
+    ctx.lineWidth   = 0.8;
+    const crumples = [
+      [[-bw * 0.22, -bh * 0.20], [-bw * 0.06, -bh * 0.04], [-bw * 0.28,  bh * 0.07]],
+      [[ bw * 0.12,  bh * 0.04], [ bw * 0.30,  bh * 0.19], [ bw * 0.08,  bh * 0.30]],
+    ];
+    for (const c of crumples) {
+      ctx.beginPath();
+      ctx.moveTo(c[0][0], c[0][1]);
+      for (let i = 1; i < c.length; i++) ctx.lineTo(c[i][0], c[i][1]);
+      ctx.stroke();
     }
   }
 
-  // Pass 2 – sharp shapes on top
-  for (const piece of block.pieces) {
-    ctx.save();
-    ctx.translate(piece.x * sc * drift, piece.y * sc * drift);
-    ctx.rotate(piece.angle);
-    ctx.fillStyle = piece.color;
-    drawShapePath(ctx, piece.shape, 0, 0, piece.size * sc);
-    ctx.fill();
-    ctx.restore();
-  }
-  ctx.restore();
+  // Bag outline
+  bagPath();
+  ctx.strokeStyle = progress > 0
+    ? `rgba(140,185,255,${0.22 + progress * 0.38})`
+    : 'rgba(255,255,255,0.10)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
 }
 
 function drawShards(now, dragOnly = false) {
