@@ -262,7 +262,7 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 
 | What | Status |
 |---|---|
-| Bag appears (size = hardness + yield) | ✅ (visual: still looks like block cluster) |
+| Bag appears (size = hardness + yield) | ✅ |
 | Multi-tap open (N taps by size) | ✅ |
 | Damage feedback: wobble + rattle + drift + glow | ✅ |
 | Opens into parts with defined shapes | ✅ |
@@ -285,7 +285,7 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 | Bouquet fan (±35°, anchor cy+38) | ✅ |
 | Coin counter + badge (💰 N  n/10) | ✅ |
 | "Harry baut X Blumen" label | ✅ |
-| Bag visual (opaque surprise bag, Option C) | ❌ next |
+| Bag visual (opaque surprise bag, Option C) | ✅ |
 | Bag economy (Harry auto-orders, starting capital, coin cost) | ❌ next |
 | Shop skeleton (icon, overlay, Harry with mustache) | ❌ future |
 | Upgrade: Schere (tap reduction) | ❌ future |
@@ -301,11 +301,10 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 
 ## Next steps
 
-1. **Bag visual** – opaque surprise bag (Option C: foil pouch) replacing the current piece cluster
-2. **Bag economy** – starting capital, Harry auto-orders at coin cost, economy always net positive
-3. **Feel tuning** – tap ranges, build time, fan spread *(ongoing)*
-4. **Shop skeleton** – icon, overlay, Harry-with-mustache placeholder
-5. **First upgrades** – Schere (simplest: just reduces tapsRequired), then Tüten-Quantität
+1. **Bag economy** – starting capital, Harry auto-orders at coin cost, economy always net positive
+2. **Feel tuning** – tap ranges, build time, fan spread *(ongoing)*
+3. **Shop skeleton** – icon, overlay, Harry-with-mustache placeholder
+4. **First upgrades** – Schere (simplest: just reduces tapsRequired), then Tüten-Quantität
 
 ---
 
@@ -428,6 +427,7 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 - *Feb 21:* Bouquet anchor tuning is iterative – start too high/low, adjust by feel. cy+38 feels right: blooms in the upper half, stems visible as "hands holding the bouquet".
 - *Feb 21:* Badge overlapping the ring bottom is a compact way to attach info to the circle without needing extra layout space.
 - *Feb 22:* Free placement (no snap-back) feels more natural and enables future magnetic bin mechanic. Snap-back was solving a problem that doesn't need solving. Emergent bonus: players can pre-sort by forming small piles before sorting into bins.
+- *Feb 22:* Foil bag replaces piece cluster. `drawFoilBag` drawn centered at (0,0) in transformed space – caller applies translate/rotate/scale, keeps concerns separated. Deformation via bezier curves on the bag path itself (not transforms) gives natural crumple feel.
 - *Feb 22:* Sort flash caused by animating from targetX/Y instead of drag position. Fix: set targetX/Y = drag.x/y before switching to 'sorting' phase.
 - *Feb 22:* Bin fill cycling was misleading – adding a 9th heart to an 8-slot bin looked like the bin emptied. Fill-bar now clamps at 100% and counter below (`n / recipe`) makes stock readable at a glance. Side effect: devs can now spot probability imbalances in real-time.
 - *Feb 22:* Hearts renamed to Coins. `toLocaleString('de-DE'/'en-US')` handles thousand separators cleanly per language. Gold `#e3b341` reads well on dark bg as currency color.
