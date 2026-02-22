@@ -263,7 +263,7 @@ let buildDurationMs  = 0;   // for progress ring
 
 // ── Animation state ───────────────────────────────────────────────────────
 let blockEnterStart = 0;
-const binFillAnim   = Array(4).fill(0);  // lerps toward current cycle fill (0–1)
+const binFillAnim   = Array(4).fill(0);  // lerps toward fill target (0→1, clamps at 1)
 const binFlashAt    = Array(4).fill(0);  // timestamp of last recipe-threshold event
 
 // ── Game logic ────────────────────────────────────────────────────────────
@@ -1009,21 +1009,19 @@ function drawBins(now) {
     const bx     = BIN_LEFT + i * (BIN_W + BIN_GAP);
     const by     = BIN_Y;
     const recipe = FLOWER_RECIPE[bin.shape.id];
+    const count  = bin.shards.length;
 
-    // level = total shards / recipe (e.g. 1.5 = halfway through 2nd flower's worth)
-    const level      = bin.shards.length / recipe;
-    const multiples  = Math.floor(level);
-    // cycle: progress within current recipe (0–1). At exact multiples show 1, not 0.
-    const cycle      = (level % 1) || (level > 0 ? 1 : 0);
-
-    binFillAnim[i] += (cycle - binFillAnim[i]) * 0.15;
+    // Fill target: grows 0→1 as count reaches recipe, then stays at 1 (no cycling)
+    const fillTarget = Math.min(count / recipe, 1);
+    binFillAnim[i] += (fillTarget - binFillAnim[i]) * 0.15;
 
     // Flash factor after hitting a recipe threshold
     const flashAge = binFlashAt[i] ? now - binFlashAt[i] : Infinity;
     const flash    = flashAge < 600 ? 1 - flashAge / 600 : 0;
 
-    // Background tint – more saturated per additional multiple
-    const tintAlpha = Math.min(multiples, 3) / 3 * 0.18;
+    // Background tint – more saturated when bin has extra stock beyond 1 recipe
+    const extras    = Math.max(0, count - recipe);
+    const tintAlpha = Math.min(extras / recipe, 1) * 0.18;
     ctx.fillStyle = BG;
     ctx.beginPath();
     ctx.roundRect(bx, by, BIN_W, BIN_H, BIN_R);
@@ -1038,7 +1036,7 @@ function drawBins(now) {
       ctx.globalAlpha = 1;
     }
 
-    // Fill bar – shows progress within current recipe cycle
+    // Fill bar – fills once to 100% when count reaches recipe, stays full beyond
     if (binFillAnim[i] > 0.005) {
       ctx.save();
       ctx.beginPath();
@@ -1067,6 +1065,18 @@ function drawBins(now) {
     drawShapePath(ctx, bin.shape, bx + BIN_W / 2, by + BIN_H / 2, 30);
     ctx.fill();
     ctx.globalAlpha = 1;
+
+    // Counter below bin: "count / recipe" – bright when full or over, dim when filling
+    const isFull = count >= recipe;
+    ctx.font         = '11px system-ui';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle    = TEXT_HI;
+    ctx.globalAlpha  = isFull ? (0.7 + flash * 0.3) : 0.35;
+    ctx.fillText(`${count} / ${recipe}`, bx + BIN_W / 2, by + BIN_H + 6);
+    ctx.globalAlpha  = 1;
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'alphabetic';
   }
 }
 

@@ -148,7 +148,7 @@ Total: **14 parts** per flower.
 
 **Build time:** `BASE_MS * (0.85–1.15)` random range. `BASE_MS = 20000ms`.
 
-### Bouquet & Heart counter
+### Bouquet & Coin counter
 
 Finished flowers accumulate in the **indicator circle** as a bouquet:
 
@@ -158,7 +158,7 @@ Finished flowers accumulate in the **indicator circle** as a bouquet:
 - **Max 10 flowers** per bouquet
 
 When the bouquet reaches **10 flowers:**
-1. Mutti sells it → **+coins** (base value TBD, upgradeable via shop)
+1. Mutti sells it → **+100 coins** (base value, upgradeable via shop)
 2. Bouquet resets (flowers cleared)
 3. Harry starts fresh with flower 1
 
@@ -172,7 +172,7 @@ The single indicator at the top of the Mine screen. Radius 80px, centered at top
 
 - **Glows / pulses** when Harry is building (`building` queue not empty)
 - **Contains the bouquet** – flowers rendered with anchor at cy+38
-- **Badge at ring bottom** – ♥ counter + bouquet progress (n/10)
+- **Badge at ring bottom** – coin counter + bouquet progress (n/10)
 - **Label below badge** – Harry's current activity in plain language
 
 ### Data model
@@ -260,7 +260,7 @@ hearts = 0
 | Drag & drop sorting by shape | ✅ |
 | Wrong sort → snap back + shake | ✅ |
 | 4 bins as color queues (recipe-based capacity) | ✅ |
-| Bin saturation indicator (tint scales with multiples) | ✅ |
+| Bin fill bar (fills once, stays full) + counter below (n/recipe) | ✅ |
 | Building system – sequential queue, unlimited depth | ✅ |
 | Haptic feedback (Android) | ✅ |
 | i18n (DE + EN) | ✅ |
@@ -331,6 +331,7 @@ hearts = 0
 | **Harry speed bonus as counter not timer** | "Next X flowers at 2×" avoids timestamp complexity and feels more concrete than "2 minutes". |
 | **Special bags = same mechanic, different contents** | Player still opens and sorts. No new mechanics to learn. Reward is time savings, not different gameplay. |
 | **Idle layer via Mutti upgrades** | Mutti handles the "away" progression (interest, better prices). Harry handles the "active" progression (faster builds). Clear separation of concerns. |
+| **Bin counter `n / recipe` instead of cycling fill** | Cycling fill looked like the bin emptied when overfull. Counter makes stock immediately readable: 0/8 → 8/8 → 9/8. Fill bar now clamps at full and stays there. |
 | **💰 money bag, not 🪙 coin** | Money bag fits the business theme better visually. Coin felt too flat at small badge size. |
 | **Coin color `#e3b341`** | GitHub Dark's warning yellow – warm gold, readable on dark bg, unambiguous as currency. |
 | **Build time ±15% variance** | Organic feel. No two flowers take exactly the same time. |
@@ -399,4 +400,5 @@ hearts = 0
 - *Feb 21:* Cryptic symbols (✦) are worse than plain language. "Harry baut 3 Blumen" is immediately clear; "✦ 3" requires the player to learn the symbol.
 - *Feb 21:* Bouquet anchor tuning is iterative – start too high/low, adjust by feel. cy+38 feels right: blooms in the upper half, stems visible as "hands holding the bouquet".
 - *Feb 21:* Badge overlapping the ring bottom is a compact way to attach info to the circle without needing extra layout space.
+- *Feb 22:* Bin fill cycling was misleading – adding a 9th heart to an 8-slot bin looked like the bin emptied. Fill-bar now clamps at 100% and counter below (`n / recipe`) makes stock readable at a glance. Side effect: devs can now spot probability imbalances in real-time.
 - *Feb 22:* Hearts renamed to Coins. `toLocaleString('de-DE'/'en-US')` handles thousand separators cleanly per language. Gold `#e3b341` reads well on dark bg as currency color.
