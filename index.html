@@ -227,7 +227,8 @@ function haptic(pattern) {
 }
 
 // Button bounds – set each frame during draw, used by hitTest
-let langBtnBounds = null;
+let langBtnBounds  = null;
+let resetBtnBounds = null;
 
 // ── Drag state ────────────────────────────────────────────────────────────
 const drag = {
@@ -555,6 +556,11 @@ function hitTest(x, y, now) {
     return { type: 'lang' };
   }
 
+  // Reset button (dev)
+  if (resetBtnBounds && inRect(x, y, resetBtnBounds.x, resetBtnBounds.y, resetBtnBounds.w, resetBtnBounds.h)) {
+    return { type: 'reset' };
+  }
+
   // Pieces (reverse so topmost is checked first)
   if (state.phase === 'pieces') {
     for (const piece of [...state.pieces].reverse()) {
@@ -669,8 +675,9 @@ function handleTap({ x, y }) {
   const hit = hitTest(x, y, now);
   if (!hit) return;
   switch (hit.type) {
-    case 'lang':  toggleLang(); break;
-    case 'pack': tapPack();   break;
+    case 'lang':  toggleLang();                              break;
+    case 'pack':  tapPack();                                 break;
+    case 'reset': localStorage.clear(); location.reload();  break;
   }
 }
 
@@ -903,12 +910,26 @@ function drawHeader() {
   ctx.fillStyle = TEXT_HI;
   ctx.fillText('M', 22 + bw + hw, HEADER_H / 2);
 
-  // Bag counter – center of header, dim (dev aid for economy tuning)
+  // Bag counter + reset button – center of header, dev aid for economy tuning
+  ctx.font = '11px system-ui';
+  const bagLabel = `🛍 ${bagsOpened}`;
+  const bagLabelW = ctx.measureText(bagLabel).width;
+  const resetLabel = '↺';
+  const resetLabelW = ctx.measureText(resetLabel).width;
+  const gap = 8;
+  const totalW = bagLabelW + gap + resetLabelW;
+  const startX = W / 2 - totalW / 2;
+
   ctx.fillStyle    = TEXT_DIM;
-  ctx.font         = '11px system-ui';
-  ctx.textAlign    = 'center';
+  ctx.textAlign    = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`🛍 ${bagsOpened}`, W / 2, HEADER_H / 2);
+  ctx.fillText(bagLabel, startX, HEADER_H / 2);
+
+  const rx = startX + bagLabelW + gap;
+  ctx.fillStyle = TEXT_DIM;
+  ctx.fillText(resetLabel, rx, HEADER_H / 2);
+  resetBtnBounds = { x: rx - 4, y: HEADER_H / 2 - 12, w: resetLabelW + 8, h: 24 };
+
   ctx.textAlign = 'left';
 
   drawLangButton();
