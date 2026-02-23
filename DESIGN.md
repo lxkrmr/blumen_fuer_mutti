@@ -242,7 +242,31 @@ coins = 0
 
 **Starting capital:** Player starts with enough coins to buy the first several bags without sorting a single flower. Bootstrap problem doesn't exist.
 
-**Shop:** Accessible via a shop icon on the Mine screen. Opens as an overlay. Shopkeeper: Harry with a mustache 🥸
+**Shop:** Accessible via a shop icon on the main game screen. Opens as a separate screen. Shopkeeper: Harry with a mustache 🥸
+
+#### Economy calibration
+
+Measured playtest session (Feb 23, relaxed pace):
+
+| Metric | Value |
+|---|---|
+| Packs opened | 50 |
+| Time | 5:08 min (~5.13 min) |
+| Flowers built | 8 |
+| **Packs per minute** | **~9.7** |
+| **Packs per flower** | **~6.25** (theoretical min: 14/3 = 4.67 – ~34% waste from probability variance) |
+| **Flowers per minute** | **~1.56** |
+
+Derived at `BAG_COST = 1`, `FLOWER_COIN_VALUE = 10`:
+
+| | Per 5 min session |
+|---|---|
+| Coins spent on packs | 50 × 1 = **50** |
+| Coins earned from flowers | 8 × 10 = **80** |
+| Net profit | **+30 coins (~5.8/min)** |
+
+Economy verdict: **net positive by design** ✓. Pack cost never exceeds flower yield.
+`STARTING_COINS = 50` covers ~50 packs – enough for the full bootstrap period before the first flowers arrive.
 
 The shop is a **linear skill tree** – upgrades unlock sequentially. The player always sees what comes next. Early upgrades are cheap and feel like gifts. Later upgrades are expensive but plannable. Each upgrade has flavor text: a small story beat in the game world, a reason to smile.
 
@@ -379,13 +403,12 @@ Three alpacas, three story milestones. Each unlocks individually with a Bruno-fo
 
 ### Screen
 
-**One screen only: the Mine.**
+**Two screens: game screen + shop screen.**
 
-| Area | Content |
+| Screen | Content |
 |---|---|
-| Top | Indicator: two rings (Harry inner blue + Mutti outer gold), flower stock inside, coin badge |
-| Middle | Current bag / piece cluster |
-| Bottom | 4 bins + shop icon |
+| **Game screen** | Indicator (top) · current bag / pieces (middle) · 4 bins + shop icon (bottom) |
+| **Shop screen** | Linear upgrade tree · 9 upgrades · locked items show ??? |
 
 ---
 
@@ -472,7 +495,7 @@ Three alpacas, three story milestones. Each unlocks individually with a Bruno-fo
 | **No tap counter shown** | Player feels the bag through wobble/drift/glow – more tactile |
 | **Rattle accumulates (no spring-back)** | Feels physical – like shaking a real bag |
 | **Glow as two-pass render** | Pass 1: shadowBlur for halo. Pass 2: sharp shapes on top. Crisp edges + glow. |
-| **One screen only (Mine)** | Garden felt useless – sorting takes long enough that players rarely switched. Bouquet-in-circle keeps reward visible without context switch. |
+| **Two screens: game + shop** | Garden screen removed – sorting takes long enough that players rarely switched. Bouquet-in-circle keeps reward visible. Shop is a separate screen, not an overlay – cleaner separation. |
 | **Flower stock in Harry's indicator** | Lager visible at all times in the indicator. Shows how many flowers are waiting for Mutti. |
 | **No bouquet, per-flower sales** | Cleaner loop. Hearts/bouquets were slow feedback. Per-flower coins are immediate and honest. |
 | **B♥M logo** | Short, warm, the heart doubles as game symbol and reward icon. |
@@ -603,4 +626,5 @@ Three alpacas, three story milestones. Each unlocks individually with a Bruno-fo
 - *Feb 22:* UL refactor pitfall: renaming a JS property requires updating both the *definition site* (`const flowers = { building: [] }`) and all *call sites*. The refactor renamed all usages to `buildQueue` but left the object definition and the `saveState` key as `building` – causing a silent `undefined` at runtime. JS never throws on a missing property read. `toLocaleString('de-DE'/'en-US')` handles thousand separators cleanly per language. Gold `#e3b341` reads well on dark bg as currency color.
 - *Feb 23:* Economy designed from playtime backward: 50 packs in ~5 min, 8 flowers/50 packs, ~5.8 coins/min net (at 10 coins/flower, 1 coin/pack). Target arc: 2–4 weeks of accompaniment, fully action-gated. BfM defined as interactive book: clear end, not a service game, no FOMO. Alpaka farm split into 5 phases. Alpacas with Bruno-format micro-storytelling. Sparschwein rethought from time-ticker to action-gated savings mechanism.
 - *Feb 23:* Full upgrade tree settled: 3 actors (Player, Harry, Mutti) × 3 upgrades each + farm arc. Naming matters: Staubsauger beats Magnetischer Bin, Bobby beats "Mutti's car", Gummi-Daumen beats Plastik-Daumen. Harry goes TikTok consolidates Tüten-Qualität and Hype-Train into one narrative arc. Land choice (Berge/Meer) has a late consequence (Bobby-Zuwachs) – early decision, late reward.
+- *Feb 23:* Code review + refactor: (1) render/update separated – `update(now)` mutates state, draw functions are now read-only/pure; (2) OCP applied to upgrade system – each upgrade carries its own `effect` function, `getEffects()` is now generic and never needs to change; (3) DRY: `binX/binCX/binCY` helpers, `fillRRect/strokeRRect` helpers; (4) ctx removed from path functions and `drawFlower` – consistent with all other draw functions; (5) timers grouped as objects; (6) dead `shards` property removed from state.
 - *Feb 23:* Final progression order locked. "Auf Kredit" reframes the win condition – not saving up, but paying off a dream. Alpacas choose the family, not vice versa – warmer and less transactional. Three milestones each anchored by an alpaca arrival. Theodor closes the game. Bobby-Tuning collapses two upgrades into one cleaner beat. Exponential growth principle: upgrades multiply across different axes (speed, value, volume) – the compound feel is what matters, not individual upgrade magnitude.
