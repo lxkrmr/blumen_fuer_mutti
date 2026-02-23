@@ -20,6 +20,7 @@ Shared vocabulary – used consistently in code, DESIGN.md, and conversation.
 | Finished flowers waiting for Mutti | Stock | Lager | `stock` |
 | Currency | Coins | Münzen | `coins` |
 | The seller | Mutti | Mutti | `mutti` |
+| Mutti's car | Bobby | Bobby | `bobby` |
 
 ---
 
@@ -91,6 +92,22 @@ Enough coins → buy the alpaca farm → 🦙 win
 - **Fidget-first** – low cognitive load, podcast-compatible
 - **Haptic + visual feedback** – combined on Android, visual only on iOS/desktop
 - **Discover, don't explain** – no tutorial needed (Harry explains later)
+
+---
+
+## Philosophy
+
+**BfM is an interactive book, not a service game.**
+
+The game has a beginning, a middle, and an end. It accompanies you for a while – then it says goodbye. Anyone who wants to experience it again can start over. No daily logins, no FOMO, no manipulation. The game respects that the player has a life.
+
+**Core principle: Action-gated, never time-gated.**
+
+Progress comes from actions (opening packs, selling flowers, buying upgrades), never from time passing. A player who takes a week off is not at a disadvantage. The game waits. Always.
+
+**BfM is a fidget tool with a progress layer.**
+
+The basis: a simple motor task with low cognitive load keeps the Default Mode Network – the brain's "mind-wandering mode" – occupied without competing with listening. Doodling research (Andrade, 2009) shows +29% recall during listening when paired with a simple hand task. Sorting as interactive fidgeting.
 
 ---
 
@@ -225,9 +242,9 @@ coins = 0
 
 **Starting capital:** Player starts with enough coins to buy the first several bags without sorting a single flower. Bootstrap problem doesn't exist.
 
-**Win condition:** Buy the alpaca farm 🦙. Price is absurdly high. Buying it ends the game happily – no bad game over exists.
-
 **Shop:** Accessible via a shop icon on the Mine screen. Opens as an overlay. Shopkeeper: Harry with a mustache 🥸
+
+The shop is a **linear skill tree** – upgrades unlock sequentially. The player always sees what comes next. Early upgrades are cheap and feel like gifts. Later upgrades are expensive but plannable. Each upgrade has flavor text: a small story beat in the game world, a reason to smile.
 
 ---
 
@@ -244,24 +261,121 @@ No targeted/transparent bags in the base game – upgrades improve quantity and 
 
 ---
 
-#### Upgrade categories
+#### Upgrade structure
 
-| Upgrade | Type | Effect |
-|---|---|---|
-| **Schere** (Basic / Pro / Profi) | Passive, permanent | Reduces taps to open a bag. Baseline: 5. Basic: 3. Profi: 1. Game flows faster. |
-| **Tüten-Quantität** (Stufen) | Passive, permanent | More parts per bag → one bag fills more bin slots → fewer bags to open per flower cycle. |
-| **Tüten-Qualität** (Stufen) | Passive, permanent | Higher coin value per flower + visual color shift of parts. All flowers sold from this point earn the new rate. |
-| **Harry Snackies** | Consumable (counter) | Harry builds next X flowers at 2× speed. Counter decrements per flower started. |
-| **Magnetischer Bin** | Passive, permanent | A bin attracts nearby matching parts automatically within radius X. Enabled by free placement mechanic. |
-| **Sparschwein** | Passive, permanent | Idle interest – small coin trickle over time while not actively playing. |
-| **Alpakafarm 🦙** | Goal / Win | Absurdly expensive. Buying it ends the game. |
+Three actors, three upgrades each. Interlaced in a single linear skill tree. All upgrades are **passive and permanent** – buy once, improved forever. Early upgrades feel like gifts. The farm arc begins after all 9 upgrades.
 
-**Progression arc:**
+---
+
+#### Full progression order
+
+**Block 1 – Getting started**
+
+| # | Actor | Upgrade | Effect |
+|---|---|---|---|
+| 1 | Player | **Schere** | Fewer taps to open a pack. Baseline: 5 → 1. One tier. |
+| 2 | Harry | **Gummi-Daumen** | Harry builds faster. *Cats don't rule the world only because they lack thumbs. Problem solved.* |
+| 3 | Mutti | **Großhändler** | Bigger packs – more parts, more bang per buck. *A wholesaler noticed you. Harry is nervous around contracts.* |
+
+→ **Milestone 1: Land kaufen (auf Kredit) 🌍**
+Player chooses: Berge or Meer. This choice determines Bobby-Zuwachs later.
+**Bruno beschließt einzuziehen.** He wasn't bought – he chose the family. He senses a good home.
+
+---
+
+**Block 2 – Building momentum**
+
+| # | Actor | Upgrade | Effect |
+|---|---|---|---|
+| 4 | Player | **Staubsauger** | Bins attract nearby parts. Not fully automatic – just pull. |
+| 5 | Harry | **Harry goes TikTok** | Coin value per flower increases. *1k followers. Comments ask about his supplement stack. He has none.* |
+| 6 | Mutti | **Bobby-Tuning** | Heck-Spoiler + Rallye-Streifen in one. Bobby delivers significantly faster. *The stripes make it faster. Everyone knows this.* |
+
+→ **Milestone 2: Haus kaufen (auf Kredit) 🏡**
+Player chooses: romantic or modern. Cosmetic – taste and replayability.
+**Hildegard zieht ein.** She already acts like she owns the place.
+
+---
+
+**Block 3 – Full speed**
+
+| # | Actor | Upgrade | Effect |
+|---|---|---|---|
+| 7 | Player | **Dino-Sparschwein** | Horizontally rotating dino piggy bank (Brainrot reference). Per flower sold, a share goes in. After X payments → absurdly high interest payout. *It spins. Nobody understands why it yields so much. Brainrot.* |
+| 8 | Harry | **Harry's eigenes Label** | Coin value per flower increases further. *Who needs a brand deal when you are the brand.* |
+| 9 | Mutti | **Bobby-Zuwachs** | Second vehicle, determined by land choice. Berge → Unimog. Meer → Speedboat. Maximum delivery speed. |
+
+→ **Finale: Schlüssel zum Herzen 🔑**
+The credits are paid off. The land, the house – it all belongs to the three of them now.
+**Theodor zieht ein.** He gives the closing speech. He is very happy. He eyes the flower garden.
+Closing screen. The game says goodbye. The player can start over.
+
+---
+
+**Progression arc – exponential, not additive:**
+
+Each block multiplies what was already there. Upgrades hit different axes (pack speed, build speed, coin value, sell speed) – the compound of `a × b × c` is what creates the exponential feel, not any single upgrade.
+
 ```
-Early:  small bags  +  5 taps  +  low value   →  slow, satisfying grind
-Mid:    medium bags +  3 taps  +  mid value   →  flowing
-Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flows
+Block 1:  ~6 coins/min    "nice, this helps"
+Block 2:  ~40 coins/min   "wait, this is getting fast"
+Block 3:  ~200 coins/min  "I can barely keep up"
 ```
+
+*(Exact values need calibration after bag economy is implemented. The ratios matter more than the absolutes.)*
+
+**The credit framing amplifies the arc emotionally:**
+- Block 1: coins flow but you *owe* something → tension
+- Block 2: flow accelerates, second debt → brief tension, then relief  
+- Block 3: explosion of coins → debts paid → catharsis
+
+**The Dino-Sparschwein is the exponential wildcard.** Players who have played a lot have paid in a lot. The absurd interest rate then catapults the coin pile at exactly the right moment.
+
+### Alpaka farm – Win condition
+
+The farm unfolds across the full game as three milestones and a finale. It is not a single purchase – the family buys on credit and works toward paying it off.
+
+**Milestone 1: Land kaufen (auf Kredit) 🌍** *(after upgrade 3)*
+
+Player chooses the land. This is personal and has a late gameplay consequence.
+
+| Option | Late consequence (Bobby-Zuwachs, upgrade 9) |
+|---|---|
+| 🏔 Berge | Unimog |
+| 🌊 Meer | Speedboat |
+
+Bruno decides to move in. He wasn't bought – he chose the family.
+
+**Milestone 2: Haus kaufen (auf Kredit) 🏡** *(after upgrade 6)*
+
+Player chooses the house. Romantic or modern. Purely cosmetic – taste and replayability.
+Hildegard moves in. She already acts like she owns the place.
+
+**Upgrade 9: Bobby-Zuwachs 🚗**
+
+The second vehicle arrives. Determined by Milestone 1 land choice.
+
+**Finale: Schlüssel zum Herzen 🔑** *(after upgrade 9)*
+
+The credits are paid off. Everything belongs to the three of them.
+Theodor moves in and gives the closing speech. He is very happy. He eyes the flower garden.
+Closing screen. The game says goodbye.
+
+---
+
+### Alpacas
+
+Three alpacas, three story milestones. Each unlocks individually with a Bruno-format intro card.
+
+| # | Name | Personality | Intro (DE, in-game text) |
+|---|---|---|---|
+| 1 | **Bruno** | Philosopher. Does nothing. Inspires everyone. | *Das ist Bruno. Bruno grast den ganzen Tag und denkt über nichts nach. Harry beneidet ihn.* |
+| 2 | **Hildegard** | Runs the place. Doesn't know Mutti also thinks she runs the place. | *Das ist Hildegard. Hildegard ist die Chefin. Mutti auch, aber das weiß Hildegard nicht.* |
+| 3 | **Theodor** | Has eaten a flower once. Regrets nothing. Eyeing the next one. | *Das ist Theodor. Theodor hat einmal eine Blume gefressen. Er bereut nichts. Er schaut schon zur nächsten.* |
+
+*Alpaca intro text is in-game content (i18n DE+EN), not documentation.*
+
+---
 
 ### Screen
 
@@ -305,14 +419,18 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 | Bag counter (`🛍 N`) + reset button (`↺`) in header center – dev aids for economy calibration | ✅ |
 | Bag economy (Harry auto-orders, starting capital, coin cost) | ❌ next |
 | Shop skeleton (icon, overlay, Harry with mustache) | ❌ future |
-| Upgrade: Schere (tap reduction) | ❌ future |
-| Upgrade: Tüten-Quantität (more parts per bag) | ❌ future |
-| Upgrade: Tüten-Qualität (higher flower value + visual shift) | ❌ future |
-| Upgrade: Harry Snackies (build speed boost) | ❌ future |
-| Upgrade: Magnetischer Bin | ❌ future |
-| Upgrade: Sparschwein (idle interest) | ❌ future |
-| Alpaka farm (win condition, happy end) | ❌ future |
-| Harry (tutorial / shopkeeper character) | ❌ future |
+| Upgrade 1 – Player: Schere | ❌ future |
+| Upgrade 2 – Harry: Gummi-Daumen | ❌ future |
+| Upgrade 3 – Mutti: Großhändler | ❌ future |
+| Milestone 1: Land kaufen (auf Kredit) + Bruno zieht ein | ❌ future |
+| Upgrade 4 – Player: Staubsauger | ❌ future |
+| Upgrade 5 – Harry: Harry goes TikTok | ❌ future |
+| Upgrade 6 – Mutti: Bobby-Tuning | ❌ future |
+| Milestone 2: Haus kaufen (auf Kredit) + Hildegard zieht ein | ❌ future |
+| Upgrade 7 – Player: Dino-Sparschwein (horizontal rotating) | ❌ future |
+| Upgrade 8 – Harry: Harry's eigenes Label | ❌ future |
+| Upgrade 9 – Mutti: Bobby-Zuwachs (Unimog or Speedboat) | ❌ future |
+| Finale: Schlüssel zum Herzen + Theodor zieht ein + closing screen | ❌ future |
 
 ---
 
@@ -321,7 +439,7 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 1. **Bag economy** – starting capital, Harry auto-orders at coin cost, economy always net positive
 2. **Feel tuning** – tap ranges, build time, sell time *(ongoing)*
 3. **Shop skeleton** – icon, overlay, Harry-with-mustache placeholder
-4. **First upgrades** – Schere (reduces tapsRequired), then Tüten-Quantität
+4. **First upgrades** – Schere, then Staubsauger
 
 ---
 
@@ -331,11 +449,13 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 - [ ] `SELL_BASE_MS` = 8000ms – needs playtesting (shorter than build time feels right so far)
 - [ ] Starting capital = 100 (placeholder) – real value after bag cost is defined
 - [ ] Surprise bag cost – must be clearly less than coins earned per flower cycle (playtesting)
-- [ ] Upgrade prices – need balancing once base economy loop is playable
-- [ ] Alpaka farm price – absurdly high, exact number TBD
-- [ ] Tüten-Qualität visual shift – which color palette for upgraded parts? (needs design pass)
-- [ ] Sparschwein mechanic – idle interest rate TBD
-- [ ] Magnetischer Bin radius and feel (future)
+- [ ] Upgrade prices and order in skill tree – need balancing once base economy loop is playable
+- [ ] Dino-Sparschwein: what % per flower goes into the piggy bank? After how many payments → interest? How much interest?
+- [ ] Staubsauger: what radius feels right? How strong is the pull?
+- [ ] Großhändler: how many parts per big pack? How much more expensive vs. standard pack?
+- [ ] Alpaca farm phase prices – all 5 phases TBD (after economy calibration)
+- [x] Alpaca names and personalities – Bruno, Hildegard, Theodor ✓
+- [ ] Harry's eigenes Label flavor text – final wording TBD
 - [ ] Feel tuning – build time 20s right? Fan spread 70° right? Needs playtesting.
 
 ---
@@ -385,6 +505,29 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 | **Build time ±15% variance** | Organic feel. No two flowers take exactly the same time. |
 | **Spawn probability = recipe ratio** | Supply matches demand. Hearts spawn most (57%) because 8 are needed. |
 | **Persist `buildQueue`** | Parts are consumed when a build starts. Timer restarted on load. |
+| **BfM as interactive book** | Not a service game. Clear beginning, middle, end. Says goodbye gracefully. Player can restart if they want. The game respects the player's life. |
+| **Action-gated, never time-gated** | Progress only through actions. A week away = no disadvantage. No daily login pressure. |
+| **Shop as linear skill tree** | Upgrades = buyable achievements. Next item always visible. Early upgrades are cheap and feel like gifts. |
+| **Sparschwein action-gated** | Fixed share per flower sold goes into the piggy bank → after X payments, interest payout. No time ticker. Only fills when playing. |
+| **Upgrade flavor text as story beat** | Each upgrade has one sentence that comments on the game world. No tutorial, no explaining – just a smile. |
+| **Hype-Train dropped in favour of Harry goes TikTok** | A consumable counter felt like a separate system without narrative. Harry goes TikTok tells the same story (demand up = better prices) permanently, with better flavour. |
+| **Alpaka farm in 4 phases** | Instead of one big price: Land → House → Animals → Move in. Four emotional milestones. Progress feels tangible. |
+| **Land choice with charming effect** | Forest / Lake / Sea / Mountains – each option has a small gameplay bonus. Encourages replayability and emotional attachment. |
+| **Alpacas with names and Bruno format** | Each alpaca unlocks individually with a name and personality in the TikTok Bruno format. Micro-storytelling without explanation. |
+| **Three actors, three upgrades each** | Player / Harry / Mutti each get exactly 3 upgrades. Clean, symmetrical, easy to communicate. |
+| **Staubsauger not Magnetischer Bin** | Staubsauger is funnier, more domestic, more Mutti-world. Same mechanic, much better name. |
+| **Harry goes TikTok replaces Tüten-Qualität and Hype-Train** | One narrative arc instead of two abstract systems. Coin value increase is the same mechanic – the storytelling is better. Wink at supplement influencer culture. |
+| **Bobby is a named character** | Mutti's car has a name. Bobby. This makes upgrade flavor text ("the stripes make it faster") land better. |
+| **Bobby-Zuwachs as farm phase, not shop upgrade** | The second vehicle is a consequence of the land choice. Connecting early decision to late reward makes the world feel coherent. |
+| **Land choice: Berge or Meer only** | Two clear options, each with a distinct personality and a different Bobby-Zuwachs. Simpler than four options, more replayable. |
+| **Dino-Sparschwein as player upgrade** | Brainrot aesthetic fits the TikTok/meme tone. Horizontally rotating dino = recognisable, silly, warm. Belongs to the player not Harry or Mutti. Absurdly high interest rate is the joke. |
+| **Farm bought on credit, not saved up** | More realistic and more emotionally satisfying. The goal shifts from "accumulate X" to "pay off what we dared to dream". The finale is debt freedom, not purchase. |
+| **Alpacas choose the family, not the other way around** | The family doesn't buy the alpacas – Bruno, Hildegard, Theodor each decide to move in because they sense a good home. Warmer, less transactional. Mirrors how it actually feels with animals. |
+| **One alpaca per milestone** | Bruno at land purchase, Hildegard at house purchase, Theodor at finale. Each milestone has an animal witness. Theodor gives the closing speech. |
+| **Bobby-Tuning combines spoiler + stripes** | Two separate upgrades felt like padding. Combined as one with better flavor: the stripes make it faster. Everyone knows this. |
+| **Land choice (Milestone 1) has consequence at Upgrade 9** | Early decision, late reward. Berge → Unimog, Meer → Speedboat. Player might not realise the connection on first playthrough. Discoverable on replay. |
+| **Exponential growth, not additive** | Upgrades hit different axes (pack speed, build speed, coin value, sell speed). Compound of a × b × c creates exponential feel. Each block should feel qualitatively faster than the last – not just a little better. Target: ~6 → ~40 → ~200 coins/min across the three blocks. |
+| **Credit framing creates emotional arc** | Early: flow but debt = tension. Mid: faster flow + second debt = tension/relief. Late: coin explosion + debts paid = catharsis. The "auf Kredit" mechanic turns economy into drama. |
 
 ---
 
@@ -459,3 +602,6 @@ Late:   large bags  +  1 tap   +  high value  →  smooth, fast, everything flow
 - *Feb 22:* Ubiquitous Language refactor: `block`→`pack`, `shard`→`piece`, `bin.shards`→`bin.pieces`, `flowers.building`→`flowers.buildQueue`, `trySortShard`→`trySortPiece`, `drawShards`→`drawPieces`. One pass, no functionality changed – code now matches domain language throughout.
 - *Feb 22:* Hearts renamed to Coins.
 - *Feb 22:* UL refactor pitfall: renaming a JS property requires updating both the *definition site* (`const flowers = { building: [] }`) and all *call sites*. The refactor renamed all usages to `buildQueue` but left the object definition and the `saveState` key as `building` – causing a silent `undefined` at runtime. JS never throws on a missing property read. `toLocaleString('de-DE'/'en-US')` handles thousand separators cleanly per language. Gold `#e3b341` reads well on dark bg as currency color.
+- *Feb 23:* Economy designed from playtime backward: 50 packs in ~5 min, 8 flowers/50 packs, ~5.8 coins/min net (at 10 coins/flower, 1 coin/pack). Target arc: 2–4 weeks of accompaniment, fully action-gated. BfM defined as interactive book: clear end, not a service game, no FOMO. Alpaka farm split into 5 phases. Alpacas with Bruno-format micro-storytelling. Sparschwein rethought from time-ticker to action-gated savings mechanism.
+- *Feb 23:* Full upgrade tree settled: 3 actors (Player, Harry, Mutti) × 3 upgrades each + farm arc. Naming matters: Staubsauger beats Magnetischer Bin, Bobby beats "Mutti's car", Gummi-Daumen beats Plastik-Daumen. Harry goes TikTok consolidates Tüten-Qualität and Hype-Train into one narrative arc. Land choice (Berge/Meer) has a late consequence (Bobby-Zuwachs) – early decision, late reward.
+- *Feb 23:* Final progression order locked. "Auf Kredit" reframes the win condition – not saving up, but paying off a dream. Alpacas choose the family, not vice versa – warmer and less transactional. Three milestones each anchored by an alpaca arrival. Theodor closes the game. Bobby-Tuning collapses two upgrades into one cleaner beat. Exponential growth principle: upgrades multiply across different axes (speed, value, volume) – the compound feel is what matters, not individual upgrade magnitude.
