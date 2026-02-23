@@ -210,78 +210,92 @@ const PIECE_LAYOUTS = {
 
 // ── Upgrade tree ──────────────────────────────────────────────────────────
 // Linear skill tree: buy in order. All passive + permanent.
+// Each upgrade is self-contained: name, description, cost, and its own effect function.
+// getEffects() never needs to change when a new upgrade is added.
 const UPGRADE_TREE = [
   {
     id: 'schere', actor: 'player', cost: 15,
-    name: { de: 'Schere',            en: 'Scissors' },
+    name: { de: 'Schere',               en: 'Scissors' },
     desc: { de: 'Eine Schere! Tüten öffnen sich mit einem einzigen Schnitt.',
             en: 'Scissors! Packs open with a single cut.' },
+    effect: fx => { fx.bagTaps = 1; },
   },
   {
     id: 'gummiDaumen', actor: 'harry', cost: 40,
-    name: { de: 'Gummi-Daumen',      en: 'Rubber Thumbs' },
+    name: { de: 'Gummi-Daumen',         en: 'Rubber Thumbs' },
     desc: { de: 'Katzen beherrschen die Welt nicht, weil sie keine Daumen haben. Problem gelöst.',
             en: "Cats don't rule the world only because they lack thumbs. Problem solved." },
+    effect: fx => { fx.buildBaseMs = 12000; },
   },
   {
     id: 'grosshaendler', actor: 'mutti', cost: 80,
-    name: { de: 'Großhändler',        en: 'Wholesaler' },
+    name: { de: 'Großhändler',           en: 'Wholesaler' },
     desc: { de: 'Ein Großhändler hat euch entdeckt. Harry ist nervös bei Verträgen.',
             en: 'A wholesaler noticed you. Harry is nervous around contracts.' },
+    effect: fx => { fx.bagShards = 5; },
   },
   {
     id: 'staubsauger', actor: 'player', cost: 150,
-    name: { de: 'Staubsauger',        en: 'Vacuum' },
+    name: { de: 'Staubsauger',           en: 'Vacuum' },
     desc: { de: 'Die Bins saugen Teile in der Nähe an. Nicht alles – aber nah dran.',
             en: 'Bins attract nearby parts. Not everything – but close.' },
+    effect: fx => { fx.staubsauger = true; },
   },
   {
     id: 'harryTikTok', actor: 'harry', cost: 300,
-    name: { de: 'Harry goes TikTok', en: 'Harry goes TikTok' },
+    name: { de: 'Harry goes TikTok',    en: 'Harry goes TikTok' },
     desc: { de: 'Harry hat einen Account. 1k Follower. Die Kommentare fragen nach seinem Supplement-Stack. Er hat keinen.',
             en: 'Harry has an account. 1k followers. Comments ask about his supplement stack. He has none.' },
+    effect: fx => { fx.coinValue = Math.round(fx.coinValue * 1.8); },
   },
   {
     id: 'bobbyTuning', actor: 'mutti', cost: 500,
-    name: { de: 'Bobby-Tuning',       en: 'Bobby Tuning' },
+    name: { de: 'Bobby-Tuning',          en: 'Bobby Tuning' },
     desc: { de: 'Heck-Spoiler und Rallye-Streifen. Die Streifen machen ihn schneller. Alle wissen das.',
             en: 'Rear spoiler and rally stripes. The stripes make it faster. Everyone knows this.' },
+    effect: fx => { fx.sellBaseMs = 4000; },
   },
   {
     id: 'dinoSparschwein', actor: 'player', cost: 800,
-    name: { de: 'Dino-Sparschwein',   en: 'Dino Piggy Bank' },
+    name: { de: 'Dino-Sparschwein',      en: 'Dino Piggy Bank' },
     desc: { de: 'Horizontal rotierendes Dino-Sparschwein. Es dreht sich. Die Zinsen sind absurd. Brainrot.',
             en: 'Horizontally rotating dino piggy bank. It spins. The interest is absurd. Brainrot.' },
+    effect: fx => { fx.dinoSparschwein = true; },
   },
   {
     id: 'harryLabel', actor: 'harry', cost: 1500,
     name: { de: "Harry's eigenes Label", en: "Harry's Own Label" },
     desc: { de: 'Wer braucht einen Brand Deal wenn man selbst die Brand ist.',
             en: 'Who needs a brand deal when you are the brand.' },
+    effect: fx => { fx.coinValue = Math.round(fx.coinValue * 2.0); },
   },
   {
     id: 'bobbyZuwachs', actor: 'mutti', cost: 2500,
-    name: { de: 'Bobby-Zuwachs',      en: "Bobby's Companion" },
+    name: { de: 'Bobby-Zuwachs',         en: "Bobby's Companion" },
     desc: { de: 'Ein zweites Fahrzeug. Berge → Unimog. Meer → Speedboat. Maximale Liefergeschwindigkeit.',
             en: 'A second vehicle. Mountains → Unimog. Sea → Speedboat. Maximum delivery speed.' },
+    effect: fx => { fx.sellBaseMs = 2000; },
   },
 ];
 
-// Compute active effects from purchased upgrades – called each time effects are needed
+// Default effects – baseline before any upgrades.
+// Apply each purchased upgrade's effect in order. Never modify this function.
+const EFFECTS_DEFAULT = {
+  bagTaps:         5,
+  bagShards:       3,
+  buildBaseMs:     20000,
+  sellBaseMs:      8000,
+  coinValue:       10,
+  staubsauger:     false,
+  dinoSparschwein: false,
+};
+
 function getEffects() {
-  const has = id => upgrades.purchased.includes(id);
-  return {
-    bagTaps:         has('schere')          ? 1     : 5,
-    bagShards:       has('grosshaendler')   ? 5     : 3,
-    buildBaseMs:     has('gummiDaumen')     ? 12000 : 20000,
-    sellBaseMs:      has('bobbyZuwachs')    ? 2000  :
-                     has('bobbyTuning')     ? 4000  : 8000,
-    coinValue:       Math.round(10
-                     * (has('harryTikTok') ? 1.8 : 1)
-                     * (has('harryLabel')  ? 2.0 : 1)),
-    staubsauger:     has('staubsauger'),
-    dinoSparschwein: has('dinoSparschwein'),
-  };
+  const fx = { ...EFFECTS_DEFAULT };
+  for (const id of upgrades.purchased) {
+    UPGRADE_TREE.find(u => u.id === id)?.effect(fx);
+  }
+  return fx;
 }
 
 
@@ -312,6 +326,11 @@ function shapeToColor(shapeId) {
   }
 }
 
+// ── Layout helpers ────────────────────────────────────────────────────────
+const binX  = i => BIN_LEFT + i * (BIN_W + BIN_GAP);   // left edge of bin i
+const binCX = i => binX(i) + BIN_W / 2;                // center x of bin i
+const binCY = ()  => BIN_Y  + BIN_H / 2;               // center y (all bins same)
+
 // ── Easing ────────────────────────────────────────────────────────────────
 function easeOutBack(t) {
   const c1 = 1.70158, c3 = c1 + 1;
@@ -325,6 +344,10 @@ function clamp01(t)     { return clamp(t, 0, 1); }
 function formatCoins(n) {
   return n.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US');
 }
+
+// ── Canvas helpers ────────────────────────────────────────────────────────
+function fillRRect(x, y, w, h, r)   { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();   }
+function strokeRRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.stroke(); }
 
 // ── Haptics ───────────────────────────────────────────────────────────────
 function haptic(pattern) {
@@ -355,7 +378,7 @@ let pieceIdCounter = 0;
 const state = {
   phase:    'pack',    // 'pack' | 'pieces'
   pack:     null,
-  shards:   [],
+  pieces:   [],
   selected: null,
   bins:     SHAPES.map(s => ({ shape: s, pieces: [] })),
 };
@@ -381,15 +404,9 @@ const sparschein = {
   paymentCount: 0,    // flowers sold since last interest payout
 };
 
-// Build timer – runtime only, not persisted
-let buildTimerActive = false;
-let buildStartedAt   = 0;
-let buildDurationMs  = 0;
-
-// Sell timer – runtime only, not persisted
-let sellTimerActive = false;
-let sellStartedAt   = 0;
-let sellDurationMs  = 0;
+// Timers – runtime only, not persisted
+const buildTimer = { active: false, startedAt: 0, durationMs: 0 };
+const sellTimer  = { active: false, startedAt: 0, durationMs: 0 };
 
 // ── Animation state ───────────────────────────────────────────────────────
 let packEnterStart = 0;
@@ -552,18 +569,18 @@ function checkBuildTrigger() {
     haptic([15, 10, 15]);
   }
 
-  if (flowers.buildQueue.length > 0 && !buildTimerActive) {
+  if (flowers.buildQueue.length > 0 && !buildTimer.active) {
     startBuildTimer();
   }
   saveState();
 }
 
 function startSellTimer() {
-  if (sellTimerActive || flowers.stock.length === 0) return;
-  sellTimerActive = true;
-  sellDurationMs  = getEffects().sellBaseMs * (0.85 + Math.random() * 0.3);
-  sellStartedAt   = performance.now();
-  setTimeout(completeSelling, sellDurationMs);
+  if (sellTimer.active || flowers.stock.length === 0) return;
+  sellTimer.active    = true;
+  sellTimer.durationMs = getEffects().sellBaseMs * (0.85 + Math.random() * 0.3);
+  sellTimer.startedAt  = performance.now();
+  setTimeout(completeSelling, sellTimer.durationMs);
 }
 
 function completeSelling() {
@@ -584,19 +601,19 @@ function completeSelling() {
   }
 
   haptic([15, 10, 30]);
-  sellTimerActive = false;
+  sellTimer.active = false;
   startSellTimer();
   saveState();
 }
 
 function startBuildTimer() {
-  if (buildTimerActive || flowers.buildQueue.length === 0) return;
+  if (buildTimer.active || flowers.buildQueue.length === 0) return;
 
-  buildTimerActive = true;
-  buildDurationMs  = getEffects().buildBaseMs * (0.85 + Math.random() * 0.3);
-  buildStartedAt   = performance.now();
+  buildTimer.active    = true;
+  buildTimer.durationMs = getEffects().buildBaseMs * (0.85 + Math.random() * 0.3);
+  buildTimer.startedAt  = performance.now();
 
-  setTimeout(completeBuild, buildDurationMs);
+  setTimeout(completeBuild, buildTimer.durationMs);
 }
 
 function completeBuild() {
@@ -606,18 +623,38 @@ function completeBuild() {
   flowers.stock.push({ id: flower.id, parts: flower.parts });
   haptic([20, 12, 35]);
 
-  buildTimerActive = false;
+  buildTimer.active = false;
   startSellTimer();
   checkBuildTrigger(); // Will save state
 }
 
-// ── Shard animation helper ────────────────────────────────────────────────
-// Returns { x, y, scale, opacity } for the current frame
+// ── Update loop ───────────────────────────────────────────────────────────
+// All state mutations happen here – draw functions are read-only.
+function update(now) {
+  // Piece phase transitions
+  for (const piece of state.pieces) {
+    if (piece.phase === 'flying' && clamp01((now - piece.flyStart) / 450) >= 1) {
+      piece.phase = 'idle';
+    }
+    if (piece.shakeStart && clamp01((now - piece.shakeStart) / 350) >= 1) {
+      piece.shakeStart = 0;
+    }
+  }
+
+  // Bin fill animation
+  for (let i = 0; i < 4; i++) {
+    const recipe     = FLOWER_RECIPE[state.bins[i].shape.id];
+    const fillTarget = Math.min(state.bins[i].pieces.length / recipe, 1);
+    binFillAnim[i]  += (fillTarget - binFillAnim[i]) * 0.15;
+  }
+}
+
+// ── Piece animation helper (pure) ─────────────────────────────────────────
+// Returns { x, y, scale, opacity } for the current frame. Read-only.
 function pieceAnim(piece, now) {
   if (piece.phase === 'flying') {
     const t = clamp01((now - piece.flyStart) / 450);
     const e = easeOutBack(t);
-    if (t >= 1) piece.phase = 'idle';
     return {
       x:       lerp(PLAY_CX, piece.targetX, e),
       y:       lerp(PLAY_CY, piece.targetY, e),
@@ -635,23 +672,22 @@ function pieceAnim(piece, now) {
     return { x: drag.x, y: drag.y, scale: 1.18, opacity: 1 };
   }
 
-  // idle – optional shake
-  let shakeX = 0;
-  if (piece.shakeStart) {
-    const st = clamp01((now - piece.shakeStart) / 350);
-    shakeX = Math.sin(st * Math.PI * 4.5) * 12 * (1 - st);
-    if (st >= 1) piece.shakeStart = 0;
-  }
+  // idle – optional shake (shakeStart cleared by update())
+  const shakeX = piece.shakeStart
+    ? Math.sin(clamp01((now - piece.shakeStart) / 350) * Math.PI * 4.5)
+      * 12 * (1 - clamp01((now - piece.shakeStart) / 350))
+    : 0;
 
   return { x: piece.targetX + shakeX, y: piece.targetY, scale: 1, opacity: 1 };
 }
 
 // ── Shape paths ───────────────────────────────────────────────────────────
-function pathCircle(ctx, cx, cy, s) {
+// Path functions use the module-level ctx – consistent with all other draw functions
+function pathCircle(cx, cy, s) {
   ctx.arc(cx, cy, s * 0.42, 0, Math.PI * 2);
 }
 
-function pathHeart(ctx, cx, cy, s) {
+function pathHeart(cx, cy, s) {
   const r = s * 0.42;
   const x = cx, y = cy + r * 0.2;
   ctx.moveTo(x, y + r * 0.75);
@@ -661,25 +697,25 @@ function pathHeart(ctx, cx, cy, s) {
   ctx.bezierCurveTo(x + r, y + r * 0.1,         x + r * 0.1, y + r * 0.4, x, y + r * 0.75);
 }
 
-function pathStem(ctx, cx, cy, s) {
+function pathStem(cx, cy, s) {
   const w = s * 0.22, h = s * 0.46;
   ctx.roundRect(cx - w, cy - h, w * 2, h * 2, w);
 }
 
-function pathLeaf(ctx, cx, cy, s) {
+function pathLeaf(cx, cy, s) {
   const h = s * 0.46, w = s * 0.28;
   ctx.moveTo(cx - h, cy);
   ctx.bezierCurveTo(cx - h * 0.3, cy - w, cx + h * 0.3, cy - w, cx + h, cy);
   ctx.bezierCurveTo(cx + h * 0.3, cy + w, cx - h * 0.3, cy + w, cx - h, cy);
 }
 
-function drawShapePath(ctx, shape, cx, cy, size) {
+function drawShapePath(shape, cx, cy, size) {
   ctx.beginPath();
   switch (shape.id) {
-    case 'circle': pathCircle(ctx, cx, cy, size); break;
-    case 'heart':  pathHeart(ctx, cx, cy, size);  break;
-    case 'stem':   pathStem(ctx, cx, cy, size);   break;
-    case 'leaf':   pathLeaf(ctx, cx, cy, size);   break;
+    case 'circle': pathCircle(cx, cy, size); break;
+    case 'heart':  pathHeart(cx, cy, size);  break;
+    case 'stem':   pathStem(cx, cy, size);   break;
+    case 'leaf':   pathLeaf(cx, cy, size);   break;
   }
   ctx.closePath();
 }
@@ -719,7 +755,7 @@ function hitTest(x, y, now) {
   }
 
 
-  // Mine-only interactions
+  // Game screen only – skip piece/pack/bin interactions when in shop
   if (currentScreen !== 'mine') return null;
 
   // Pieces (reverse so topmost is checked first)
@@ -745,8 +781,7 @@ function hitTest(x, y, now) {
 
   // Bins
   for (let i = 0; i < 4; i++) {
-    const bx = BIN_LEFT + i * (BIN_W + BIN_GAP);
-    if (inRect(x, y, bx, BIN_Y, BIN_W, BIN_H)) return { type: 'bin', index: i };
+    if (inRect(x, y, binX(i), BIN_Y, BIN_W, BIN_H)) return { type: 'bin', index: i };
   }
 
   return null;
@@ -790,8 +825,7 @@ function endDrag(coords) {
   // Check if dropped on a bin
   let binIndex = -1;
   for (let i = 0; i < 4; i++) {
-    const bx = BIN_LEFT + i * (BIN_W + BIN_GAP);
-    if (inRect(coords.x, coords.y, bx, BIN_Y, BIN_W, BIN_H)) { binIndex = i; break; }
+    if (inRect(coords.x, coords.y, binX(i), BIN_Y, BIN_W, BIN_H)) { binIndex = i; break; }
   }
 
   if (binIndex >= 0) {
@@ -804,9 +838,7 @@ function endDrag(coords) {
   if (getEffects().staubsauger) {
     const VACUUM_R = 80;
     for (let i = 0; i < 4; i++) {
-      const bcx = BIN_LEFT + i * (BIN_W + BIN_GAP) + BIN_W / 2;
-      const bcy = BIN_Y + BIN_H / 2;
-      if (Math.hypot(coords.x - bcx, coords.y - bcy) < VACUUM_R
+      if (Math.hypot(coords.x - binCX(i), coords.y - binCY()) < VACUUM_R
           && piece.shape.id === state.bins[i].shape.id) {
         state.selected = piece.id;
         trySortPiece(i);
@@ -883,7 +915,7 @@ function toggleLang() {
 }
 
 // ── Flower draw ───────────────────────────────────────────────────────────
-function drawFlower(ctx, cx, cy, rotation, scale, parts) {
+function drawFlower(cx, cy, rotation, scale, parts) {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(rotation);
@@ -904,7 +936,7 @@ function drawFlower(ctx, cx, cy, rotation, scale, parts) {
   ctx.translate(10, 44);
   ctx.rotate(-0.8);
   ctx.fillStyle = lc(1);
-  ctx.beginPath(); pathLeaf(ctx, 0, 0, 30); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); pathLeaf(0, 0, 30); ctx.closePath(); ctx.fill();
   ctx.restore();
 
   // ── Stem (3 segments as stroked lines – guaranteed connected, per-segment color) ──
@@ -927,12 +959,12 @@ function drawFlower(ctx, cx, cy, rotation, scale, parts) {
   ctx.translate(-8, 30);
   ctx.rotate(0.8);
   ctx.fillStyle = lc(0);
-  ctx.beginPath(); pathLeaf(ctx, 0, 0, 30); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); pathLeaf(0, 0, 30); ctx.closePath(); ctx.fill();
   ctx.restore();
 
   // ── Petal base – solid circle to block bleed-through from behind ──
   ctx.fillStyle = hc(0);
-  ctx.beginPath(); pathCircle(ctx, 0, 0, 27); ctx.fill();
+  ctx.beginPath(); pathCircle(0, 0, 27); ctx.fill();
 
   // ── Petals: 8 hearts in a ring, tips toward center ──
   const PETAL_R    = 17;
@@ -943,13 +975,13 @@ function drawFlower(ctx, cx, cy, rotation, scale, parts) {
     ctx.translate(Math.cos(angle) * PETAL_R, Math.sin(angle) * PETAL_R);
     ctx.rotate(angle + Math.PI / 2);   // rotate so tip points toward center
     ctx.fillStyle = hc(i);
-    ctx.beginPath(); pathHeart(ctx, 0, 0, PETAL_SIZE); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); pathHeart(0, 0, PETAL_SIZE); ctx.closePath(); ctx.fill();
     ctx.restore();
   }
 
   // ── Center circle ──
   ctx.fillStyle = circleColor;
-  ctx.beginPath(); pathCircle(ctx, 0, 0, 14); ctx.fill();
+  ctx.beginPath(); pathCircle(0, 0, 14); ctx.fill();
 
   ctx.restore();
 }
@@ -968,7 +1000,7 @@ function drawStock(cx, cy) {
   for (let i = 0; i < visible; i++) {
     const t        = visible === 1 ? 0 : (i / (visible - 1) - 0.5);
     const rotation = t * FAN_RAD;
-    drawFlower(ctx, cx, cy, rotation, 1.0, flowers.stock[i].parts);
+    drawFlower(cx, cy, rotation, 1.0, flowers.stock[i].parts);
   }
 }
 
@@ -978,14 +1010,14 @@ function drawHarryIndicator(now) {
   const ro = INDICATOR_OUTER_R;  // outer ring – Mutti
 
   // Harry
-  const harryActive   = buildTimerActive || flowers.buildQueue.length > 0;
-  const harryProgress = buildTimerActive ? clamp01((now - buildStartedAt) / buildDurationMs) : 0;
+  const harryActive   = buildTimer.active || flowers.buildQueue.length > 0;
+  const harryProgress = buildTimer.active ? clamp01((now - buildTimer.startedAt) / buildTimer.durationMs) : 0;
   const harryPulse    = harryActive ? 0.6 + 0.4 * Math.sin(now / 700) : 0;
 
   // Mutti
-  const muttiActive   = sellTimerActive || flowers.stock.length > 0;
-  const muttiProgress = sellTimerActive ? clamp01((now - sellStartedAt) / sellDurationMs) : 0;
-  const muttiPulse    = sellTimerActive ? 0.6 + 0.4 * Math.sin(now / 500) : 0;
+  const muttiActive   = sellTimer.active || flowers.stock.length > 0;
+  const muttiProgress = sellTimer.active ? clamp01((now - sellTimer.startedAt) / sellTimer.durationMs) : 0;
+  const muttiPulse    = sellTimer.active ? 0.6 + 0.4 * Math.sin(now / 500) : 0;
 
   // Flower stock (Lager) inside circle
   drawStock(cx, cy + 38);
@@ -1025,7 +1057,7 @@ function drawHarryIndicator(now) {
   ctx.stroke();
 
   // Mutti: gold sell arc (only when she's actively selling)
-  if (sellTimerActive) {
+  if (sellTimer.active) {
     ctx.shadowColor = '#e3b341';
     ctx.shadowBlur  = 10 + 8 * muttiPulse;
     ctx.beginPath();
@@ -1057,9 +1089,9 @@ function drawHarryIndicator(now) {
     const px = cx - pw / 2, py = badgeY - ph / 2;
 
     ctx.fillStyle = BG;
-    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, ph / 2); ctx.fill();
+    fillRRect(px, py, pw, ph, ph / 2);
     ctx.strokeStyle = BORDER; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, ph / 2); ctx.stroke();
+    strokeRRect(px, py, pw, ph, ph / 2);
 
     ctx.fillStyle    = '#e3b341';
     ctx.textBaseline = 'middle';
@@ -1083,7 +1115,7 @@ function drawHarryIndicator(now) {
   ctx.textBaseline = 'alphabetic';
   ctx.fillText(harryLabel, cx, labelBaseY);
 
-  if (muttiActive) {
+  if (sellTimer.active || flowers.stock.length > 0) {
     ctx.fillStyle = '#e3b341';
     ctx.fillText(t('mutti_selling'), cx, labelBaseY + 16);
   }
@@ -1140,9 +1172,7 @@ function drawLangButton() {
 
   ctx.strokeStyle  = BORDER;
   ctx.lineWidth    = 1;
-  ctx.beginPath();
-  ctx.roundRect(bx, by, bw, bh, 6);
-  ctx.stroke();
+  strokeRRect(bx, by, bw, bh, 6);
 
   ctx.fillStyle    = TEXT_DIM;
   ctx.textBaseline = 'middle';
@@ -1345,7 +1375,7 @@ function drawPieces(now, dragOnly = false) {
     }
 
     ctx.fillStyle = piece.color.hex;
-    drawShapePath(ctx, piece.shape, a.x, a.y, PIECE_SIZE * a.scale);
+    drawShapePath(piece.shape, a.x, a.y, PIECE_SIZE * a.scale);
     ctx.fill();
 
     ctx.shadowBlur  = 0;
@@ -1356,14 +1386,12 @@ function drawPieces(now, dragOnly = false) {
 function drawBins(now) {
   for (let i = 0; i < 4; i++) {
     const bin    = state.bins[i];
-    const bx     = BIN_LEFT + i * (BIN_W + BIN_GAP);
+    const bx     = binX(i);
     const by     = BIN_Y;
     const recipe = FLOWER_RECIPE[bin.shape.id];
     const count  = bin.pieces.length;
 
-    // Fill target: 0→1 as count reaches recipe, clamps at full
-    const fillTarget = Math.min(count / recipe, 1);
-    binFillAnim[i] += (fillTarget - binFillAnim[i]) * 0.15;
+    // binFillAnim[i] is updated by update() – draw only reads it
 
     // Flash factor after hitting a recipe threshold
     const flashAge = binFlashAt[i] ? now - binFlashAt[i] : Infinity;
@@ -1373,16 +1401,12 @@ function drawBins(now) {
     const extras    = Math.max(0, count - recipe);
     const tintAlpha = Math.min(extras / recipe, 1) * 0.18;
     ctx.fillStyle = BG;
-    ctx.beginPath();
-    ctx.roundRect(bx, by, BIN_W, BIN_H, BIN_R);
-    ctx.fill();
+    fillRRect(bx, by, BIN_W, BIN_H, BIN_R);
 
     if (tintAlpha > 0) {
       ctx.globalAlpha = tintAlpha;
       ctx.fillStyle   = '#58a6ff';
-      ctx.beginPath();
-      ctx.roundRect(bx, by, BIN_W, BIN_H, BIN_R);
-      ctx.fill();
+      fillRRect(bx, by, BIN_W, BIN_H, BIN_R);
       ctx.globalAlpha = 1;
     }
 
@@ -1404,15 +1428,13 @@ function drawBins(now) {
     if (flash > 0) { ctx.shadowColor = TEXT_HI; ctx.shadowBlur = 12 * flash; }
     ctx.strokeStyle = flash > 0 ? TEXT_HI : BORDER;
     ctx.lineWidth   = 2;
-    ctx.beginPath();
-    ctx.roundRect(bx, by, BIN_W, BIN_H, BIN_R);
-    ctx.stroke();
+    strokeRRect(bx, by, BIN_W, BIN_H, BIN_R);
     ctx.shadowBlur  = 0;
 
     // Shape icon
     ctx.globalAlpha = 0.3 + flash * 0.5;
     ctx.fillStyle   = TEXT_HI;
-    drawShapePath(ctx, bin.shape, bx + BIN_W / 2, by + BIN_H / 2, 30);
+    drawShapePath(bin.shape, binCX(i), BIN_Y + BIN_H / 2, 30);
     ctx.fill();
     ctx.globalAlpha = 1;
 
@@ -1452,7 +1474,7 @@ function drawShop(now) {
   const bh = 28, bx = 14, by = (hh - bh) / 2;
   shopBackBounds = { x: bx, y: by, w: bw, h: bh };
   ctx.strokeStyle  = BORDER; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 6); ctx.stroke();
+  strokeRRect(bx, by, bw, bh, 6);
   ctx.fillStyle    = TEXT_DIM;
   ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
   ctx.fillText(backLabel, bx + 12, hh / 2);
@@ -1480,12 +1502,12 @@ function drawShop(now) {
     const isNext      = i === nextIdx;
     const isLocked    = !isPurchased && !isNext;
 
-    iy = drawUpgradeItem(upg, i, iy, PAD, IW, isPurchased, isNext, isLocked, now);
+    iy = drawUpgradeItem(upg, iy, PAD, IW, isPurchased, isNext, isLocked);
     iy += 8;
   }
 }
 
-function drawUpgradeItem(upg, idx, iy, px, iw, isPurchased, isNext, isLocked, now) {
+function drawUpgradeItem(upg, iy, px, iw, isPurchased, isNext, isLocked) {
   const acColor = ACTOR_COLOR[upg.actor];
   const name    = upg.name[lang];
   const desc    = upg.desc[lang];
@@ -1497,20 +1519,19 @@ function drawUpgradeItem(upg, idx, iy, px, iw, isPurchased, isNext, isLocked, no
   ctx.fillStyle = isPurchased ? 'rgba(255,255,255,0.03)' :
                   isNext      ? 'rgba(255,255,255,0.06)' :
                                 'rgba(255,255,255,0.02)';
-  ctx.beginPath(); ctx.roundRect(px, iy, iw, ih, 8); ctx.fill();
+  fillRRect(px, iy, iw, ih, 8);
 
   // Left accent bar
-  ctx.fillStyle   = isPurchased ? 'rgba(110,118,129,0.4)' :
-                    isNext      ? acColor :
-                                  'rgba(110,118,129,0.2)';
-  ctx.fillRect(px, iy, 3, ih);
-  ctx.beginPath(); ctx.roundRect(px, iy, 3, ih, [2, 0, 0, 2]); ctx.fill();
+  ctx.fillStyle = isPurchased ? 'rgba(110,118,129,0.4)' :
+                  isNext      ? acColor :
+                                'rgba(110,118,129,0.2)';
+  fillRRect(px, iy, 3, ih, [2, 0, 0, 2]);
 
   // Border
   ctx.strokeStyle = isNext ? acColor : BORDER;
   ctx.lineWidth   = isNext ? 1.5 : 1;
   ctx.globalAlpha = isNext ? 0.6 : 0.4;
-  ctx.beginPath(); ctx.roundRect(px, iy, iw, ih, 8); ctx.stroke();
+  strokeRRect(px, iy, iw, ih, 8);
   ctx.globalAlpha = 1;
 
   if (isLocked) {
@@ -1534,9 +1555,9 @@ function drawUpgradeItem(upg, idx, iy, px, iw, isPurchased, isNext, isLocked, no
   const actorLabel = t(`actor_${upg.actor}`);
   ctx.font = '10px system-ui';
   const alw = ctx.measureText(actorLabel).width + 10;
-  ctx.fillStyle = acColor;
+  ctx.fillStyle   = acColor;
   ctx.globalAlpha = isPurchased ? 0.4 : 0.9;
-  ctx.beginPath(); ctx.roundRect(px + 10, iy + 8, alw, 16, 8); ctx.fill();
+  fillRRect(px + 10, iy + 8, alw, 16, 8);
   ctx.globalAlpha = 1;
   ctx.fillStyle    = isPurchased ? TEXT_DIM : '#0d1117';
   ctx.textBaseline = 'middle';
@@ -1592,7 +1613,7 @@ function drawUpgradeItem(upg, idx, iy, px, iw, isPurchased, isNext, isLocked, no
 
     ctx.fillStyle   = canAfford ? acColor : 'rgba(110,118,129,0.25)';
     ctx.globalAlpha = canAfford ? 1 : 0.7;
-    ctx.beginPath(); ctx.roundRect(btnX, btnY, btnW, btnH, 6); ctx.fill();
+    fillRRect(btnX, btnY, btnW, btnH, 6);
     ctx.globalAlpha = 1;
 
     ctx.font         = 'bold 12px system-ui';
@@ -1612,12 +1633,13 @@ function drawUpgradeItem(upg, idx, iy, px, iw, isPurchased, isNext, isLocked, no
 }
 
 // ── Game loop ─────────────────────────────────────────────────────────────
-function draw(now) {
+function loop(now) {
+  update(now);
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
   if (currentScreen === 'shop') drawShop(now);
   else                          drawMine(now);
-  requestAnimationFrame(draw);
+  requestAnimationFrame(loop);
 }
 
 // ── Persistence ───────────────────────────────────────────────────────────
@@ -1671,7 +1693,7 @@ loadState();
 checkBuildTrigger(); // restart build timer if flowers were building
 startSellTimer();    // restart sell timer if stock was waiting
 spawnPack();
-requestAnimationFrame(draw);
+requestAnimationFrame(loop);
 </script>
 
 </body>
