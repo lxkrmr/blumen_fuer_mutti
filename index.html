@@ -81,6 +81,15 @@ const STRINGS = {
     building_many:      (n) => `Harry baut ${n} Blumen …`,
     building_idle_mine: 'teile sortieren um blumen zu erschaffen',
     mutti_selling:      'Mutti verkauft …',
+    shop_title:         'Shop',
+    shop_back:          '← Zurück',
+    shop_buy:           'Kaufen',
+    shop_owned:         'Gekauft ✓',
+    shop_locked:        '???',
+    shop_cant_afford:   'Zu wenig Münzen',
+    actor_player:       'Du',
+    actor_harry:        'Harry',
+    actor_mutti:        'Mutti',
   },
   en: {
     lang_toggle:        'DE',
@@ -88,6 +97,15 @@ const STRINGS = {
     building_many:      (n) => `Harry is building ${n} flowers …`,
     building_idle_mine: 'sort parts to grow flowers',
     mutti_selling:      'Mutti is selling …',
+    shop_title:         'Shop',
+    shop_back:          '← Back',
+    shop_buy:           'Buy',
+    shop_owned:         'Owned ✓',
+    shop_locked:        '???',
+    shop_cant_afford:   'Not enough coins',
+    actor_player:       'You',
+    actor_harry:        'Harry',
+    actor_mutti:        'Mutti',
   },
 };
 
@@ -102,9 +120,7 @@ function t(key, ...args) {
 // ── Constants ─────────────────────────────────────────────────────────────
 // Flower recipe – how many sorted shards per bin make one flower part
 const FLOWER_RECIPE     = { circle: 1, heart: 8, stem: 3, leaf: 2 };
-const BUILD_BASE_MS     = 20000;  // Harry's build time in ms (±15% random variance)
-const SELL_BASE_MS      = 8000;   // Mutti's sell time in ms (±15% random variance)
-const FLOWER_COIN_VALUE = 10;     // coins per flower sold (Tüten-Qualität upgrade scales this)
+// Build/sell base times and coin value are in getEffects() – upgrades scale them
 let   flowerIdCounter   = 0;
 
 // ── Colors ────────────────────────────────────────────────────────────────
@@ -176,8 +192,97 @@ const PIECE_SIZE = 60;
 
 // Bag properties – fixed for now, upgrades will scale these later
 const BAG_PX       = 90;   // visual size of the bag
-const BAG_SHARDS   = 3;    // parts per bag (Tüten-Quantität upgrade scales this)
-const BAG_TAPS = 5;        // taps to open (Schere upgrade reduces this: 5 → 3 → 1)
+// Bag shard count is dynamic – see getEffects().bagShards (upgrades scale it)
+// Tap count is dynamic – see getEffects().bagTaps (Schere upgrade scales it: 5 → 1)
+
+// ── Economy ───────────────────────────────────────────────────────────────
+const BAG_COST       = 1;   // coins per pack – calibrated: 50 packs → 8 flowers → net +30
+const STARTING_COINS = 50;  // bootstrap capital
+
+// ── Actor colors (player / Harry / Mutti) ─────────────────────────────────
+const ACTOR_COLOR = { player: '#58a6ff', harry: '#f48fb1', mutti: '#e3b341' };
+
+// Piece layouts per bag size (grosshaendler upgrade increases count 3 → 5)
+const PIECE_LAYOUTS = {
+  3: [[ 0, -1 ], [-0.9, 0.7], [ 0.9, 0.7]],
+  5: [[ 0, -1.1], [-1.0, 0.3], [ 1.0, 0.3], [-0.5, 1.1], [ 0.5, 1.1]],
+};
+
+// ── Upgrade tree ──────────────────────────────────────────────────────────
+// Linear skill tree: buy in order. All passive + permanent.
+const UPGRADE_TREE = [
+  {
+    id: 'schere', actor: 'player', cost: 15,
+    name: { de: 'Schere',            en: 'Scissors' },
+    desc: { de: 'Eine Schere! Tüten öffnen sich mit einem einzigen Schnitt.',
+            en: 'Scissors! Packs open with a single cut.' },
+  },
+  {
+    id: 'gummiDaumen', actor: 'harry', cost: 40,
+    name: { de: 'Gummi-Daumen',      en: 'Rubber Thumbs' },
+    desc: { de: 'Katzen beherrschen die Welt nicht, weil sie keine Daumen haben. Problem gelöst.',
+            en: "Cats don't rule the world only because they lack thumbs. Problem solved." },
+  },
+  {
+    id: 'grosshaendler', actor: 'mutti', cost: 80,
+    name: { de: 'Großhändler',        en: 'Wholesaler' },
+    desc: { de: 'Ein Großhändler hat euch entdeckt. Harry ist nervös bei Verträgen.',
+            en: 'A wholesaler noticed you. Harry is nervous around contracts.' },
+  },
+  {
+    id: 'staubsauger', actor: 'player', cost: 150,
+    name: { de: 'Staubsauger',        en: 'Vacuum' },
+    desc: { de: 'Die Bins saugen Teile in der Nähe an. Nicht alles – aber nah dran.',
+            en: 'Bins attract nearby parts. Not everything – but close.' },
+  },
+  {
+    id: 'harryTikTok', actor: 'harry', cost: 300,
+    name: { de: 'Harry goes TikTok', en: 'Harry goes TikTok' },
+    desc: { de: 'Harry hat einen Account. 1k Follower. Die Kommentare fragen nach seinem Supplement-Stack. Er hat keinen.',
+            en: 'Harry has an account. 1k followers. Comments ask about his supplement stack. He has none.' },
+  },
+  {
+    id: 'bobbyTuning', actor: 'mutti', cost: 500,
+    name: { de: 'Bobby-Tuning',       en: 'Bobby Tuning' },
+    desc: { de: 'Heck-Spoiler und Rallye-Streifen. Die Streifen machen ihn schneller. Alle wissen das.',
+            en: 'Rear spoiler and rally stripes. The stripes make it faster. Everyone knows this.' },
+  },
+  {
+    id: 'dinoSparschwein', actor: 'player', cost: 800,
+    name: { de: 'Dino-Sparschwein',   en: 'Dino Piggy Bank' },
+    desc: { de: 'Horizontal rotierendes Dino-Sparschwein. Es dreht sich. Die Zinsen sind absurd. Brainrot.',
+            en: 'Horizontally rotating dino piggy bank. It spins. The interest is absurd. Brainrot.' },
+  },
+  {
+    id: 'harryLabel', actor: 'harry', cost: 1500,
+    name: { de: "Harry's eigenes Label", en: "Harry's Own Label" },
+    desc: { de: 'Wer braucht einen Brand Deal wenn man selbst die Brand ist.',
+            en: 'Who needs a brand deal when you are the brand.' },
+  },
+  {
+    id: 'bobbyZuwachs', actor: 'mutti', cost: 2500,
+    name: { de: 'Bobby-Zuwachs',      en: "Bobby's Companion" },
+    desc: { de: 'Ein zweites Fahrzeug. Berge → Unimog. Meer → Speedboat. Maximale Liefergeschwindigkeit.',
+            en: 'A second vehicle. Mountains → Unimog. Sea → Speedboat. Maximum delivery speed.' },
+  },
+];
+
+// Compute active effects from purchased upgrades – called each time effects are needed
+function getEffects() {
+  const has = id => upgrades.purchased.includes(id);
+  return {
+    bagTaps:         has('schere')          ? 1     : 5,
+    bagShards:       has('grosshaendler')   ? 5     : 3,
+    buildBaseMs:     has('gummiDaumen')     ? 12000 : 20000,
+    sellBaseMs:      has('bobbyZuwachs')    ? 2000  :
+                     has('bobbyTuning')     ? 4000  : 8000,
+    coinValue:       Math.round(10
+                     * (has('harryTikTok') ? 1.8 : 1)
+                     * (has('harryLabel')  ? 2.0 : 1)),
+    staubsauger:     has('staubsauger'),
+    dinoSparschwein: has('dinoSparschwein'),
+  };
+}
 
 
 // ── Pfingstrose color system ───────────────────────────────────────────────
@@ -226,9 +331,15 @@ function haptic(pattern) {
   if (navigator.vibrate) navigator.vibrate(pattern);
 }
 
+// Screen state
+let currentScreen = 'mine';   // 'mine' | 'shop'
+
 // Button bounds – set each frame during draw, used by hitTest
 let langBtnBounds  = null;
 let resetBtnBounds = null;
+let shopBtnBounds  = null;     // shop icon in mine screen
+let shopBackBounds = null;     // back button in shop screen
+let shopBuyBtns    = [];       // [{ id, x, y, w, h }] – buy buttons in shop
 
 // ── Drag state ────────────────────────────────────────────────────────────
 const drag = {
@@ -254,9 +365,20 @@ let bagsOpened = 0;
 
 // Flower system – separate from game state
 const flowers = {
-  buildQueue: [],   // { id, parts } – Harry's build queue (sequential)
-  stock:      [],   // { id, parts } – Lager: finished, waiting for Mutti
-  coins:      100,  // TODO: replace with proper starting capital (Bag economy step)
+  buildQueue: [],          // { id, parts } – Harry's build queue (sequential)
+  stock:      [],          // { id, parts } – Lager: finished, waiting for Mutti
+  coins:      STARTING_COINS,
+};
+
+// Purchased upgrades – persisted
+const upgrades = {
+  purchased: [],   // upgrade IDs in purchase order
+};
+
+// Dino-Sparschwein savings state – persisted
+const sparschein = {
+  balance:      0,    // coins accumulated (10% of each flower sold)
+  paymentCount: 0,    // flowers sold since last interest payout
 };
 
 // Build timer – runtime only, not persisted
@@ -279,13 +401,12 @@ function jitter(v, range = 22) {
   return v + (Math.random() - 0.5) * range;
 }
 
-// Normalized positions for the 3 parts inside a bag
-const PIECE_LAYOUT = [[ 0, -1 ], [-0.9, 0.7], [ 0.9, 0.7]];
-
 function genPieces() {
+  const count     = getEffects().bagShards;
+  const layout    = PIECE_LAYOUTS[count] || PIECE_LAYOUTS[3];
   const spread    = BAG_PX * 0.17;
   const pieceSize = BAG_PX * 0.58;
-  return PIECE_LAYOUT.map(([nx, ny]) => {
+  return layout.map(([nx, ny]) => {
     const shape = randomShape();
     return {
       shape,
@@ -303,11 +424,16 @@ function spawnPack() {
   state.pieces   = [];
   state.selected = null;
 
+  // Deduct pack cost – economy always net positive by design
+  flowers.coins = Math.max(0, flowers.coins - BAG_COST);
+  saveState();
+
+  const taps = getEffects().bagTaps;
   state.pack = {
     px:           BAG_PX,
     pieces:       genPieces(),
-    tapsRequired: BAG_TAPS,
-    tapsLeft:     BAG_TAPS,
+    tapsRequired: taps,
+    tapsLeft:     taps,
     lastTapAt:    0,
     angle:        0,
   };
@@ -435,17 +561,31 @@ function checkBuildTrigger() {
 function startSellTimer() {
   if (sellTimerActive || flowers.stock.length === 0) return;
   sellTimerActive = true;
-  sellDurationMs  = SELL_BASE_MS * (0.85 + Math.random() * 0.3);
+  sellDurationMs  = getEffects().sellBaseMs * (0.85 + Math.random() * 0.3);
   sellStartedAt   = performance.now();
   setTimeout(completeSelling, sellDurationMs);
 }
 
 function completeSelling() {
   flowers.stock.shift();
-  flowers.coins += FLOWER_COIN_VALUE;
+  const fx = getEffects();
+  flowers.coins += fx.coinValue;
+
+  // Dino-Sparschwein: 10% of coin value saved per flower → 3× interest after 20 flowers
+  if (fx.dinoSparschwein) {
+    sparschein.balance      += fx.coinValue * 0.1;
+    sparschein.paymentCount += 1;
+    if (sparschein.paymentCount >= 20) {
+      flowers.coins          += Math.round(sparschein.balance * 3);
+      sparschein.balance      = 0;
+      sparschein.paymentCount = 0;
+      haptic([30, 15, 30, 15, 50]);
+    }
+  }
+
   haptic([15, 10, 30]);
   sellTimerActive = false;
-  startSellTimer(); // pick up next flower if any
+  startSellTimer();
   saveState();
 }
 
@@ -453,7 +593,7 @@ function startBuildTimer() {
   if (buildTimerActive || flowers.buildQueue.length === 0) return;
 
   buildTimerActive = true;
-  buildDurationMs  = BUILD_BASE_MS * (0.85 + Math.random() * 0.3);
+  buildDurationMs  = getEffects().buildBaseMs * (0.85 + Math.random() * 0.3);
   buildStartedAt   = performance.now();
 
   setTimeout(completeBuild, buildDurationMs);
@@ -561,6 +701,27 @@ function hitTest(x, y, now) {
     return { type: 'reset' };
   }
 
+  // Shop button (mine screen)
+  if (shopBtnBounds && inRect(x, y, shopBtnBounds.x, shopBtnBounds.y, shopBtnBounds.w, shopBtnBounds.h)) {
+    return { type: 'shop_open' };
+  }
+
+  // Shop back button
+  if (shopBackBounds && inRect(x, y, shopBackBounds.x, shopBackBounds.y, shopBackBounds.w, shopBackBounds.h)) {
+    return { type: 'shop_back' };
+  }
+
+  // Shop buy buttons
+  for (const btn of shopBuyBtns) {
+    if (inRect(x, y, btn.x, btn.y, btn.w, btn.h)) {
+      return { type: 'shop_buy', id: btn.id };
+    }
+  }
+
+
+  // Mine-only interactions
+  if (currentScreen !== 'mine') return null;
+
   // Pieces (reverse so topmost is checked first)
   if (state.phase === 'pieces') {
     for (const piece of [...state.pieces].reverse()) {
@@ -595,6 +756,7 @@ function hitTest(x, y, now) {
 let lastTouchEnd = 0;
 
 function initDrag(coords) {
+  if (currentScreen !== 'mine') return;
   const now = performance.now();
   const hit = hitTest(coords.x, coords.y, now);
   if (!hit || hit.type !== 'piece') return;
@@ -638,6 +800,21 @@ function endDrag(coords) {
     return;
   }
 
+  // Staubsauger: auto-sort if dropped near a matching bin
+  if (getEffects().staubsauger) {
+    const VACUUM_R = 80;
+    for (let i = 0; i < 4; i++) {
+      const bcx = BIN_LEFT + i * (BIN_W + BIN_GAP) + BIN_W / 2;
+      const bcy = BIN_Y + BIN_H / 2;
+      if (Math.hypot(coords.x - bcx, coords.y - bcy) < VACUUM_R
+          && piece.shape.id === state.bins[i].shape.id) {
+        state.selected = piece.id;
+        trySortPiece(i);
+        return;
+      }
+    }
+  }
+
   // Dropped on empty space – place freely at drop position
   piece.targetX  = coords.x;
   piece.targetY  = coords.y;
@@ -675,10 +852,29 @@ function handleTap({ x, y }) {
   const hit = hitTest(x, y, now);
   if (!hit) return;
   switch (hit.type) {
-    case 'lang':  toggleLang();                              break;
-    case 'pack':  tapPack();                                 break;
-    case 'reset': localStorage.clear(); location.reload();  break;
+    case 'lang':       toggleLang();                             break;
+    case 'pack':       tapPack();                                break;
+    case 'reset':      localStorage.clear(); location.reload(); break;
+    case 'shop_open':  currentScreen = 'shop';                  break;
+    case 'shop_back':  currentScreen = 'mine';
+                       shopBackBounds = null;
+                       shopBuyBtns = [];                         break;
+    case 'shop_buy':   buyUpgrade(hit.id);                      break;
   }
+}
+
+function buyUpgrade(id) {
+  const idx = UPGRADE_TREE.findIndex(u => u.id === id);
+  if (idx < 0) return;
+  // Must be the next in sequence
+  if (idx !== upgrades.purchased.length) return;
+  const upg = UPGRADE_TREE[idx];
+  if (flowers.coins < upg.cost) return;
+
+  flowers.coins -= upg.cost;
+  upgrades.purchased.push(id);
+  haptic([20, 10, 20, 10, 30]);
+  saveState();
 }
 
 function toggleLang() {
@@ -961,6 +1157,34 @@ function drawMine(now) {
   drawBins(now);
   drawPieces(now, false);
   drawPieces(now, true);
+  drawShopButton(now);
+}
+
+// Shop icon – circle to the right of the bins
+function drawShopButton(_now) {
+  // Clear shop-only bounds so they don't fire in mine mode
+  shopBackBounds = null;
+  shopBuyBtns    = [];
+  const cx = BIN_LEFT + BIN_TOTAL + (W - BIN_LEFT - BIN_TOTAL) / 2;
+  const cy = BIN_Y + BIN_H / 2;
+  const r  = 18;
+
+  shopBtnBounds = { x: cx - r, y: cy - r, w: r * 2, h: r * 2 };
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = BG;
+  ctx.fill();
+  ctx.strokeStyle = BORDER;
+  ctx.lineWidth   = 1.5;
+  ctx.stroke();
+
+  ctx.font         = '18px system-ui';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🛍', cx, cy + 1);
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'alphabetic';
 }
 
 function drawPack(now) {
@@ -1206,11 +1430,193 @@ function drawBins(now) {
   }
 }
 
+// ── Shop screen ───────────────────────────────────────────────────────────
+function drawShop(now) {
+  shopBtnBounds = null;   // shop icon not active while in shop screen
+
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, W, H);
+
+  // Header
+  const hh = HEADER_H;
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, W, hh);
+  ctx.strokeStyle = BORDER;
+  ctx.lineWidth   = 1;
+  ctx.beginPath(); ctx.moveTo(0, hh); ctx.lineTo(W, hh); ctx.stroke();
+
+  // Back button
+  const backLabel = t('shop_back');
+  ctx.font      = '13px system-ui';
+  const bw = ctx.measureText(backLabel).width + 24;
+  const bh = 28, bx = 14, by = (hh - bh) / 2;
+  shopBackBounds = { x: bx, y: by, w: bw, h: bh };
+  ctx.strokeStyle  = BORDER; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 6); ctx.stroke();
+  ctx.fillStyle    = TEXT_DIM;
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  ctx.fillText(backLabel, bx + 12, hh / 2);
+
+  // Title
+  ctx.font         = 'bold 16px system-ui';
+  ctx.fillStyle    = TEXT_HI;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(t('shop_title'), W / 2, hh / 2);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+
+  drawLangButton();
+
+  // Upgrade list
+  shopBuyBtns = [];
+  const PAD  = 15;
+  const IW   = W - PAD * 2;
+  let   iy   = hh + 14;
+  const nextIdx = upgrades.purchased.length;
+
+  for (let i = 0; i < UPGRADE_TREE.length; i++) {
+    const upg         = UPGRADE_TREE[i];
+    const isPurchased = upgrades.purchased.includes(upg.id);
+    const isNext      = i === nextIdx;
+    const isLocked    = !isPurchased && !isNext;
+
+    iy = drawUpgradeItem(upg, i, iy, PAD, IW, isPurchased, isNext, isLocked, now);
+    iy += 8;
+  }
+}
+
+function drawUpgradeItem(upg, idx, iy, px, iw, isPurchased, isNext, isLocked, now) {
+  const acColor = ACTOR_COLOR[upg.actor];
+  const name    = upg.name[lang];
+  const desc    = upg.desc[lang];
+
+  // Item heights
+  const ih = isNext ? 92 : (isPurchased ? 64 : 44);
+
+  // Background
+  ctx.fillStyle = isPurchased ? 'rgba(255,255,255,0.03)' :
+                  isNext      ? 'rgba(255,255,255,0.06)' :
+                                'rgba(255,255,255,0.02)';
+  ctx.beginPath(); ctx.roundRect(px, iy, iw, ih, 8); ctx.fill();
+
+  // Left accent bar
+  ctx.fillStyle   = isPurchased ? 'rgba(110,118,129,0.4)' :
+                    isNext      ? acColor :
+                                  'rgba(110,118,129,0.2)';
+  ctx.fillRect(px, iy, 3, ih);
+  ctx.beginPath(); ctx.roundRect(px, iy, 3, ih, [2, 0, 0, 2]); ctx.fill();
+
+  // Border
+  ctx.strokeStyle = isNext ? acColor : BORDER;
+  ctx.lineWidth   = isNext ? 1.5 : 1;
+  ctx.globalAlpha = isNext ? 0.6 : 0.4;
+  ctx.beginPath(); ctx.roundRect(px, iy, iw, ih, 8); ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  if (isLocked) {
+    // Locked: just show ??? and a lock
+    ctx.font         = '13px system-ui';
+    ctx.fillStyle    = TEXT_DIM;
+    ctx.globalAlpha  = 0.4;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign    = 'left';
+    ctx.fillText(t('shop_locked'), px + 18, iy + ih / 2);
+    ctx.font      = '14px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText('🔒', px + iw - 14, iy + ih / 2);
+    ctx.globalAlpha  = 1;
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'alphabetic';
+    return iy + ih;
+  }
+
+  // Actor label pill
+  const actorLabel = t(`actor_${upg.actor}`);
+  ctx.font = '10px system-ui';
+  const alw = ctx.measureText(actorLabel).width + 10;
+  ctx.fillStyle = acColor;
+  ctx.globalAlpha = isPurchased ? 0.4 : 0.9;
+  ctx.beginPath(); ctx.roundRect(px + 10, iy + 8, alw, 16, 8); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle    = isPurchased ? TEXT_DIM : '#0d1117';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign    = 'center';
+  ctx.fillText(actorLabel, px + 10 + alw / 2, iy + 16);
+
+  // Name
+  ctx.font         = isPurchased ? '13px system-ui' : 'bold 14px system-ui';
+  ctx.fillStyle    = isPurchased ? TEXT_DIM : TEXT_HI;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign    = 'left';
+  ctx.fillText(name, px + 10 + alw + 8, iy + 16);
+
+  // Description (next only)
+  if (isNext) {
+    ctx.font         = '11px system-ui';
+    ctx.fillStyle    = TEXT_DIM;
+    ctx.textBaseline = 'top';
+    // Wrap to fit item width
+    const maxW = iw - 20;
+    let line = '', lines = [], words = desc.split(' ');
+    for (const w of words) {
+      const test = line ? line + ' ' + w : w;
+      if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
+      else line = test;
+    }
+    if (line) lines.push(line);
+    lines.slice(0, 2).forEach((l, li) => {
+      ctx.fillText(l, px + 10, iy + 32 + li * 14);
+    });
+  }
+
+  // Cost + buy button (purchased: owned badge, next: buy button)
+  if (isPurchased) {
+    ctx.font         = '11px system-ui';
+    ctx.fillStyle    = TEXT_DIM;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign    = 'right';
+    ctx.fillText(t('shop_owned'), px + iw - 12, iy + ih / 2 + 10);
+  } else {
+    // Cost label
+    const costLabel = `💰 ${formatCoins(upg.cost)}`;
+    ctx.font         = '12px system-ui';
+    ctx.fillStyle    = TEXT_DIM;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign    = 'right';
+    ctx.fillText(costLabel, px + iw - 80, iy + ih - 18);
+
+    // Buy button
+    const canAfford = flowers.coins >= upg.cost;
+    const btnW = 64, btnH = 28;
+    const btnX = px + iw - btnW - 10, btnY = iy + ih - btnH - 8;
+
+    ctx.fillStyle   = canAfford ? acColor : 'rgba(110,118,129,0.25)';
+    ctx.globalAlpha = canAfford ? 1 : 0.7;
+    ctx.beginPath(); ctx.roundRect(btnX, btnY, btnW, btnH, 6); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.font         = 'bold 12px system-ui';
+    ctx.fillStyle    = canAfford ? '#0d1117' : TEXT_DIM;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(t('shop_buy'), btnX + btnW / 2, btnY + btnH / 2);
+
+    if (canAfford) {
+      shopBuyBtns.push({ id: upg.id, x: btnX, y: btnY, w: btnW, h: btnH });
+    }
+  }
+
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'alphabetic';
+  return iy + ih;
+}
+
 // ── Game loop ─────────────────────────────────────────────────────────────
 function draw(now) {
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
-  drawMine(now);
+  if (currentScreen === 'shop') drawShop(now);
+  else                          drawMine(now);
   requestAnimationFrame(draw);
 }
 
@@ -1219,12 +1625,15 @@ const SAVE_KEY = 'bfm-save';
 
 function saveState() {
   const saveData = {
-    bins:           state.bins,
-    buildQueue:     flowers.buildQueue,
-    stock:          flowers.stock,
-    coins:          flowers.coins,
+    bins:               state.bins,
+    buildQueue:         flowers.buildQueue,
+    stock:              flowers.stock,
+    coins:              flowers.coins,
     flowerIdCounter,
     bagsOpened,
+    upgradesPurchased:  upgrades.purchased,
+    sparscheinBalance:  sparschein.balance,
+    sparscheinPayments: sparschein.paymentCount,
   };
   localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
 }
@@ -1237,12 +1646,15 @@ function loadState() {
     const saveData = JSON.parse(raw);
     if (!saveData) return;
 
-    state.bins       = saveData.bins     || SHAPES.map(s => ({ shape: s, pieces: [] }));
-    flowers.buildQueue = saveData.buildQueue || [];
-    flowers.stock    = saveData.stock    || [];
-    flowers.coins    = saveData.coins    || 0;
-    flowerIdCounter  = saveData.flowerIdCounter || 0;
-    bagsOpened       = saveData.bagsOpened      || 0;
+    state.bins              = saveData.bins          || SHAPES.map(s => ({ shape: s, pieces: [] }));
+    flowers.buildQueue      = saveData.buildQueue    || [];
+    flowers.stock           = saveData.stock         || [];
+    flowers.coins           = saveData.coins         ?? STARTING_COINS;
+    flowerIdCounter         = saveData.flowerIdCounter || 0;
+    bagsOpened              = saveData.bagsOpened      || 0;
+    upgrades.purchased      = saveData.upgradesPurchased  || [];
+    sparschein.balance      = saveData.sparscheinBalance  || 0;
+    sparschein.paymentCount = saveData.sparscheinPayments || 0;
 
   } catch (e) {
     console.error('Failed to load state', e);

@@ -417,8 +417,8 @@ Three alpacas, three story milestones. Each unlocks individually with a Bruno-fo
 | "Harry baut X Blumen" + "Mutti verkauft …" labels | ✅ |
 | Bag visual (opaque surprise bag, Option C) | ✅ |
 | Bag counter (`🛍 N`) + reset button (`↺`) in header center – dev aids for economy calibration | ✅ |
-| Bag economy (Harry auto-orders, starting capital, coin cost) | ❌ next |
-| Shop skeleton (icon, overlay, Harry with mustache) | ❌ future |
+| Bag economy (Harry auto-orders, starting capital, coin cost) | ✅ |
+| Shop screen (icon → own screen, linear skill tree, locked items show ???) | ✅ |
 | Upgrade 1 – Player: Schere | ❌ future |
 | Upgrade 2 – Harry: Gummi-Daumen | ❌ future |
 | Upgrade 3 – Mutti: Großhändler | ❌ future |
@@ -436,10 +436,9 @@ Three alpacas, three story milestones. Each unlocks individually with a Bruno-fo
 
 ## Next steps
 
-1. **Bag economy** – starting capital, Harry auto-orders at coin cost, economy always net positive
-2. **Feel tuning** – tap ranges, build time, sell time *(ongoing)*
-3. **Shop skeleton** – icon, overlay, Harry-with-mustache placeholder
-4. **First upgrades** – Schere, then Staubsauger
+1. **Feel tuning** – tap ranges, build time, sell time, upgrade prices *(ongoing)*
+2. **Milestone screens** – Land kaufen (Berge/Meer choice), Haus wählen, Bruno intro card
+3. **Dino-Sparschwein visual** – horizontally rotating dino animation in shop + coin badge
 
 ---
 
