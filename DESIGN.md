@@ -407,8 +407,8 @@ Three alpacas, three story milestones. Each unlocks individually with a Bruno-fo
 
 | Screen | Content |
 |---|---|
-| **Game screen** | Indicator (top) · current bag / pieces (middle) · 4 bins + shop icon (bottom) |
-| **Shop screen** | Linear upgrade tree · 9 upgrades · locked items show ??? |
+| **Game screen** | Indicator (top) · shop icon (top right, same height as indicator center) · current pack / pieces (middle) · 4 bins (bottom) |
+| **Shop screen** | Linear upgrade tree · 9 upgrades · locked items show ??? · "Spiel den selben Song nochmal" reset at bottom |
 
 ---
 
@@ -439,9 +439,11 @@ Three alpacas, three story milestones. Each unlocks individually with a Bruno-fo
 | Coin badge (💰 N) at outer ring bottom | ✅ |
 | "Harry baut X Blumen" + "Mutti verkauft …" labels | ✅ |
 | Bag visual (opaque surprise bag, Option C) | ✅ |
-| Bag counter (`🛍 N`) + reset button (`↺`) in header center – dev aids for economy calibration | ✅ |
-| Bag economy (Harry auto-orders, starting capital, coin cost) | ✅ |
+| Pack counter (mini pack icon + N) + flower sold counter (🌸 N) in header center – dev aids for economy calibration | ✅ |
+| Pack economy (Harry auto-orders, starting capital, coin cost) | ✅ |
 | Shop screen (icon → own screen, linear skill tree, locked items show ???) | ✅ |
+| Shop icon top right (next to indicator, same vertical center) | ✅ |
+| Reset as "Spiel den selben Song nochmal" (👽🎷) at shop bottom – red confirmation line, whole item tappable | ✅ |
 | Upgrade 1 – Player: Schere | ❌ future |
 | Upgrade 2 – Harry: Gummi-Daumen | ❌ future |
 | Upgrade 3 – Mutti: Großhändler | ❌ future |
@@ -550,6 +552,11 @@ Three alpacas, three story milestones. Each unlocks individually with a Bruno-fo
 | **Land choice (Milestone 1) has consequence at Upgrade 9** | Early decision, late reward. Berge → Unimog, Meer → Speedboat. Player might not realise the connection on first playthrough. Discoverable on replay. |
 | **Exponential growth, not additive** | Upgrades hit different axes (pack speed, build speed, coin value, sell speed). Compound of a × b × c creates exponential feel. Each block should feel qualitatively faster than the last – not just a little better. Target: ~6 → ~40 → ~200 coins/min across the three blocks. |
 | **Credit framing creates emotional arc** | Early: flow but debt = tension. Mid: faster flow + second debt = tension/relief. Late: coin explosion + debts paid = catharsis. The "auf Kredit" mechanic turns economy into drama. |
+| **Reset as shop item, not header button** | The ↺ dev button felt out of place in the UI. Reframed as "Spiel den selben Song nochmal" (Family Guy / Cantina Band reference) at the bottom of the shop – honest, funny, and in the right place. |
+| **Red confirmation line instead of button** | A separate "Neu starten" button overlapped the description and added visual noise. A red question ("Du willst wirklich das Spiel neu starten?") as part of the item is cleaner – the whole item is the tap target. Red is appropriate here: destructive action, not game feedback or sorting. |
+| **Shop icon next to indicator, not next to bins** | The bins area is already dense. The indicator area has unused space to the right. Shop icon at same vertical center as the indicator feels visually anchored and leaves the bins uncluttered. |
+| **Mini pack icon as canvas drawing, not emoji** | 🛍 is used for the shop button – using it also in the header created symbol collision. A tiny canvas-drawn pack (same gradient + heat seal as the full pack) is consistent and unambiguous. |
+| **Header shows packs opened + flowers sold** | Two counters that matter for economy calibration. `packsOpened` tracks input rate, `flowersSold` tracks output rate. Together they make the pack-to-flower conversion ratio visible at a glance during testing. |
 
 ---
 
@@ -628,3 +635,6 @@ Three alpacas, three story milestones. Each unlocks individually with a Bruno-fo
 - *Feb 23:* Full upgrade tree settled: 3 actors (Player, Harry, Mutti) × 3 upgrades each + farm arc. Naming matters: Staubsauger beats Magnetischer Bin, Bobby beats "Mutti's car", Gummi-Daumen beats Plastik-Daumen. Harry goes TikTok consolidates Tüten-Qualität and Hype-Train into one narrative arc. Land choice (Berge/Meer) has a late consequence (Bobby-Zuwachs) – early decision, late reward.
 - *Feb 23:* Code review + refactor: (1) render/update separated – `update(now)` mutates state, draw functions are now read-only/pure; (2) OCP applied to upgrade system – each upgrade carries its own `effect` function, `getEffects()` is now generic and never needs to change; (3) DRY: `binX/binCX/binCY` helpers, `fillRRect/strokeRRect` helpers; (4) ctx removed from path functions and `drawFlower` – consistent with all other draw functions; (5) timers grouped as objects; (6) dead `shards` property removed from state.
 - *Feb 23:* Final progression order locked. "Auf Kredit" reframes the win condition – not saving up, but paying off a dream. Alpacas choose the family, not vice versa – warmer and less transactional. Three milestones each anchored by an alpaca arrival. Theodor closes the game. Bobby-Tuning collapses two upgrades into one cleaner beat. Exponential growth principle: upgrades multiply across different axes (speed, value, volume) – the compound feel is what matters, not individual upgrade magnitude.
+- *Feb 24:* Symbol collision: 🛍 can't do double duty as shop icon and pack counter. Replaced counter with a mini canvas-drawn pack – consistent with the game's visual language and unambiguous. Dev counters (packs opened + flowers sold) show both sides of the economy ratio in the header.
+- *Feb 24:* Reframing a dev tool as in-game content: the ↺ reset button became "Spiel den selben Song nochmal" with a Cantina Band / Family Guy reference. Same function, but now it's a deliberate moment. Red confirmation text replaces a separate button – cleaner layout, honest about consequence.
+- *Feb 24:* Shop icon placement: top-right next to the indicator is less crowded than bottom-right next to the bins. The indicator area has natural breathing room; the bin row does not.

@@ -87,6 +87,9 @@ const STRINGS = {
     shop_owned:         'Gekauft ✓',
     shop_locked:        '???',
     shop_cant_afford:   'Zu wenig Münzen',
+    shop_reset_name:    'Spiel den selben Song nochmal',
+    shop_reset_desc:    'Die Cantina Band spielt immer weiter. Du auch.',
+    shop_reset_confirm: 'Du willst wirklich das Spiel neu starten?',
     actor_player:       'Du',
     actor_harry:        'Harry',
     actor_mutti:        'Mutti',
@@ -103,6 +106,9 @@ const STRINGS = {
     shop_owned:         'Owned ✓',
     shop_locked:        '???',
     shop_cant_afford:   'Not enough coins',
+    shop_reset_name:    'Play the Same Song',
+    shop_reset_desc:    'The Cantina Band never stops. Neither do you.',
+    shop_reset_confirm: 'You really want to restart the game?',
     actor_player:       'You',
     actor_harry:        'Harry',
     actor_mutti:        'Mutti',
@@ -358,11 +364,11 @@ function haptic(pattern) {
 let currentScreen = 'mine';   // 'mine' | 'shop'
 
 // Button bounds – set each frame during draw, used by hitTest
-let langBtnBounds  = null;
-let resetBtnBounds = null;
-let shopBtnBounds  = null;     // shop icon in mine screen
-let shopBackBounds = null;     // back button in shop screen
-let shopBuyBtns    = [];       // [{ id, x, y, w, h }] – buy buttons in shop
+let langBtnBounds   = null;
+let shopBtnBounds   = null;     // shop icon in mine screen
+let shopBackBounds  = null;     // back button in shop screen
+let shopBuyBtns     = [];       // [{ id, x, y, w, h }] – buy buttons in shop
+let shopResetBounds = null;     // reset item at bottom of shop
 
 // ── Drag state ────────────────────────────────────────────────────────────
 const drag = {
@@ -383,8 +389,9 @@ const state = {
   bins:     SHAPES.map(s => ({ shape: s, pieces: [] })),
 };
 
-// Dev counter – bags opened, useful for economy calibration
-let bagsOpened = 0;
+// Dev counters – packs opened + flowers sold, useful for economy calibration
+let packsOpened  = 0;
+let flowersSold  = 0;
 
 // Flower system – separate from game state
 const flowers = {
@@ -477,7 +484,7 @@ function openPack() {
   if (state.phase !== 'pack') return;
 
   state.phase = 'pieces';
-  bagsOpened++;
+  packsOpened++;
   const now   = performance.now();
   const zones = [...PIECE_ZONES].sort(() => Math.random() - 0.5);
 
@@ -585,6 +592,7 @@ function startSellTimer() {
 
 function completeSelling() {
   flowers.stock.shift();
+  flowersSold++;
   const fx = getEffects();
   flowers.coins += fx.coinValue;
 
@@ -732,9 +740,9 @@ function hitTest(x, y, now) {
     return { type: 'lang' };
   }
 
-  // Reset button (dev)
-  if (resetBtnBounds && inRect(x, y, resetBtnBounds.x, resetBtnBounds.y, resetBtnBounds.w, resetBtnBounds.h)) {
-    return { type: 'reset' };
+  // Shop reset item (bottom of shop)
+  if (shopResetBounds && inRect(x, y, shopResetBounds.x, shopResetBounds.y, shopResetBounds.w, shopResetBounds.h)) {
+    return { type: 'shop_reset' };
   }
 
   // Shop button (mine screen)
@@ -884,13 +892,14 @@ function handleTap({ x, y }) {
   const hit = hitTest(x, y, now);
   if (!hit) return;
   switch (hit.type) {
-    case 'lang':       toggleLang();                             break;
-    case 'pack':       tapPack();                                break;
-    case 'reset':      localStorage.clear(); location.reload(); break;
-    case 'shop_open':  currentScreen = 'shop';                  break;
-    case 'shop_back':  currentScreen = 'mine';
-                       shopBackBounds = null;
-                       shopBuyBtns = [];                         break;
+    case 'lang':        toggleLang();                             break;
+    case 'pack':        tapPack();                                break;
+    case 'shop_open':   currentScreen = 'shop';                  break;
+    case 'shop_back':   currentScreen = 'mine';
+                        shopBackBounds  = null;
+                        shopBuyBtns     = [];
+                        shopResetBounds = null;                   break;
+    case 'shop_reset':  localStorage.clear(); location.reload(); break;
     case 'shop_buy':   buyUpgrade(hit.id);                      break;
   }
 }
@@ -1138,27 +1147,32 @@ function drawHeader() {
   ctx.fillStyle = TEXT_HI;
   ctx.fillText('M', 22 + bw + hw, HEADER_H / 2);
 
-  // Bag counter + reset button – center of header, dev aid for economy tuning
+  // Pack + flower counters – center of header, dev aid for economy calibration
   ctx.font = '11px system-ui';
-  const bagLabel = `🛍 ${bagsOpened}`;
-  const bagLabelW = ctx.measureText(bagLabel).width;
-  const resetLabel = '↺';
-  const resetLabelW = ctx.measureText(resetLabel).width;
-  const gap = 8;
-  const totalW = bagLabelW + gap + resetLabelW;
-  const startX = W / 2 - totalW / 2;
+  const miniH       = 11;   // icon height matches font cap-height
+  const iconGap     = 4;    // space between icon and its number
+  const groupGap    = 12;   // space between the two groups
+  const miniPackW   = Math.round(miniH * 0.72);
+  const packNumW    = ctx.measureText(` ${packsOpened}`).width;
+  const flowerLbl   = `🌸 ${flowersSold}`;
+  const flowerLblW  = ctx.measureText(flowerLbl).width;
+  const totalW      = miniPackW + iconGap + packNumW + groupGap + flowerLblW;
+  const startX      = W / 2 - totalW / 2;
+  const midY        = HEADER_H / 2;
 
+  // Mini pack icon (vertically centered with the text)
+  drawMiniPack(startX, midY - miniH / 2, miniH);
+
+  // Pack count
   ctx.fillStyle    = TEXT_DIM;
   ctx.textAlign    = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(bagLabel, startX, HEADER_H / 2);
+  ctx.fillText(` ${packsOpened}`, startX + miniPackW + iconGap, midY);
 
-  const rx = startX + bagLabelW + gap;
-  ctx.fillStyle = TEXT_DIM;
-  ctx.fillText(resetLabel, rx, HEADER_H / 2);
-  resetBtnBounds = { x: rx - 4, y: HEADER_H / 2 - 12, w: resetLabelW + 8, h: 24 };
+  // Flower count
+  ctx.fillText(flowerLbl, startX + miniPackW + iconGap + packNumW + groupGap, midY);
 
-  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
 
   drawLangButton();
 }
@@ -1193,10 +1207,12 @@ function drawMine(now) {
 // Shop icon – circle to the right of the bins
 function drawShopButton(_now) {
   // Clear shop-only bounds so they don't fire in mine mode
-  shopBackBounds = null;
-  shopBuyBtns    = [];
-  const cx = BIN_LEFT + BIN_TOTAL + (W - BIN_LEFT - BIN_TOTAL) / 2;
-  const cy = BIN_Y + BIN_H / 2;
+  shopBackBounds  = null;
+  shopBuyBtns     = [];
+  shopResetBounds = null;
+  // Centered in the space to the right of the indicator outer ring, same vertical center
+  const cx = Math.round((INDICATOR_CX + INDICATOR_OUTER_R + W) / 2);
+  const cy = INDICATOR_CY;
   const r  = 18;
 
   shopBtnBounds = { x: cx - r, y: cy - r, w: r * 2, h: r * 2 };
@@ -1243,6 +1259,52 @@ function drawPack(now) {
   ctx.scale(enterSc * wobbleSc, enterSc * wobbleSc);
   drawFoilBag(ctx, bw, bh, progress, now);
   ctx.restore();
+}
+
+// Draws a tiny pack icon at (x, y) top-left for use in counters / labels.
+// Returns the rendered width so callers can lay out text after it.
+function drawMiniPack(x, y, h) {
+  const w  = Math.round(h * 0.72);
+  const r  = 2;
+  const sx = x, sy = y;
+
+  // Main fill – same dark metallic gradient as the full pack
+  const grad = ctx.createLinearGradient(sx, sy, sx + w, sy + h);
+  grad.addColorStop(0.00, '#1e2e44');
+  grad.addColorStop(0.40, '#253550');
+  grad.addColorStop(1.00, '#131e30');
+  ctx.beginPath();
+  ctx.roundRect(sx, sy, w, h, r);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Left-edge foil highlight
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(sx, sy, w, h, r);
+  ctx.clip();
+  const hg = ctx.createLinearGradient(sx, sy, sx + w * 0.4, sy);
+  hg.addColorStop(0, 'rgba(255,255,255,0.10)');
+  hg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hg;
+  ctx.fillRect(sx, sy, w * 0.4, h);
+  ctx.restore();
+
+  // Heat seal at top
+  const sealH = Math.max(2, Math.round(h * 0.22));
+  ctx.fillStyle = 'rgba(200,215,255,0.12)';
+  ctx.beginPath();
+  ctx.roundRect(sx + 1, sy, w - 2, sealH, [r, r, 0, 0]);
+  ctx.fill();
+
+  // Outer border
+  ctx.strokeStyle = 'rgba(140,160,200,0.25)';
+  ctx.lineWidth   = 0.75;
+  ctx.beginPath();
+  ctx.roundRect(sx, sy, w, h, r);
+  ctx.stroke();
+
+  return w;
 }
 
 // Draws an opaque foil bag centered at (0, 0) in the current transform space.
@@ -1454,7 +1516,8 @@ function drawBins(now) {
 
 // ── Shop screen ───────────────────────────────────────────────────────────
 function drawShop(now) {
-  shopBtnBounds = null;   // shop icon not active while in shop screen
+  shopBtnBounds   = null;   // shop icon not active while in shop screen
+  shopResetBounds = null;   // reset each frame, set at end of draw
 
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
@@ -1505,6 +1568,59 @@ function drawShop(now) {
     iy = drawUpgradeItem(upg, iy, PAD, IW, isPurchased, isNext, isLocked);
     iy += 8;
   }
+
+  // Separator
+  iy += 8;
+  ctx.strokeStyle = BORDER;
+  ctx.lineWidth   = 1;
+  ctx.globalAlpha = 0.4;
+  ctx.beginPath(); ctx.moveTo(PAD, iy); ctx.lineTo(W - PAD, iy); ctx.stroke();
+  ctx.globalAlpha = 1;
+  iy += 16;
+
+  // Reset item – taller to fit three lines
+  const rih = 80;
+  ctx.fillStyle = 'rgba(255,255,255,0.02)';
+  fillRRect(PAD, iy, IW, rih, 8);
+
+  ctx.fillStyle = 'rgba(110,118,129,0.3)';
+  fillRRect(PAD, iy, 3, rih, [2, 0, 0, 2]);
+
+  ctx.strokeStyle = BORDER;
+  ctx.lineWidth   = 1;
+  ctx.globalAlpha = 0.3;
+  strokeRRect(PAD, iy, IW, rih, 8);
+  ctx.globalAlpha = 1;
+
+  // Icon – vertically centered
+  ctx.font         = '22px system-ui';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign    = 'left';
+  ctx.fillText('👽🎷', PAD + 14, iy + rih / 2);
+
+  // Name
+  ctx.font      = 'bold 13px system-ui';
+  ctx.fillStyle = TEXT_DIM;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(t('shop_reset_name'), PAD + 62, iy + 22);
+
+  // Description
+  ctx.font        = '11px system-ui';
+  ctx.fillStyle   = TEXT_DIM;
+  ctx.globalAlpha = 0.6;
+  ctx.fillText(t('shop_reset_desc'), PAD + 62, iy + 40);
+  ctx.globalAlpha = 1;
+
+  // Confirmation – red, this is what the player taps
+  ctx.font      = '11px system-ui';
+  ctx.fillStyle = '#f85149';
+  ctx.fillText(t('shop_reset_confirm'), PAD + 62, iy + 58);
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
+  // Whole item is the tap target
+  shopResetBounds = { x: PAD, y: iy, w: IW, h: rih };
 }
 
 function drawUpgradeItem(upg, iy, px, iw, isPurchased, isNext, isLocked) {
@@ -1652,7 +1768,8 @@ function saveState() {
     stock:              flowers.stock,
     coins:              flowers.coins,
     flowerIdCounter,
-    bagsOpened,
+    packsOpened,
+    flowersSold,
     upgradesPurchased:  upgrades.purchased,
     sparscheinBalance:  sparschein.balance,
     sparscheinPayments: sparschein.paymentCount,
@@ -1673,7 +1790,8 @@ function loadState() {
     flowers.stock           = saveData.stock         || [];
     flowers.coins           = saveData.coins         ?? STARTING_COINS;
     flowerIdCounter         = saveData.flowerIdCounter || 0;
-    bagsOpened              = saveData.bagsOpened      || 0;
+    packsOpened             = saveData.packsOpened     || 0;
+    flowersSold             = saveData.flowersSold     || 0;
     upgrades.purchased      = saveData.upgradesPurchased  || [];
     sparschein.balance      = saveData.sparscheinBalance  || 0;
     sparschein.paymentCount = saveData.sparscheinPayments || 0;
