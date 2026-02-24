@@ -53,7 +53,14 @@
 
 <canvas id="game" width="430" height="932"></canvas>
 
-<script>
+<script type="module">
+import {
+  createConfig, createState,
+  applyAction as engineApply,
+  tick        as engineTick,
+  getEffects, shapeToColor,
+} from './engine.js';
+
 // ── Canvas setup ───────────────────────────────────────────────────────────
 const canvas = document.getElementById('game');
 const ctx    = canvas.getContext('2d');
@@ -145,101 +152,10 @@ function t(key, ...args) {
   return typeof v === 'function' ? v(...args) : v;
 }
 
-// ── Constants ─────────────────────────────────────────────────────────────
-// Flower recipe – how many sorted shards per bin make one flower part
-const FLOWER_RECIPE     = { circle: 1, heart: 8, stem: 3, leaf: 2 };
-// Build/sell base times and coin value are in getEffects() – upgrades scale them
-let   flowerIdCounter   = 0;
-
-// ── Colors ────────────────────────────────────────────────────────────────
-const BG       = '#0d1117';
-const BORDER   = '#30363d';
-const TEXT_HI  = '#f0f6fc';
-const TEXT_DIM = '#6e7681';
-
-// ── Shapes ─────────────────────────────────────────────────────────────────
-const SHAPES = [
-  { id: 'circle' },
-  { id: 'heart'  },
-  { id: 'stem'   },
-  { id: 'leaf'   },
-];
-
-// Weighted shape spawn – probabilities match recipe ratios (total 14 parts)
-const SHAPE_WEIGHTS = [
-  { shape: SHAPES[0], w: 1 },   // circle  1/14
-  { shape: SHAPES[1], w: 8 },   // heart   8/14
-  { shape: SHAPES[2], w: 3 },   // stem    3/14
-  { shape: SHAPES[3], w: 2 },   // leaf    2/14
-];
-const SHAPE_WEIGHT_TOTAL = SHAPE_WEIGHTS.reduce((s, e) => s + e.w, 0);
-
-function randomShape() {
-  let r = Math.random() * SHAPE_WEIGHT_TOTAL;
-  for (const entry of SHAPE_WEIGHTS) {
-    r -= entry.w;
-    if (r <= 0) return entry.shape;
-  }
-  return SHAPE_WEIGHTS[SHAPE_WEIGHTS.length - 1].shape;
-}
-
-// ── Layout ─────────────────────────────────────────────────────────────────
-const HEADER_H    = 50;
-const INDICATOR_R = 80;
-const INDICATOR_CX = W / 2;                                      // 215
-const INDICATOR_CY = HEADER_H + INDICATOR_R + 10;                // 140
-const BIN_H     = 96,  BIN_W = 80, BIN_GAP = 12, BIN_R = 12;
-const BIN_Y     = H - 36 - BIN_H;                               // 800
-const BIN_TOTAL = 4 * BIN_W + 3 * BIN_GAP;                      // 356
-const BIN_LEFT  = (W - BIN_TOTAL) / 2;                          // 37
-const PLAY_Y    = INDICATOR_CY + INDICATOR_R + 32;               // 252
-const PLAY_H    = BIN_Y - PLAY_Y - 20;                          // 528
-const PLAY_CX   = W / 2;                                        // 215
-const PLAY_CY   = PLAY_Y + PLAY_H / 2;                          // ~516
-
-// Outer ring for Mutti's sell timer (same center as Harry's indicator)
-const INDICATOR_OUTER_R = 88;   // inner=80 Harry, outer=88 Mutti (8px gap)
-
-// Shard landing zones – offsets from play-area center (12 for jackpot blocks)
-const PIECE_ZONES = [
-  { dx:    0, dy: -115 },
-  { dx: -100, dy:  -55 },
-  { dx: -100, dy:   60 },
-  { dx:    0, dy:  115 },
-  { dx:  100, dy:   60 },
-  { dx:  100, dy:  -55 },
-  { dx:  -45, dy: -160 },
-  { dx:   45, dy: -155 },
-  { dx: -160, dy:   10 },
-  { dx:  155, dy:   15 },
-  { dx:  -55, dy:  165 },
-  { dx:   60, dy:  160 },
-];
-
-const PIECE_SIZE = 60;
-
-// Bag properties – fixed for now, upgrades will scale these later
-const BAG_PX       = 90;   // visual size of the bag
-// Bag shard count is dynamic – see getEffects().bagShards (upgrades scale it)
-// Tap count is dynamic – see getEffects().bagTaps (Schere upgrade scales it: 5 → 1)
-
-// ── Economy ───────────────────────────────────────────────────────────────
-const BAG_COST       = 1;   // coins per pack – calibrated: 50 packs → 8 flowers → net +30
-const STARTING_COINS = 50;  // bootstrap capital
-
-// ── Actor colors (player / Harry / Mutti) ─────────────────────────────────
-const ACTOR_COLOR = { player: '#58a6ff', harry: '#f48fb1', mutti: '#e3b341' };
-
-// Piece layouts per bag size (grosshaendler upgrade increases count 3 → 5)
-const PIECE_LAYOUTS = {
-  3: [[ 0, -1 ], [-0.9, 0.7], [ 0.9, 0.7]],
-  5: [[ 0, -1.1], [-1.0, 0.3], [ 1.0, 0.3], [-0.5, 1.1], [ 0.5, 1.1]],
-};
-
 // ── Upgrade tree ──────────────────────────────────────────────────────────
 // Linear skill tree: buy in order. All passive + permanent.
-// Each upgrade is self-contained: name, description, cost, and its own effect function.
-// getEffects() never needs to change when a new upgrade is added.
+// Effect functions mutate the fx object – later upgrades can build on earlier ones.
+// The engine ignores name/desc; they are used only by the renderer.
 const UPGRADE_TREE = [
   {
     id: 'schere', actor: 'player', cost: 15,
@@ -306,69 +222,229 @@ const UPGRADE_TREE = [
   },
 ];
 
-// Default effects – baseline before any upgrades.
-// Apply each purchased upgrade's effect in order. Never modify this function.
-const EFFECTS_DEFAULT = {
-  bagTaps:         5,
-  bagShards:       3,
-  buildBaseMs:     20000,
-  sellBaseMs:      8000,
-  coinValue:       10,
-  staubsauger:     false,
-  dinoSparschwein: false,
-};
+// ── Engine config + state ─────────────────────────────────────────────────
+// Pass the shell's UPGRADE_TREE (with name/desc) to the engine config.
+// The engine only reads id, cost, and effect from each entry.
+const config = createConfig({ UPGRADE_TREE });
+let S;   // engine GameState – set in boot, mutated by dispatch() and the game loop
 
-function getEffects() {
-  const fx = { ...EFFECTS_DEFAULT };
-  for (const id of upgrades.purchased) {
-    UPGRADE_TREE.find(u => u.id === id)?.effect(fx);
-  }
-  return fx;
-}
+// ── Colors ────────────────────────────────────────────────────────────────
+const BG       = '#0d1117';
+const BORDER   = '#30363d';
+const TEXT_HI  = '#f0f6fc';
+const TEXT_DIM = '#6e7681';
 
+// ── Actor colors (player / Harry / Mutti) ─────────────────────────────────
+const ACTOR_COLOR = { player: '#58a6ff', harry: '#f48fb1', mutti: '#e3b341' };
 
-// ── Pfingstrose color system ───────────────────────────────────────────────
-const PEONY_PETAL_POOL = [
-  '#fce4ec', '#f8bbd9', '#f48fb1', '#f06292',
-  '#e91e8c', '#c2185b', '#880e4f',
+// ── Layout ─────────────────────────────────────────────────────────────────
+const HEADER_H    = 50;
+const INDICATOR_R = 80;
+const INDICATOR_CX = W / 2;                                      // 215
+const INDICATOR_CY = HEADER_H + INDICATOR_R + 10;                // 140
+const BIN_H     = 96,  BIN_W = 80, BIN_GAP = 12, BIN_R = 12;
+const BIN_Y     = H - 36 - BIN_H;                               // 800
+const BIN_TOTAL = 4 * BIN_W + 3 * BIN_GAP;                      // 356
+const BIN_LEFT  = (W - BIN_TOTAL) / 2;                          // 37
+const PLAY_Y    = INDICATOR_CY + INDICATOR_R + 32;               // 252
+const PLAY_H    = BIN_Y - PLAY_Y - 20;                          // 528
+const PLAY_CX   = W / 2;                                        // 215
+const PLAY_CY   = PLAY_Y + PLAY_H / 2;                          // ~516
+
+const INDICATOR_OUTER_R = 88;   // inner=80 Harry, outer=88 Mutti (8px gap)
+
+// Spawn zones for pieces flying out of pack (relative to PLAY_CX/CY)
+const PIECE_ZONES = [
+  { dx: -105, dy: -120 }, { dx:   0, dy: -130 }, { dx: 105, dy: -120 },
+  { dx: -120, dy:  -40 }, { dx:   0, dy:  -30 }, { dx: 120, dy:  -40 },
+  { dx: -110, dy:   50 }, { dx:   0, dy:   55 }, { dx: 110, dy:   50 },
+  { dx:  -80, dy:  130 }, { dx:  30, dy:  125 }, { dx:  80, dy:  130 },
 ];
 
-// Slightly shift a hex color by ±range per channel – keeps colors organic
-function varyColor(hex, range = 12) {
-  const p = (i) => parseInt(hex.slice(i, i + 2), 16);
-  const r = p(1), g = p(3), b = p(5);
-  const clamp = v => Math.max(0, Math.min(255, Math.round(v)));
-  const vary  = () => (Math.random() - 0.5) * 2 * range;
-  return '#' + [r + vary(), g + vary(), b + vary()]
-    .map(v => clamp(v).toString(16).padStart(2, '0')).join('');
+const PIECE_SIZE = 60;
+const BAG_PX     = 90;   // visual bag size in px
+
+// ── Visual shell state ────────────────────────────────────────────────────
+// These track rendering/animation details that the engine does not need to know about.
+
+// Pieces currently in the play area (flying/idle/dragging/sorting).
+// Synced from engine events: added on pack_opened, removed 230ms after piece_sorted.
+let pieces = [];   // { id, shape, color: { hex }, targetX, targetY, flyStart, phase, sortStart, shakeStart }
+
+// Pack visual state – purely cosmetic, not tracked by engine.
+const packVisual = { lastTapAt: 0, angle: 0 };
+
+// Real-time start timestamps for smooth arc animation in the indicator.
+// Updated by handleEvents when build_started / sell_started events fire.
+let buildTimerRealStart = 0;
+let sellTimerRealStart  = 0;
+
+// Timestamp when the pack enter animation started.
+// Set in the future (+ delay ms) to create a visual gap after piece sorting.
+let packEnterStart = 0;
+
+// rAF timestamp of the previous frame – used to compute delta for engineTick.
+let lastFrameTime = 0;
+
+// Bin fill animations (0→1 lerp toward fill level, clamps at 1)
+const binFillAnim = Array(4).fill(0);
+// Timestamp of last recipe-threshold event per bin (for flash animation)
+const binFlashAt  = Array(4).fill(0);
+
+// ── UI state ─────────────────────────────────────────────────────────────
+let currentScreen = 'main';   // 'main' | 'shop' | 'intro'
+
+let introSlide      = 0;
+let introSkipBounds = null;
+
+let langBtnBounds   = null;
+let shopBtnBounds   = null;
+let shopBackBounds  = null;
+let shopBuyBtns     = [];
+let shopResetBounds = null;
+
+// ── Drag state ────────────────────────────────────────────────────────────
+const drag = {
+  active:  false,
+  pieceId: null,
+  x:       0,
+  y:       0,
+};
+
+// ── dispatch + handleEvents ───────────────────────────────────────────────
+// dispatch() is the single entry point for all player actions and system triggers.
+// It calls the pure engine, then reacts to returned events with side effects.
+function dispatch(action) {
+  const { state: newS, events } = engineApply(S, config, action, Math.random);
+  S = newS;
+  handleEvents(events);
 }
 
-// Maps a shape to its Pfingstrose color
-function shapeToColor(shapeId) {
-  switch (shapeId) {
-    case 'circle': return varyColor('#fff176', 10);
-    case 'heart':  return PEONY_PETAL_POOL[Math.floor(Math.random() * PEONY_PETAL_POOL.length)];
-    case 'stem':   return varyColor('#52b788', 12);
-    case 'leaf':   return varyColor('#1e4d2b', 10);
-    default:       return '#ffffff';
+function handleEvents(events) {
+  for (const ev of events) {
+    switch (ev.type) {
+
+      case 'pack_tapped': {
+        packVisual.lastTapAt = performance.now();
+        packVisual.angle    += (Math.random() - 0.5) * 0.25;
+        // Haptic: last tap (open) or mid-tap
+        if (ev.tapsLeft <= 0) haptic([10, 20, 10]);
+        else                  haptic(8);
+        break;
+      }
+
+      case 'pack_opened': {
+        // Create visual entries for each piece flying into the play area
+        const now   = performance.now();
+        const zones = [...PIECE_ZONES].sort(() => Math.random() - 0.5);
+        pieces = ev.pieces.map((p, i) => ({
+          id:         p.id,
+          shape:      p.shape,
+          color:      { hex: p.color },
+          targetX:    PLAY_CX + jitter(zones[i % zones.length].dx),
+          targetY:    PLAY_CY + jitter(zones[i % zones.length].dy),
+          flyStart:   now,
+          phase:      'flying',
+          sortStart:  0,
+          shakeStart: 0,
+        }));
+        break;
+      }
+
+      case 'pack_spawned': {
+        // Reset pack visual state for the new bag.
+        // If spawned after a sort, delay the enter animation so piece sorting can finish.
+        packVisual.angle    = 0;
+        packVisual.lastTapAt = 0;
+        const delay = ev.fromSort ? 350 : 0;
+        packEnterStart = performance.now() + delay;
+        break;
+      }
+
+      case 'piece_sorted': {
+        const vp = pieces.find(p => p.id === ev.pieceId);
+        if (vp) {
+          // Anchor at current drag position before starting sort-out animation
+          vp.targetX   = drag.x;
+          vp.targetY   = drag.y;
+          vp.phase     = 'sorting';
+          vp.sortStart = performance.now();
+          setTimeout(() => {
+            pieces = pieces.filter(p => p.id !== ev.pieceId);
+          }, 230);
+        }
+        haptic(12);
+        saveState();
+        break;
+      }
+
+      case 'bin_threshold': {
+        binFlashAt[ev.binIndex] = performance.now();
+        haptic([18, 10, 18]);
+        break;
+      }
+
+      case 'piece_wrong_bin': {
+        const vp = pieces.find(p => p.id === ev.pieceId);
+        if (vp) {
+          vp.targetX    = drag.x;
+          vp.targetY    = drag.y;
+          vp.phase      = 'idle';
+          vp.shakeStart = performance.now();
+        }
+        haptic([8, 30, 8]);
+        break;
+      }
+
+      case 'build_started': {
+        buildTimerRealStart = performance.now();
+        break;
+      }
+
+      case 'build_complete': {
+        haptic([20, 12, 35]);
+        break;
+      }
+
+      case 'sell_started': {
+        sellTimerRealStart = performance.now();
+        break;
+      }
+
+      case 'sell_complete': {
+        haptic([15, 10, 30]);
+        saveState();
+        break;
+      }
+
+      case 'upgrade_bought': {
+        haptic([20, 10, 20, 10, 30]);
+        saveState();
+        break;
+      }
+
+      case 'sparschwein_payout': {
+        haptic([30, 15, 30, 15, 50]);
+        break;
+      }
+    }
   }
 }
-
-// ── Layout helpers ────────────────────────────────────────────────────────
-const binX  = i => BIN_LEFT + i * (BIN_W + BIN_GAP);   // left edge of bin i
-const binCX = i => binX(i) + BIN_W / 2;                // center x of bin i
-const binCY = ()  => BIN_Y  + BIN_H / 2;               // center y (all bins same)
 
 // ── Easing ────────────────────────────────────────────────────────────────
 function easeOutBack(t) {
   const c1 = 1.70158, c3 = c1 + 1;
   return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
 }
+
 function lerp(a, b, t)  { return a + (b - a) * t; }
 function clamp(t, a, b) { return Math.max(a, Math.min(b, t)); }
 function clamp01(t)     { return clamp(t, 0, 1); }
 
-// Format coins with locale-aware thousand separator (DE: 1.250, EN: 1,250)
+function jitter(v, range = 22) {
+  return v + (Math.random() - 0.5) * range;
+}
+
 function formatCoins(n) {
   return n.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US');
 }
@@ -377,14 +453,13 @@ function formatCoins(n) {
 function fillRRect(x, y, w, h, r)   { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();   }
 function strokeRRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.stroke(); }
 
-// Splits text into lines that fit within maxWidth at the current ctx.font.
-// Returns array of strings.
+// Splits text into lines that fit within maxWidth (used for upgrade descriptions).
 function wrapText(text, maxWidth) {
   const words = text.split(' ');
   const lines = [];
   let   line  = '';
   for (const word of words) {
-    const test = line ? line + ' ' + word : word;
+    const test = line ? `${line} ${word}` : word;
     if (ctx.measureText(test).width > maxWidth && line) {
       lines.push(line);
       line = word;
@@ -401,292 +476,17 @@ function haptic(pattern) {
   if (navigator.vibrate) navigator.vibrate(pattern);
 }
 
-// Screen state
-let currentScreen = 'main';   // 'main' | 'shop' | 'intro'
+// ── Layout helpers ────────────────────────────────────────────────────────
+const binX  = i => BIN_LEFT + i * (BIN_W + BIN_GAP);   // left edge of bin i
+const binCX = i => binX(i) + BIN_W / 2;                // center x of bin i
+const binCY = ()  => BIN_Y  + BIN_H / 2;               // center y (all bins same)
 
-// Button bounds – set each frame during draw, used by hitTest
-let introSlide      = 0;
-let introSkipBounds = null;
-
-let langBtnBounds   = null;
-let shopBtnBounds   = null;     // shop icon in main screen
-let shopBackBounds  = null;     // back button in shop screen
-let shopBuyBtns     = [];       // [{ id, x, y, w, h }] – buy buttons in shop
-let shopResetBounds = null;     // reset item at bottom of shop
-
-// ── Drag state ────────────────────────────────────────────────────────────
-const drag = {
-  active:  false,
-  pieceId: null,
-  x:       0,
-  y:       0,
-};
-
-// ── Game state ────────────────────────────────────────────────────────────
-let pieceIdCounter = 0;
-
-const state = {
-  phase:    'pack',    // 'pack' | 'pieces'
-  pack:     null,
-  pieces:   [],
-  selected: null,
-  bins:     SHAPES.map(s => ({ shape: s, pieces: [] })),
-};
-
-// Counters – packs opened + flowers sold, shown in header
-let packsOpened  = 0;
-let flowersSold  = 0;
-
-// Flower system – separate from game state
-const flowers = {
-  buildQueue: [],          // { id, parts } – Harry's build queue (sequential)
-  stock:      [],          // { id, parts } – Lager: finished, waiting for Mutti
-  coins:      STARTING_COINS,
-};
-
-// Purchased upgrades – persisted
-const upgrades = {
-  purchased: [],   // upgrade IDs in purchase order
-};
-
-// Dino-Sparschwein savings state – persisted
-const sparschein = {
-  balance:      0,    // coins accumulated (10% of each flower sold)
-  paymentCount: 0,    // flowers sold since last interest payout
-};
-
-// Timers – runtime only, not persisted
-const buildTimer = { active: false, startedAt: 0, durationMs: 0 };
-const sellTimer  = { active: false, startedAt: 0, durationMs: 0 };
-
-// ── Animation state ───────────────────────────────────────────────────────
-let packEnterStart = 0;
-const binFillAnim   = Array(4).fill(0);  // lerps toward fill target (0→1, clamps at 1)
-const binFlashAt    = Array(4).fill(0);  // timestamp of last recipe-threshold event
-
-// ── Game logic ────────────────────────────────────────────────────────────
-function jitter(v, range = 22) {
-  return v + (Math.random() - 0.5) * range;
-}
-
-function genPieces() {
-  const count     = getEffects().bagShards;
-  const layout    = PIECE_LAYOUTS[count] || PIECE_LAYOUTS[3];
-  const spread    = BAG_PX * 0.17;
-  const pieceSize = BAG_PX * 0.58;
-  return layout.map(([nx, ny]) => {
-    const shape = randomShape();
-    return {
-      shape,
-      color: shapeToColor(shape.id),
-      x:     nx * spread + (Math.random() - 0.5) * spread * 0.3,
-      y:     ny * spread + (Math.random() - 0.5) * spread * 0.3,
-      size:  pieceSize,
-      angle: (Math.random() - 0.5) * 0.5,
-    };
-  });
-}
-
-function spawnPack(charge = true) {
-  state.phase    = 'pack';
-  state.pieces   = [];
-  state.selected = null;
-
-  // Deduct pack cost – only when auto-ordering mid-game, not on boot/reload
-  if (charge) {
-    flowers.coins = Math.max(0, flowers.coins - BAG_COST);
-    saveState();
-  }
-
-  const taps = getEffects().bagTaps;
-  state.pack = {
-    px:           BAG_PX,
-    pieces:       genPieces(),
-    tapsRequired: taps,
-    tapsLeft:     taps,
-    lastTapAt:    0,
-    angle:        0,
-  };
-  packEnterStart = performance.now();
-}
-
-function tapPack() {
-  if (state.phase !== 'pack') return;
-  const pack = state.pack;
-
-  pack.lastTapAt    = performance.now();
-  pack.angle += (Math.random() - 0.5) * 0.25;
-  pack.tapsLeft--;
-
-  if (pack.tapsLeft <= 0) {
-    haptic([10, 20, 10]);
-    openPack();
-  } else {
-    haptic(8);
-  }
-}
-
-function openPack() {
-  if (state.phase !== 'pack') return;
-
-  state.phase = 'pieces';
-  packsOpened++;
-  const now   = performance.now();
-  const zones = [...PIECE_ZONES].sort(() => Math.random() - 0.5);
-
-  state.pack.pieces.forEach((piece, i) => {
-    state.pieces.push({
-      id:         pieceIdCounter++,
-      color:      { hex: piece.color },
-      shape:      piece.shape,
-      targetX:    PLAY_CX + jitter(zones[i % zones.length].dx),
-      targetY:    PLAY_CY + jitter(zones[i % zones.length].dy),
-      flyStart:   now,
-      phase:      'flying',
-      sortStart:  0,
-      shakeStart: 0,
-    });
-  });
-}
-
-function trySortPiece(binIndex) {
-  if (state.selected === null) return;
-
-  const piece = state.pieces.find(p => p.id === state.selected);
-  if (!piece) return;
-
-  if (piece.shape.id !== state.bins[binIndex].shape.id) {
-    // Wrong bin – place at drop position, shake for feedback
-    haptic([8, 30, 8]);
-    piece.targetX    = drag.x;
-    piece.targetY    = drag.y;
-    piece.phase      = 'idle';
-    piece.shakeStart = performance.now();
-    state.selected   = null;
-    return;
-  }
-
-  // ✓ Correct sort
-  haptic(12);
-  piece.targetX   = drag.x;
-  piece.targetY   = drag.y;
-  piece.phase     = 'sorting';
-  piece.sortStart = performance.now();
-  state.selected  = null;
-
-  setTimeout(() => {
-    state.pieces = state.pieces.filter(p => p.id !== piece.id);
-
-    const bin    = state.bins[binIndex];
-    const recipe = FLOWER_RECIPE[bin.shape.id];
-    bin.pieces.push({ color: piece.color.hex });
-
-    // Flash when we cross a recipe threshold
-    if (bin.pieces.length % recipe === 0) {
-      binFlashAt[binIndex] = performance.now();
-      haptic([18, 10, 18]);
-    }
-
-    checkBuildTrigger();
-
-    if (state.pieces.length === 0) {
-      setTimeout(spawnPack, 350);
-    }
-    saveState();
-  }, 230);
-}
-
-// ── Flower system ─────────────────────────────────────────────────────────
-function flowersReady() {
-  return Math.min(...SHAPES.map(s => {
-    const bin = state.bins.find(b => b.shape.id === s.id);
-    return Math.floor(bin.pieces.length / FLOWER_RECIPE[s.id]);
-  }));
-}
-
-function checkBuildTrigger() {
-  while (flowersReady() > 0) {
-    // Consume shards from bins
-    for (const s of SHAPES) {
-      state.bins.find(b => b.shape.id === s.id).pieces.splice(0, FLOWER_RECIPE[s.id]);
-    }
-
-    // Assign Pfingstrose colors via shapeToColor
-    const parts = {
-      circle: [{ color: shapeToColor('circle') }],
-      heart:  Array.from({ length: 8 }, () => ({ color: shapeToColor('heart') })),
-      stem:   Array.from({ length: 3 }, () => ({ color: shapeToColor('stem')  })),
-      leaf:   Array.from({ length: 2 }, () => ({ color: shapeToColor('leaf')  })),
-    };
-    flowers.buildQueue.push({ id: flowerIdCounter++, parts });
-    haptic([15, 10, 15]);
-  }
-
-  if (flowers.buildQueue.length > 0 && !buildTimer.active) {
-    startBuildTimer();
-  }
-  saveState();
-}
-
-function startSellTimer() {
-  if (sellTimer.active || flowers.stock.length === 0) return;
-  sellTimer.active    = true;
-  sellTimer.durationMs = getEffects().sellBaseMs * (0.85 + Math.random() * 0.3);
-  sellTimer.startedAt  = performance.now();
-  setTimeout(completeSelling, sellTimer.durationMs);
-}
-
-function completeSelling() {
-  flowers.stock.shift();
-  flowersSold++;
-  const fx = getEffects();
-  flowers.coins += fx.coinValue;
-
-  // Dino-Sparschwein: 10% of coin value saved per flower → 3× interest after 20 flowers
-  if (fx.dinoSparschwein) {
-    sparschein.balance      += fx.coinValue * 0.1;
-    sparschein.paymentCount += 1;
-    if (sparschein.paymentCount >= 20) {
-      flowers.coins          += Math.round(sparschein.balance * 3);
-      sparschein.balance      = 0;
-      sparschein.paymentCount = 0;
-      haptic([30, 15, 30, 15, 50]);
-    }
-  }
-
-  haptic([15, 10, 30]);
-  sellTimer.active = false;
-  startSellTimer();
-  saveState();
-}
-
-function startBuildTimer() {
-  if (buildTimer.active || flowers.buildQueue.length === 0) return;
-
-  buildTimer.active    = true;
-  buildTimer.durationMs = getEffects().buildBaseMs * (0.85 + Math.random() * 0.3);
-  buildTimer.startedAt  = performance.now();
-
-  setTimeout(completeBuild, buildTimer.durationMs);
-}
-
-function completeBuild() {
-  const flower = flowers.buildQueue.shift();
-  if (!flower) return;
-
-  flowers.stock.push({ id: flower.id, parts: flower.parts });
-  haptic([20, 12, 35]);
-
-  buildTimer.active = false;
-  startSellTimer();
-  checkBuildTrigger(); // Will save state
-}
-
-// ── Update loop ───────────────────────────────────────────────────────────
-// All state mutations happen here – draw functions are read-only.
+// ── Update loop – visual only ─────────────────────────────────────────────
+// Engine state is mutated in the game loop via engineTick + dispatch.
+// This function handles purely visual transitions that run every frame.
 function update(now) {
-  // Piece phase transitions
-  for (const piece of state.pieces) {
+  // Piece phase transitions (flying → idle after 450ms)
+  for (const piece of pieces) {
     if (piece.phase === 'flying' && clamp01((now - piece.flyStart) / 450) >= 1) {
       piece.phase = 'idle';
     }
@@ -695,10 +495,10 @@ function update(now) {
     }
   }
 
-  // Bin fill animation
+  // Bin fill animation – lerps toward fill target (clamps at 1 once full)
   for (let i = 0; i < 4; i++) {
-    const recipe     = FLOWER_RECIPE[state.bins[i].shape.id];
-    const fillTarget = Math.min(state.bins[i].pieces.length / recipe, 1);
+    const recipe     = config.FLOWER_RECIPE[S.bins[i].shape.id];
+    const fillTarget = Math.min(S.bins[i].pieces.length / recipe, 1);
     binFillAnim[i]  += (fillTarget - binFillAnim[i]) * 0.15;
   }
 }
@@ -726,7 +526,7 @@ function pieceAnim(piece, now) {
     return { x: drag.x, y: drag.y, scale: 1.18, opacity: 1 };
   }
 
-  // idle – optional shake (shakeStart cleared by update())
+  // idle – optional shake
   const shakeX = piece.shakeStart
     ? Math.sin(clamp01((now - piece.shakeStart) / 350) * Math.PI * 4.5)
       * 12 * (1 - clamp01((now - piece.shakeStart) / 350))
@@ -736,7 +536,6 @@ function pieceAnim(piece, now) {
 }
 
 // ── Shape paths ───────────────────────────────────────────────────────────
-// Path functions use the module-level ctx – consistent with all other draw functions
 function pathCircle(cx, cy, s) {
   ctx.arc(cx, cy, s * 0.42, 0, Math.PI * 2);
 }
@@ -775,7 +574,6 @@ function drawShapePath(shape, cx, cy, size) {
 }
 
 // ── Hit testing ───────────────────────────────────────────────────────────
-
 function inRect(x, y, rx, ry, rw, rh) {
   return x >= rx && x <= rx + rw && y >= ry && y <= ry + rh;
 }
@@ -816,13 +614,12 @@ function hitTest(x, y, now) {
     }
   }
 
-
   // Game screen only – skip piece/pack/bin interactions when in shop
   if (currentScreen !== 'main') return null;
 
   // Pieces (reverse so topmost is checked first)
-  if (state.phase === 'pieces') {
-    for (const piece of [...state.pieces].reverse()) {
+  if (S.phase === 'pieces') {
+    for (const piece of [...pieces].reverse()) {
       if (piece.phase === 'sorting') continue;
       const a  = pieceAnim(piece, now);
       const dx = x - a.x, dy = y - a.y;
@@ -832,10 +629,10 @@ function hitTest(x, y, now) {
     }
   }
 
-  // Block
-  if (state.phase === 'pack') {
-    const bw = state.pack.px * 0.72;
-    const bh = state.pack.px * 1.05;
+  // Pack
+  if (S.phase === 'pack') {
+    const bw = BAG_PX * 0.72;
+    const bh = BAG_PX * 1.05;
     if (inRect(x, y, PLAY_CX - bw / 2, PLAY_CY - bh / 2, bw, bh)) {
       return { type: 'pack' };
     }
@@ -858,7 +655,7 @@ function initDrag(coords) {
   const hit = hitTest(coords.x, coords.y, now);
   if (!hit || hit.type !== 'piece') return;
 
-  const piece = state.pieces.find(p => p.id === hit.id);
+  const piece = pieces.find(p => p.id === hit.id);
   if (!piece || piece.phase === 'sorting') return;
 
   haptic(8);
@@ -867,7 +664,6 @@ function initDrag(coords) {
   drag.x       = coords.x;
   drag.y       = coords.y;
   piece.phase  = 'dragging';
-  state.selected = null;
 }
 
 function updateDrag(coords) {
@@ -879,31 +675,32 @@ function updateDrag(coords) {
 function endDrag(coords) {
   if (!drag.active) return;
   drag.active = false;
+  // Update drag position to the final drop coordinates so handleEvents can read them.
+  drag.x = coords.x;
+  drag.y = coords.y;
 
-  const piece = state.pieces.find(p => p.id === drag.pieceId);
+  const piece = pieces.find(p => p.id === drag.pieceId);
   drag.pieceId = null;
   if (!piece) return;
 
-  // Check if dropped on a bin
+  // Check if dropped directly on a bin
   let binIndex = -1;
   for (let i = 0; i < 4; i++) {
     if (inRect(coords.x, coords.y, binX(i), BIN_Y, BIN_W, BIN_H)) { binIndex = i; break; }
   }
 
   if (binIndex >= 0) {
-    state.selected = piece.id;
-    trySortPiece(binIndex);
+    dispatch({ type: 'sort_piece', pieceId: piece.id, binIndex });
     return;
   }
 
   // Staubsauger: auto-sort if dropped near a matching bin
-  if (getEffects().staubsauger) {
+  if (getEffects(config, S.upgrades.purchased).staubsauger) {
     const VACUUM_R = 80;
     for (let i = 0; i < 4; i++) {
       if (Math.hypot(coords.x - binCX(i), coords.y - binCY()) < VACUUM_R
-          && piece.shape.id === state.bins[i].shape.id) {
-        state.selected = piece.id;
-        trySortPiece(i);
+          && piece.shape.id === S.bins[i].shape.id) {
+        dispatch({ type: 'sort_piece', pieceId: piece.id, binIndex: i });
         return;
       }
     }
@@ -913,7 +710,6 @@ function endDrag(coords) {
   piece.targetX  = coords.x;
   piece.targetY  = coords.y;
   piece.phase    = 'idle';
-  state.selected = null;
 }
 
 canvas.addEventListener('touchstart', (e) => {
@@ -952,34 +748,26 @@ function handleTap({ x, y }) {
       break;
     case 'intro_skip':  finishIntro();                            break;
     case 'lang':        toggleLang();                             break;
-    case 'pack':        tapPack();                                break;
+    case 'pack':        dispatch({ type: 'tap_pack' });           break;
     case 'shop_open':   currentScreen = 'shop';                  break;
     case 'shop_back':   currentScreen = 'main';
                         shopBackBounds  = null;
                         shopBuyBtns     = [];
                         shopResetBounds = null;                   break;
     case 'shop_reset':  localStorage.clear(); location.reload(); break;
-    case 'shop_buy':   buyUpgrade(hit.id);                      break;
+    case 'shop_buy':    dispatch({ type: 'buy_upgrade', id: hit.id }); break;
   }
-}
-
-function buyUpgrade(id) {
-  const idx = UPGRADE_TREE.findIndex(u => u.id === id);
-  if (idx < 0) return;
-  // Must be the next in sequence
-  if (idx !== upgrades.purchased.length) return;
-  const upg = UPGRADE_TREE[idx];
-  if (flowers.coins < upg.cost) return;
-
-  flowers.coins -= upg.cost;
-  upgrades.purchased.push(id);
-  haptic([20, 10, 20, 10, 30]);
-  saveState();
 }
 
 function toggleLang() {
   lang = lang === 'de' ? 'en' : 'de';
   localStorage.setItem('bfm-lang', lang);
+}
+
+function finishIntro() {
+  introSlide    = 0;
+  currentScreen = 'main';
+  dispatch({ type: 'spawn_harry_pack' });
 }
 
 // ── Flower draw ───────────────────────────────────────────────────────────
@@ -990,7 +778,6 @@ function drawFlower(cx, cy, rotation, scale, parts) {
   ctx.scale(scale, scale);
   ctx.translate(0, -58); // origin = bottom of stem
 
-  // Extract colors (with fallbacks)
   const circleColor = parts.circle && parts.circle[0] ? parts.circle[0].color : '#fff176';
   const heartColors = parts.heart || [];
   const stemColors  = parts.stem  || [];
@@ -999,7 +786,7 @@ function drawFlower(cx, cy, rotation, scale, parts) {
   const sc = i => stemColors[i]  ? stemColors[i].color  : '#52b788';
   const lc = i => leafColors[i]  ? leafColors[i].color  : '#1e4d2b';
 
-  // ── Right leaf behind stem – outer tip points upper-right ──
+  // Right leaf behind stem – outer tip points upper-right
   ctx.save();
   ctx.translate(10, 44);
   ctx.rotate(-0.8);
@@ -1007,7 +794,7 @@ function drawFlower(cx, cy, rotation, scale, parts) {
   ctx.beginPath(); pathLeaf(0, 0, 30); ctx.closePath(); ctx.fill();
   ctx.restore();
 
-  // ── Stem (3 segments as stroked lines – guaranteed connected, per-segment color) ──
+  // Stem (3 segments as stroked lines – guaranteed connected, per-segment color)
   const kinks = [ {x:2,y:15}, {x:7,y:30}, {x:0,y:45}, {x:3,y:58} ];
   ctx.lineWidth = 5;
   ctx.lineCap   = 'round';
@@ -1022,7 +809,7 @@ function drawFlower(cx, cy, rotation, scale, parts) {
   ctx.lineCap  = 'butt';
   ctx.lineJoin = 'miter';
 
-  // ── Left leaf in front of stem – outer tip points upper-left ──
+  // Left leaf in front of stem – outer tip points upper-left
   ctx.save();
   ctx.translate(-8, 30);
   ctx.rotate(0.8);
@@ -1030,24 +817,24 @@ function drawFlower(cx, cy, rotation, scale, parts) {
   ctx.beginPath(); pathLeaf(0, 0, 30); ctx.closePath(); ctx.fill();
   ctx.restore();
 
-  // ── Petal base – solid circle to block bleed-through from behind ──
+  // Petal base – solid circle to block bleed-through from behind
   ctx.fillStyle = hc(0);
   ctx.beginPath(); pathCircle(0, 0, 27); ctx.fill();
 
-  // ── Petals: 8 hearts in a ring, tips toward center ──
+  // Petals: 8 hearts in a ring, tips toward center
   const PETAL_R    = 17;
   const PETAL_SIZE = 20;
   for (let i = 0; i < 8; i++) {
     const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
     ctx.save();
     ctx.translate(Math.cos(angle) * PETAL_R, Math.sin(angle) * PETAL_R);
-    ctx.rotate(angle + Math.PI / 2);   // rotate so tip points toward center
+    ctx.rotate(angle + Math.PI / 2);
     ctx.fillStyle = hc(i);
     ctx.beginPath(); pathHeart(0, 0, PETAL_SIZE); ctx.closePath(); ctx.fill();
     ctx.restore();
   }
 
-  // ── Center circle ──
+  // Center circle
   ctx.fillStyle = circleColor;
   ctx.beginPath(); pathCircle(0, 0, 14); ctx.fill();
 
@@ -1058,34 +845,38 @@ function drawFlower(cx, cy, rotation, scale, parts) {
 
 // Draws the flower stock (Lager) inside the Harry indicator
 function drawStock(cx, cy) {
-  const n = flowers.stock.length;
+  const n = S.stock.length;
   if (n === 0) return;
 
   const FAN_RAD    = 70 * Math.PI / 180;  // ±35° total spread
-  const MAX_VISUAL = 7;                   // cap visual flowers to avoid overcrowding
+  const MAX_VISUAL = 7;
   const visible    = Math.min(n, MAX_VISUAL);
 
   for (let i = 0; i < visible; i++) {
     const t        = visible === 1 ? 0 : (i / (visible - 1) - 0.5);
     const rotation = t * FAN_RAD;
-    drawFlower(cx, cy, rotation, 1.0, flowers.stock[i].parts);
+    drawFlower(cx, cy, rotation, 1.0, S.stock[i].parts);
   }
 }
 
 function drawHarryIndicator(now) {
   const cx = INDICATOR_CX, cy = INDICATOR_CY;
-  const r  = INDICATOR_R;        // inner ring – Harry
-  const ro = INDICATOR_OUTER_R;  // outer ring – Mutti
+  const r  = INDICATOR_R;
+  const ro = INDICATOR_OUTER_R;
 
-  // Harry
-  const harryActive   = buildTimer.active || flowers.buildQueue.length > 0;
-  const harryProgress = buildTimer.active ? clamp01((now - buildTimer.startedAt) / buildTimer.durationMs) : 0;
-  const harryPulse    = harryActive ? 0.6 + 0.4 * Math.sin(now / 700) : 0;
+  // Harry arc progress from real-time start + duration from engine
+  const harryActive   = S.buildTimer.active || S.buildQueue.length > 0;
+  const harryProgress = S.buildTimer.active
+    ? clamp01((now - buildTimerRealStart) / S.buildTimer.durationMs)
+    : 0;
+  const harryPulse = harryActive ? 0.6 + 0.4 * Math.sin(now / 700) : 0;
 
-  // Mutti
-  const muttiActive   = sellTimer.active || flowers.stock.length > 0;
-  const muttiProgress = sellTimer.active ? clamp01((now - sellTimer.startedAt) / sellTimer.durationMs) : 0;
-  const muttiPulse    = sellTimer.active ? 0.6 + 0.4 * Math.sin(now / 500) : 0;
+  // Mutti arc progress from real-time start + duration from engine
+  const muttiActive   = S.sellTimer.active || S.stock.length > 0;
+  const muttiProgress = S.sellTimer.active
+    ? clamp01((now - sellTimerRealStart) / S.sellTimer.durationMs)
+    : 0;
+  const muttiPulse = S.sellTimer.active ? 0.6 + 0.4 * Math.sin(now / 500) : 0;
 
   // Flower stock (Lager) inside circle
   drawStock(cx, cy + 38);
@@ -1125,7 +916,7 @@ function drawHarryIndicator(now) {
   ctx.stroke();
 
   // Mutti: gold sell arc (only when she's actively selling)
-  if (sellTimer.active) {
+  if (S.sellTimer.active) {
     ctx.shadowColor = '#e3b341';
     ctx.shadowBlur  = 10 + 8 * muttiPulse;
     ctx.beginPath();
@@ -1139,19 +930,19 @@ function drawHarryIndicator(now) {
   }
 
   // Center dot when completely idle and empty
-  if (flowers.stock.length === 0 && flowers.coins === 0 && !harryActive) {
+  if (S.stock.length === 0 && S.coins === 0 && !harryActive) {
     ctx.beginPath();
     ctx.arc(cx, cy, 5, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(110,118,129,0.3)';
     ctx.fill();
   }
 
-  // Coin badge – at the bottom of the outer ring
-  if (flowers.coins > 0) {
+  // Coin badge – pill at the bottom of the outer ring
+  if (S.coins > 0) {
     const badgeY = cy + ro;
     const ph = 22, pad = 12;
     ctx.font = '12px system-ui';
-    const coinLabel = `💰 ${formatCoins(flowers.coins)}`;
+    const coinLabel = `💰 ${formatCoins(S.coins)}`;
     const tw = ctx.measureText(coinLabel).width;
     const pw = tw + pad * 2;
     const px = cx - pw / 2, py = badgeY - ph / 2;
@@ -1169,21 +960,21 @@ function drawHarryIndicator(now) {
     ctx.textBaseline = 'alphabetic';
   }
 
-  // Labels below – enough gap so they don't crowd the coin badge
+  // Labels below
   const labelBaseY = cy + ro + 30;
   ctx.font      = '11px system-ui';
   ctx.textAlign = 'center';
 
   let harryLabel;
-  if (flowers.buildQueue.length > 1)     harryLabel = t('building_many', flowers.buildQueue.length);
-  else if (flowers.buildQueue.length === 1) harryLabel = t('building_one');
-  else                                  harryLabel = t('building_idle_main');
+  if (S.buildQueue.length > 1)      harryLabel = t('building_many', S.buildQueue.length);
+  else if (S.buildQueue.length === 1) harryLabel = t('building_one');
+  else                               harryLabel = t('building_idle_main');
 
   ctx.fillStyle    = TEXT_DIM;
   ctx.textBaseline = 'alphabetic';
   ctx.fillText(harryLabel, cx, labelBaseY);
 
-  if (sellTimer.active || flowers.stock.length > 0) {
+  if (S.sellTimer.active || S.stock.length > 0) {
     ctx.fillStyle = '#e3b341';
     ctx.fillText(t('mutti_selling'), cx, labelBaseY + 16);
   }
@@ -1193,7 +984,6 @@ function drawHarryIndicator(now) {
 
 function drawHeader() {
   // B♥M logo left
-  ctx.fillStyle    = TEXT_HI;
   ctx.font         = 'bold 18px system-ui';
   ctx.textBaseline = 'middle';
   ctx.textAlign    = 'left';
@@ -1208,27 +998,23 @@ function drawHeader() {
 
   // Pack + flower counters – center of header
   ctx.font = '11px system-ui';
-  const miniH       = 11;   // icon height matches font cap-height
-  const iconGap     = 4;    // space between icon and its number
-  const groupGap    = 12;   // space between the two groups
+  const miniH       = 11;
+  const iconGap     = 4;
+  const groupGap    = 12;
   const miniPackW   = Math.round(miniH * 0.72);
-  const packNumW    = ctx.measureText(` ${packsOpened}`).width;
-  const flowerLbl   = `🌸 ${flowersSold}`;
+  const packNumW    = ctx.measureText(` ${S.packsOpened}`).width;
+  const flowerLbl   = `🌸 ${S.flowersSold}`;
   const flowerLblW  = ctx.measureText(flowerLbl).width;
   const totalW      = miniPackW + iconGap + packNumW + groupGap + flowerLblW;
   const startX      = W / 2 - totalW / 2;
   const midY        = HEADER_H / 2;
 
-  // Mini pack icon (vertically centered with the text)
   drawMiniPack(startX, midY - miniH / 2, miniH);
 
-  // Pack count
   ctx.fillStyle    = TEXT_DIM;
   ctx.textAlign    = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(` ${packsOpened}`, startX + miniPackW + iconGap, midY);
-
-  // Flower count
+  ctx.fillText(` ${S.packsOpened}`, startX + miniPackW + iconGap, midY);
   ctx.fillText(flowerLbl, startX + miniPackW + iconGap + packNumW + groupGap, midY);
 
   ctx.textBaseline = 'alphabetic';
@@ -1263,13 +1049,11 @@ function drawMain(now) {
   drawShopButton(now);
 }
 
-// Shop icon – circle to the right of the bins
 function drawShopButton(_now) {
-  // Clear shop-only bounds so they don't fire in main screen
   shopBackBounds  = null;
   shopBuyBtns     = [];
   shopResetBounds = null;
-  // Centered in the space to the right of the indicator outer ring, same vertical center
+
   const cx = Math.round((INDICATOR_CX + INDICATOR_OUTER_R + W) / 2);
   const cy = INDICATOR_CY;
   const r  = 18;
@@ -1293,87 +1077,76 @@ function drawShopButton(_now) {
 }
 
 function drawPack(now) {
-  if (state.phase !== 'pack' || !state.pack) return;
+  if (S.phase !== 'pack' || !S.pack) return;
 
-  const pack = state.pack;
-
-  // Enter animation
+  // Enter animation – packEnterStart may be in the future (delay after sort)
   const enterT  = clamp01((now - packEnterStart) / 300);
   const enterSc = easeOutBack(enterT);
 
-  // Tap wobble: scale punch + rotation rattle
-  const wobbleAge = pack.lastTapAt > 0 ? now - pack.lastTapAt : Infinity;
+  // Tap wobble
+  const wobbleAge = packVisual.lastTapAt > 0 ? now - packVisual.lastTapAt : Infinity;
   const wobbleT   = wobbleAge < 220 ? clamp01(wobbleAge / 220) : 1;
   const wobbleSc  = wobbleAge < 220 ? 1 + Math.sin(wobbleT * Math.PI) * 0.09 : 1;
 
   // Damage progress (0 = fresh, 1 = about to burst)
-  const progress = 1 - pack.tapsLeft / pack.tapsRequired;
+  const progress = 1 - S.pack.tapsLeft / S.pack.tapsRequired;
 
-  const bw = pack.px * 0.72;
-  const bh = pack.px * 1.05;
+  const bw = BAG_PX * 0.72;
+  const bh = BAG_PX * 1.05;
 
   ctx.save();
   ctx.translate(PLAY_CX, PLAY_CY);
-  ctx.rotate(pack.angle);
+  ctx.rotate(packVisual.angle);
   ctx.scale(enterSc * wobbleSc, enterSc * wobbleSc);
-  drawFoilBag(ctx, bw, bh, progress, now, state.pack.harry || false);
+  drawFoilBag(ctx, bw, bh, progress, now, S.pack.harryPack);
   ctx.restore();
 }
 
-// Draws a tiny pack icon at (x, y) top-left for use in counters / labels.
-// Returns the rendered width so callers can lay out text after it.
 function drawMiniPack(x, y, h) {
   const w  = Math.round(h * 0.72);
   const r  = 2;
-  const sx = x, sy = y;
 
-  // Main fill – same dark metallic gradient as the full pack
-  const grad = ctx.createLinearGradient(sx, sy, sx + w, sy + h);
+  const grad = ctx.createLinearGradient(x, y, x + w, y + h);
   grad.addColorStop(0.00, '#1e2e44');
   grad.addColorStop(0.40, '#253550');
   grad.addColorStop(1.00, '#131e30');
   ctx.beginPath();
-  ctx.roundRect(sx, sy, w, h, r);
+  ctx.roundRect(x, y, w, h, r);
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Left-edge foil highlight
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(sx, sy, w, h, r);
+  ctx.roundRect(x, y, w, h, r);
   ctx.clip();
-  const hg = ctx.createLinearGradient(sx, sy, sx + w * 0.4, sy);
+  const hg = ctx.createLinearGradient(x, y, x + w * 0.4, y);
   hg.addColorStop(0, 'rgba(255,255,255,0.10)');
   hg.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = hg;
-  ctx.fillRect(sx, sy, w * 0.4, h);
+  ctx.fillRect(x, y, w * 0.4, h);
   ctx.restore();
 
-  // Heat seal at top
   const sealH = Math.max(2, Math.round(h * 0.22));
   ctx.fillStyle = 'rgba(200,215,255,0.12)';
   ctx.beginPath();
-  ctx.roundRect(sx + 1, sy, w - 2, sealH, [r, r, 0, 0]);
+  ctx.roundRect(x + 1, y, w - 2, sealH, [r, r, 0, 0]);
   ctx.fill();
 
-  // Outer border
   ctx.strokeStyle = 'rgba(140,160,200,0.25)';
   ctx.lineWidth   = 0.75;
   ctx.beginPath();
-  ctx.roundRect(sx, sy, w, h, r);
+  ctx.roundRect(x, y, w, h, r);
   ctx.stroke();
 
   return w;
 }
 
 // Draws an opaque foil bag centered at (0, 0) in the current transform space.
-// Deforms and glows as progress (0→1) increases.
 function drawFoilBag(ctx, bw, bh, progress, now, harry = false) {
   const bx = -bw / 2, by = -bh / 2;
   const r  = 8;
   const deform = progress * bw * 0.12;
 
-  // Bag outline path – deforms with damage
   const bagPath = () => {
     ctx.beginPath();
     if (progress > 0.08) {
@@ -1395,7 +1168,7 @@ function drawFoilBag(ctx, bw, bh, progress, now, harry = false) {
     ctx.closePath();
   };
 
-  // Glow aura – pulses faster as damage increases; Harry pack has a resting pink glow
+  // Glow aura
   if (progress > 0 || harry) {
     const pulse = 0.6 + 0.4 * Math.sin(now / (harry && progress === 0 ? 1400 : (220 - progress * 120)));
     ctx.save();
@@ -1414,7 +1187,7 @@ function drawFoilBag(ctx, bw, bh, progress, now, harry = false) {
     ctx.restore();
   }
 
-  // Main fill – dark metallic gradient (warm rose tones for Harry pack)
+  // Main fill
   const grad = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
   if (harry) {
     grad.addColorStop(0.00, '#2e1a20');
@@ -1431,7 +1204,7 @@ function drawFoilBag(ctx, bw, bh, progress, now, harry = false) {
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Left-edge highlight (like light catching the foil)
+  // Left-edge foil highlight
   ctx.save();
   bagPath();
   ctx.clip();
@@ -1500,7 +1273,7 @@ function drawFoilBag(ctx, bw, bh, progress, now, harry = false) {
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Harry's personal touch – cat emoji centered on the pack face
+  // Harry's personal touch – cat emoji on the bag face
   if (harry) {
     const fontSize = Math.round(bh * 0.38);
     ctx.font         = `${fontSize}px system-ui`;
@@ -1513,7 +1286,7 @@ function drawFoilBag(ctx, bw, bh, progress, now, harry = false) {
 }
 
 function drawPieces(now, dragOnly = false) {
-  for (const piece of state.pieces) {
+  for (const piece of pieces) {
     const isDragged = piece.phase === 'dragging';
     if (dragOnly !== isDragged) continue;
     const a = pieceAnim(piece, now);
@@ -1536,19 +1309,15 @@ function drawPieces(now, dragOnly = false) {
 
 function drawBins(now) {
   for (let i = 0; i < 4; i++) {
-    const bin    = state.bins[i];
+    const bin    = S.bins[i];
     const bx     = binX(i);
     const by     = BIN_Y;
-    const recipe = FLOWER_RECIPE[bin.shape.id];
+    const recipe = config.FLOWER_RECIPE[bin.shape.id];
     const count  = bin.pieces.length;
 
-    // binFillAnim[i] is updated by update() – draw only reads it
-
-    // Flash factor after hitting a recipe threshold
     const flashAge = binFlashAt[i] ? now - binFlashAt[i] : Infinity;
     const flash    = flashAge < 600 ? 1 - flashAge / 600 : 0;
 
-    // Background tint – more saturated when bin has extra stock beyond 1 recipe
     const extras    = Math.max(0, count - recipe);
     const tintAlpha = Math.min(extras / recipe, 1) * 0.18;
     ctx.fillStyle = BG;
@@ -1561,7 +1330,6 @@ function drawBins(now) {
       ctx.globalAlpha = 1;
     }
 
-    // Fill bar – fills once to 100% when count reaches recipe, stays full beyond
     if (binFillAnim[i] > 0.005) {
       ctx.save();
       ctx.beginPath();
@@ -1575,21 +1343,18 @@ function drawBins(now) {
       ctx.restore();
     }
 
-    // Border
     if (flash > 0) { ctx.shadowColor = TEXT_HI; ctx.shadowBlur = 12 * flash; }
     ctx.strokeStyle = flash > 0 ? TEXT_HI : BORDER;
     ctx.lineWidth   = 2;
     strokeRRect(bx, by, BIN_W, BIN_H, BIN_R);
     ctx.shadowBlur  = 0;
 
-    // Shape icon
     ctx.globalAlpha = 0.3 + flash * 0.5;
     ctx.fillStyle   = TEXT_HI;
     drawShapePath(bin.shape, binCX(i), BIN_Y + BIN_H / 2, 30);
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Counter below bin: "count / recipe" – bright when full or over, dim when filling
     const isFull = count >= recipe;
     ctx.font         = '11px system-ui';
     ctx.textAlign    = 'center';
@@ -1605,13 +1370,12 @@ function drawBins(now) {
 
 // ── Shop screen ───────────────────────────────────────────────────────────
 function drawShop(now) {
-  shopBtnBounds   = null;   // shop icon not active while in shop screen
-  shopResetBounds = null;   // reset each frame, set at end of draw
+  shopBtnBounds   = null;
+  shopResetBounds = null;
 
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
 
-  // Header
   const hh = HEADER_H;
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, hh);
@@ -1619,7 +1383,6 @@ function drawShop(now) {
   ctx.lineWidth   = 1;
   ctx.beginPath(); ctx.moveTo(0, hh); ctx.lineTo(W, hh); ctx.stroke();
 
-  // Back button
   const backLabel = t('shop_back');
   ctx.font      = '13px system-ui';
   const bw = ctx.measureText(backLabel).width + 24;
@@ -1631,7 +1394,6 @@ function drawShop(now) {
   ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
   ctx.fillText(backLabel, bx + 12, hh / 2);
 
-  // Title
   ctx.font         = 'bold 16px system-ui';
   ctx.fillStyle    = TEXT_HI;
   ctx.textAlign    = 'center';
@@ -1641,16 +1403,15 @@ function drawShop(now) {
 
   drawLangButton();
 
-  // Upgrade list
   shopBuyBtns = [];
   const PAD  = 15;
   const IW   = W - PAD * 2;
   let   iy   = hh + 14;
-  const nextIdx = upgrades.purchased.length;
+  const nextIdx = S.upgrades.purchased.length;
 
-  for (let i = 0; i < UPGRADE_TREE.length; i++) {
-    const upg         = UPGRADE_TREE[i];
-    const isPurchased = upgrades.purchased.includes(upg.id);
+  for (let i = 0; i < config.UPGRADE_TREE.length; i++) {
+    const upg         = config.UPGRADE_TREE[i];
+    const isPurchased = S.upgrades.purchased.includes(upg.id);
     const isNext      = i === nextIdx;
     const isLocked    = !isPurchased && !isNext;
 
@@ -1658,7 +1419,6 @@ function drawShop(now) {
     iy += 8;
   }
 
-  // Separator
   iy += 8;
   ctx.strokeStyle = BORDER;
   ctx.lineWidth   = 1;
@@ -1667,40 +1427,33 @@ function drawShop(now) {
   ctx.globalAlpha = 1;
   iy += 16;
 
-  // Reset item – taller to fit three lines
   const rih = 80;
   ctx.fillStyle = 'rgba(255,255,255,0.02)';
   fillRRect(PAD, iy, IW, rih, 8);
-
   ctx.fillStyle = 'rgba(110,118,129,0.3)';
   fillRRect(PAD, iy, 3, rih, [2, 0, 0, 2]);
-
   ctx.strokeStyle = BORDER;
   ctx.lineWidth   = 1;
   ctx.globalAlpha = 0.3;
   strokeRRect(PAD, iy, IW, rih, 8);
   ctx.globalAlpha = 1;
 
-  // Icon – vertically centered
   ctx.font         = '22px system-ui';
   ctx.textBaseline = 'middle';
   ctx.textAlign    = 'left';
   ctx.fillText('👽🎷', PAD + 14, iy + rih / 2);
 
-  // Name
   ctx.font      = 'bold 13px system-ui';
   ctx.fillStyle = TEXT_DIM;
   ctx.textBaseline = 'alphabetic';
   ctx.fillText(t('shop_reset_name'), PAD + 62, iy + 22);
 
-  // Description
   ctx.font        = '11px system-ui';
   ctx.fillStyle   = TEXT_DIM;
   ctx.globalAlpha = 0.6;
   ctx.fillText(t('shop_reset_desc'), PAD + 62, iy + 40);
   ctx.globalAlpha = 1;
 
-  // Confirmation – red, this is what the player taps
   ctx.font      = '11px system-ui';
   ctx.fillStyle = '#f85149';
   ctx.fillText(t('shop_reset_confirm'), PAD + 62, iy + 58);
@@ -1708,7 +1461,6 @@ function drawShop(now) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
 
-  // Whole item is the tap target
   shopResetBounds = { x: PAD, y: iy, w: IW, h: rih };
 }
 
@@ -1717,22 +1469,18 @@ function drawUpgradeItem(upg, iy, px, iw, isPurchased, isNext, isLocked) {
   const name    = upg.name[lang];
   const desc    = upg.desc[lang];
 
-  // Item heights
   const ih = isNext ? 92 : (isPurchased ? 64 : 44);
 
-  // Background
   ctx.fillStyle = isPurchased ? 'rgba(255,255,255,0.03)' :
                   isNext      ? 'rgba(255,255,255,0.06)' :
                                 'rgba(255,255,255,0.02)';
   fillRRect(px, iy, iw, ih, 8);
 
-  // Left accent bar
   ctx.fillStyle = isPurchased ? 'rgba(110,118,129,0.4)' :
                   isNext      ? acColor :
                                 'rgba(110,118,129,0.2)';
   fillRRect(px, iy, 3, ih, [2, 0, 0, 2]);
 
-  // Border
   ctx.strokeStyle = isNext ? acColor : BORDER;
   ctx.lineWidth   = isNext ? 1.5 : 1;
   ctx.globalAlpha = isNext ? 0.6 : 0.4;
@@ -1740,7 +1488,6 @@ function drawUpgradeItem(upg, iy, px, iw, isPurchased, isNext, isLocked) {
   ctx.globalAlpha = 1;
 
   if (isLocked) {
-    // Locked: just show ??? and a lock
     ctx.font         = '13px system-ui';
     ctx.fillStyle    = TEXT_DIM;
     ctx.globalAlpha  = 0.4;
@@ -1756,7 +1503,6 @@ function drawUpgradeItem(upg, iy, px, iw, isPurchased, isNext, isLocked) {
     return iy + ih;
   }
 
-  // Actor label pill
   const actorLabel = t(`actor_${upg.actor}`);
   ctx.font = '10px system-ui';
   const alw = ctx.measureText(actorLabel).width + 10;
@@ -1769,14 +1515,12 @@ function drawUpgradeItem(upg, iy, px, iw, isPurchased, isNext, isLocked) {
   ctx.textAlign    = 'center';
   ctx.fillText(actorLabel, px + 10 + alw / 2, iy + 16);
 
-  // Name
   ctx.font         = isPurchased ? '13px system-ui' : 'bold 14px system-ui';
   ctx.fillStyle    = isPurchased ? TEXT_DIM : TEXT_HI;
   ctx.textBaseline = 'middle';
   ctx.textAlign    = 'left';
   ctx.fillText(name, px + 10 + alw + 8, iy + 16);
 
-  // Description – shown for purchased and next items (locked stays ???)
   if (isNext || isPurchased) {
     ctx.font         = '11px system-ui';
     ctx.fillStyle    = TEXT_DIM;
@@ -1790,7 +1534,6 @@ function drawUpgradeItem(upg, iy, px, iw, isPurchased, isNext, isLocked) {
     ctx.globalAlpha = 1;
   }
 
-  // Cost + buy button (purchased: owned badge inline with name, next: buy button)
   if (isPurchased) {
     ctx.font         = '11px system-ui';
     ctx.fillStyle    = TEXT_DIM;
@@ -1800,7 +1543,6 @@ function drawUpgradeItem(upg, iy, px, iw, isPurchased, isNext, isLocked) {
     ctx.fillText(t('shop_owned'), px + iw - 12, iy + 16);
     ctx.globalAlpha  = 1;
   } else {
-    // Cost label
     const costLabel = `💰 ${formatCoins(upg.cost)}`;
     ctx.font         = '12px system-ui';
     ctx.fillStyle    = TEXT_DIM;
@@ -1808,8 +1550,7 @@ function drawUpgradeItem(upg, iy, px, iw, isPurchased, isNext, isLocked) {
     ctx.textAlign    = 'right';
     ctx.fillText(costLabel, px + iw - 80, iy + ih - 18);
 
-    // Buy button
-    const canAfford = flowers.coins >= upg.cost;
+    const canAfford = S.coins >= upg.cost;
     const btnW = 64, btnH = 28;
     const btnX = px + iw - btnW - 10, btnY = iy + ih - btnH - 8;
 
@@ -1835,69 +1576,17 @@ function drawUpgradeItem(upg, iy, px, iw, isPurchased, isNext, isLocked) {
 }
 
 // ── Intro sequence ────────────────────────────────────────────────────────
-
-// Spawns a pack with exactly the parts for one complete flower (1+8+3+2).
-// Used as the first pack so the player sees all shapes in one session.
-function spawnHarryPack() {
-  spawnPack(false);         // sets up state.pack, no charge
-  state.pack.harry = true;  // marks it for special visual treatment
-
-  const spread    = BAG_PX * 0.17;
-  const pieceSize = BAG_PX * 0.58;
-
-  // Exact recipe, shuffled so shapes mix visually
-  const shapeIds = [
-    ...Array(1).fill('circle'),
-    ...Array(8).fill('heart'),
-    ...Array(3).fill('stem'),
-    ...Array(2).fill('leaf'),
-  ];
-  for (let i = shapeIds.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shapeIds[i], shapeIds[j]] = [shapeIds[j], shapeIds[i]];
-  }
-
-  // 4-4-3-3 grid layout for 14 pieces
-  const layout = [
-    [-1.5, -1.3], [-0.5, -1.3], [ 0.5, -1.3], [ 1.5, -1.3],
-    [-1.5, -0.3], [-0.5, -0.3], [ 0.5, -0.3], [ 1.5, -0.3],
-    [-1.0,  0.7], [ 0.0,  0.7], [ 1.0,  0.7],
-    [-1.0,  1.7], [ 0.0,  1.7], [ 1.0,  1.7],
-  ];
-
-  state.pack.pieces = layout.map(([nx, ny], i) => {
-    const shapeId = shapeIds[i];
-    const shape   = SHAPES.find(s => s.id === shapeId);
-    return {
-      shape,
-      color:  shapeToColor(shapeId),
-      x:      nx * spread + (Math.random() - 0.5) * spread * 0.3,
-      y:      ny * spread + (Math.random() - 0.5) * spread * 0.3,
-      size:   pieceSize,
-      angle:  (Math.random() - 0.5) * 0.5,
-    };
-  });
-}
-
-function finishIntro() {
-  introSlide    = 0;
-  currentScreen = 'main';
-  spawnHarryPack();
-}
-
 function drawIntro(now) {
   introSkipBounds = null;
 
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
 
-  // Harry avatar
   ctx.font         = '72px system-ui';
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('🐱', W / 2, H * 0.30);
 
-  // Slide text – wrapped, centered block
   const text    = INTRO_SLIDES[lang][introSlide];
   const maxW    = W - 64;
   const lineH   = 28;
@@ -1912,7 +1601,6 @@ function drawIntro(now) {
     ctx.fillText(line, W / 2, blockY + i * lineH + lineH / 2);
   });
 
-  // Last slide: mini Harry Pack as visual gesture
   if (introSlide === INTRO_SLIDES.de.length - 1) {
     const scale  = 0.55;
     const mbw    = BAG_PX * 0.72 * scale;
@@ -1925,7 +1613,6 @@ function drawIntro(now) {
     ctx.restore();
   }
 
-  // Progress dots
   const n        = INTRO_SLIDES.de.length;
   const dotR     = 3;
   const dotGap   = 14;
@@ -1939,7 +1626,6 @@ function drawIntro(now) {
     ctx.fill();
   }
 
-  // Skip button (top right)
   const skipLabel = t('intro_skip');
   ctx.font        = '12px system-ui';
   const sw = ctx.measureText(skipLabel).width + 20;
@@ -1962,12 +1648,24 @@ function drawIntro(now) {
 
 // ── Game loop ─────────────────────────────────────────────────────────────
 function loop(now) {
+  // Advance engine virtual time by the real elapsed delta.
+  // Events from tick() trigger haptics, saves, and other side effects.
+  if (lastFrameTime > 0) {
+    const dt = now - lastFrameTime;
+    const { state: newS, events } = engineTick(S, config, dt, Math.random);
+    S = newS;
+    handleEvents(events);
+  }
+  lastFrameTime = now;
+
   update(now);
+
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
   if      (currentScreen === 'intro') drawIntro(now);
   else if (currentScreen === 'shop')  drawShop(now);
   else                                drawMain(now);
+
   requestAnimationFrame(loop);
 }
 
@@ -1975,40 +1673,39 @@ function loop(now) {
 const SAVE_KEY = 'bfm-save';
 
 function saveState() {
-  const saveData = {
-    bins:               state.bins,
-    buildQueue:         flowers.buildQueue,
-    stock:              flowers.stock,
-    coins:              flowers.coins,
-    flowerIdCounter,
-    packsOpened,
-    flowersSold,
-    upgradesPurchased:  upgrades.purchased,
-    sparscheinBalance:  sparschein.balance,
-    sparscheinPayments: sparschein.paymentCount,
+  const data = {
+    bins:               S.bins,
+    buildQueue:         S.buildQueue,
+    stock:              S.stock,
+    coins:              S.coins,
+    flowerIdCounter:    S.flowerIdCounter,
+    packsOpened:        S.packsOpened,
+    flowersSold:        S.flowersSold,
+    upgradesPurchased:  S.upgrades.purchased,
+    sparscheinBalance:  S.sparschein.balance,
+    sparscheinPayments: S.sparschein.paymentCount,
   };
-  localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
 }
 
-// Returns true if state was loaded, false if no save exists (first launch / post-reset).
+// Returns true if save data was found and applied, false on first launch / post-reset.
 function loadState() {
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) return false;
-
   try {
-    const saveData = JSON.parse(raw);
-    if (!saveData) return false;
+    const d = JSON.parse(raw);
+    if (!d) return false;
 
-    state.bins              = saveData.bins          || SHAPES.map(s => ({ shape: s, pieces: [] }));
-    flowers.buildQueue      = saveData.buildQueue    || [];
-    flowers.stock           = saveData.stock         || [];
-    flowers.coins           = saveData.coins         ?? STARTING_COINS;
-    flowerIdCounter         = saveData.flowerIdCounter || 0;
-    packsOpened             = saveData.packsOpened     || 0;
-    flowersSold             = saveData.flowersSold     || 0;
-    upgrades.purchased      = saveData.upgradesPurchased  || [];
-    sparschein.balance      = saveData.sparscheinBalance  || 0;
-    sparschein.paymentCount = saveData.sparscheinPayments || 0;
+    S.bins                   = d.bins         || config.SHAPES.map(s => ({ shape: s, pieces: [] }));
+    S.buildQueue             = d.buildQueue    || [];
+    S.stock                  = d.stock         || [];
+    S.coins                  = d.coins         ?? config.STARTING_COINS;
+    S.flowerIdCounter        = d.flowerIdCounter  || 0;
+    S.packsOpened            = d.packsOpened      || 0;
+    S.flowersSold            = d.flowersSold      || 0;
+    S.upgrades.purchased     = d.upgradesPurchased  || [];
+    S.sparschein.balance     = d.sparscheinBalance  || 0;
+    S.sparschein.paymentCount = d.sparscheinPayments || 0;
 
     return true;
   } catch (e) {
@@ -2017,22 +1714,25 @@ function loadState() {
   }
 }
 
-
 // ── Boot ──────────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
+// Start with a fresh engine state, then overlay saved data if it exists.
+S = createState(config);
+
 const hasState = loadState();
 if (hasState) {
-  // Returning player – resume where they left off
-  checkBuildTrigger();
-  startSellTimer();
-  spawnPack(false);
+  // Returning player – resume where they left off.
+  // tick() auto-starts build/sell timers on next frame if queue/stock is non-empty.
+  // Spawn a pack to fill the play area (no charge – continuation of saved session).
+  dispatch({ type: 'spawn_pack', charge: false });
 } else {
-  // First launch or post-reset – show intro, Harry Pack spawns at the end
+  // First launch or post-reset – show intro, Harry Pack spawns after the last slide.
   currentScreen = 'intro';
 }
+
 requestAnimationFrame(loop);
 </script>
 

@@ -440,6 +440,119 @@ Shown on first launch and after reset (no save state exists). Harry introduces t
 
 ---
 
+## Architecture
+
+### Three layers: Data · Calculations · Side effects
+
+The codebase is split into three distinct layers. Nothing crosses the boundary upward.
+
+| Layer | What it contains | Can it call lower layers? |
+|---|---|---|
+| **Side effects** | canvas, localStorage, haptics, rAF, DOM events | Yes – all layers |
+| **Calculations** | pure engine functions | Data only |
+| **Data** | plain state and config objects | – |
+
+### Files
+
+| File | Layer | Role |
+|---|---|---|
+| `engine.js` | Calculations + Data | Pure game logic. No I/O, no canvas, no clock. |
+| `index.html` | Side effects | Shell: renderer, input, persistence, real clock. |
+| `trainer.js` | Side effects (Node/browser) | Headless simulator for economy calibration. |
+
+### engine.js – pure API
+
+```js
+createConfig(overrides?)  →  Config          // default constants, optionally overridden
+createState(config)       →  GameState       // fresh initial state
+applyAction(state, config, action, rng)  →  { state, events }
+tick(state, config, dt, rng)             →  { state, events }   // dt in ms, virtual time
+```
+
+`rng` is a function `() → float [0,1)`. The shell passes `Math.random`. The trainer passes a seeded PRNG for reproducibility.
+
+**Actions:**
+```
+{ type: 'tap_pack' }
+{ type: 'open_pack' }
+{ type: 'sort_piece', pieceId, binIndex }
+{ type: 'buy_upgrade', id }
+{ type: 'finish_intro' }
+```
+
+**Events** (returned as data, never emitted imperatively):
+```
+'pack_opened'      'piece_sorted'     'piece_wrong_bin'
+'build_started'    'build_complete'   'flower_added_to_stock'
+'sell_started'     'sell_complete'    'upgrade_bought'
+'coins_changed'    'sparschwein_payout'
+```
+
+The shell subscribes to events for haptics, save, and animations. The trainer subscribes for measurement.
+
+### Virtual timers
+
+Timers are state, not callbacks. Instead of `setTimeout(fn, ms)`, the engine stores:
+
+```js
+buildTimer: { active: bool, endsAt: virtualMs, durationMs }
+sellTimer:  { active: bool, endsAt: virtualMs, durationMs }
+```
+
+`tick(state, config, dt, rng)` advances `state.virtualNow += dt` and fires any timer whose `endsAt <= virtualNow`.
+
+The shell maps `requestAnimationFrame` delta → `tick(..., realDelta, Math.random)`.
+The trainer calls `tick(..., bigDt, seededRng)` in a loop – many thousands of virtual milliseconds per real millisecond.
+
+### Seeded PRNG
+
+```js
+function mulberry32(seed) {
+  return () => { /* ... */ };
+}
+```
+
+Trainer uses `mulberry32(seed)`. Shell uses `Math.random`. Engine never calls either directly.
+
+### What stays in the shell (index.html)
+
+- Canvas rendering (already read-only – no change needed)
+- Visual animation state (piece fly/shake, packEnterStart, binFillAnim) – purely cosmetic
+- Button bounds (set by renderer, read by hit-test)
+- Drag state
+- `performance.now()`, `requestAnimationFrame`
+- `localStorage` / `saveState` / `loadState`
+- Haptic feedback triggered by events
+- `lang`, `currentScreen`
+
+### Trainer – economy calibration
+
+```js
+// trainer.js
+import { createConfig, createState, applyAction, tick } from './engine.js';
+
+function simulate(configOverrides, strategy, seed) {
+  const rng    = mulberry32(seed);
+  const config = createConfig(configOverrides);
+  let   state  = createState(config);
+  const log    = [];
+
+  for (let t = 0; t < MAX_SIM_MS; t += TICK_MS) {
+    const action = strategy.decide(state, config);
+    if (action) ({ state } = applyAction(state, config, action, rng));
+    const { state: s2, events } = tick(state, config, TICK_MS, rng);
+    state = s2;
+    log.push(...events);
+  }
+  return analyze(log);
+}
+```
+
+The trainer tries many config variants and reports `coins/min` at each upgrade tier.  
+Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
+
+---
+
 ## Current state
 
 | What | Status |
@@ -493,9 +606,10 @@ Shown on first launch and after reset (no save state exists). Harry introduces t
 
 ## Next steps
 
-1. **Feel tuning** – tap ranges, build time, sell time, upgrade prices *(ongoing)*
-2. **Milestone screens** – Land kaufen (Berge/Meer choice), Haus wählen, Bruno intro card
-3. **Dino-Sparschwein visual** – horizontally rotating dino animation in shop + coin badge
+1. **Economy calibration via trainer** – add human-pace mode to `trainer.html` (~6 s/pack), run upgrade cost scan, tune prices for 6→40→200 coins/min arc
+2. **Feel tuning** – tap ranges, build time, sell time *(ongoing)*
+3. **Milestone screens** – Land kaufen (Berge/Meer choice), Haus wählen, Bruno intro card
+4. **Dino-Sparschwein visual** – horizontally rotating dino animation in shop + coin badge
 
 ---
 
@@ -594,6 +708,11 @@ Shown on first launch and after reset (no save state exists). Harry introduces t
 | **Mini Harry Pack on last intro slide** | Shows the player what's coming before they tap. The pack already pulses on the slide – the transition into the game feels like a continuation, not a jump. |
 | **Purchased upgrades show full text** | The flavor text is part of the game's personality. Hiding it after purchase would lose the story. Dimmed but readable – you bought it, you can still enjoy what it says. |
 | **`'mine'` → `'main'`** | `'mine'` was a knack! leftover with no meaning in BfM. `'main'` is neutral and correct. UL stays clean. |
+| **Data / Calculations / Side effects as the three layers** | Functional core / imperative shell. Pure engine functions (no I/O, no clock, no canvas) are testable, replayable, and can be driven by a headless trainer. Side effects (canvas, haptics, localStorage, rAF) stay in the shell and react to events returned by the engine. |
+| **Virtual clock in engine** | Timers stored as `{ endsAt: virtualMs }` in state. `tick(state, config, dt)` advances `virtualNow` and fires due timers. Shell maps rAF delta → `tick`. Trainer calls `tick` with large `dt` – thousands of virtual ms per real ms. |
+| **RNG as parameter** | Engine never calls `Math.random()` directly. `rng` is passed in. Shell passes `Math.random`. Trainer passes `mulberry32(seed)` for reproducibility across runs. |
+| **Events as return values, not callbacks** | `applyAction` and `tick` return `{ state, events: [] }`. No event bus, no callbacks, no side effects inside the engine. Shell iterates events and triggers haptics / save / animations. Trainer iterates events and measures economy metrics. |
+| **Trainer for economy calibration** | Upgrade prices, effects, and the 6→40→200 coins/min arc are all economics questions. A headless simulator (trainer.js) runs thousands of virtual sessions, varying config, and reports which values hit the target arc. Replaces manual playtesting for numerical balance. |
 | **Harry introduces the game, not a UI tutorial** | No tooltips, no arrows, no highlights. Harry tells the story and hands over the first pack. The player learns by doing – one complete flower's worth of parts, all shapes present. |
 | **Harry Pack as tutorial vehicle** | Exactly 14 parts (1+8+3+2) = one complete flower. Player sees all four shapes in one session, Harry builds immediately after, Mutti starts selling. The full loop plays out before the second pack arrives. |
 | **Skip button for returning players** | After a reset, the player knows the game. Forcing the intro again would feel patronising. Skip respects their time. |
@@ -682,3 +801,5 @@ Shown on first launch and after reset (no save state exists). Harry introduces t
 - *Feb 24:* "Dev tool" framing is temporary by definition. Once a UI element earns its place in the game, remove the dev label – both in code comments and in DESIGN.md. The header counters graduated from calibration aid to game UI.
 - *Feb 24:* Stale screen names accumulate technical debt and confuse new readers. `'mine'` had no meaning in BfM – one sed pass cleaned all 7 occurrences including i18n keys and comments.
 - *Feb 24:* Boot bug: `spawnPack()` was deducting coins unconditionally, including on reload. Root cause: one function doing two things (spawn + charge). Fix: `charge = true` default parameter – boot calls `spawnPack(false)`, auto-order uses the default. When a function has side effects that shouldn't always apply, a parameter is cleaner than splitting into two functions.
+- *Feb 24:* Architecture refactor: Data / Calculations / Side effects as three layers. `engine.js` (pure functions, virtual clock, seeded RNG, events as return values) + shell in `index.html` (renderer, haptics, persistence, real clock) + `trainer.html` (headless simulator). Key insight: `events` returned as data, not emitted imperatively – the caller decides what to do with them. Visual timer animations (arc progress) use real-time start timestamps in the shell, decoupled from engine virtual clock.
+- *Feb 24:* Economy insight from trainer: "packs per flower" is determined by Harry's build rate vs. player sorting rate, not by probability distribution alone. At simulation pace (30 packs/min), Harry is bottleneck → ~10 packs/flower → break-even economy. At human pace (~10 packs/min), player is bottleneck → ~3.3 packs/flower → net positive economy. Economy calibration must model human sorting pace, not instant-optimal. Trainer needs a "human pace" mode (e.g., 6 seconds per pack) for meaningful upgrade price calibration.

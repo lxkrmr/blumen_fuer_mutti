@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BfM Economy Trainer</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #0d1117;
+      color: #c9d1d9;
+      padding: 20px;
+      line-height: 1.5;
+    }
+    h1, h2  { color: #f0f6fc; margin: 16px 0 8px; }
+    h1      { font-size: 18px; }
+    h2      { font-size: 14px; color: #8b949e; }
+    table   { border-collapse: collapse; margin: 8px 0 20px; font-size: 12px; }
+    th, td  { border: 1px solid #30363d; padding: 4px 10px; text-align: right; }
+    th      { color: #8b949e; text-align: left; background: #161b22; }
+    td:first-child { text-align: left; }
+    .good   { color: #58a6ff; }
+    .warn   { color: #e3b341; }
+    .note   { color: #8b949e; font-size: 11px; margin: 4px 0; }
+    #log    { white-space: pre; font-size: 11px; color: #6e7681; max-height: 300px; overflow: auto; }
+    button  {
+      background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+      padding: 6px 14px; cursor: pointer; font-family: monospace; margin: 4px 2px;
+      border-radius: 4px;
+    }
+    button:hover { background: #30363d; }
+  </style>
+</head>
+<body>
+<h1>🌸 BfM Economy Trainer</h1>
+<p class="note">Headless simulation – no canvas, no real clock. Results in milliseconds.</p>
+
+<div>
+  <button onclick="runBaseline()">Run Baseline</button>
+  <button onclick="runUpgradeScan()">Scan Upgrade Costs</button>
+  <button onclick="runFullGame()">Full Game Arc</button>
+</div>
+
+<div id="output"></div>
+<h2>Log</h2>
+<div id="log"></div>
+
+<script type="module">
+import {
+  createConfig, createState, applyAction, tick, mulberry32, getEffects,
+} from './engine.js';
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+// Simple strategy: sort all pieces immediately, buy upgrade when affordable.
+function optimalStrategy(S, config) {
+  // Sort the first pending piece into the correct bin
+  if (S.phase === 'pieces' && S.pendingPieces.length > 0) {
+    const piece = S.pendingPieces[0];
+    const binIndex = S.bins.findIndex(b => b.shape.id === piece.shape.id);
+    if (binIndex >= 0) return { type: 'sort_piece', pieceId: piece.id, binIndex };
+  }
+
+  // Tap pack once
+  if (S.phase === 'pack' && S.pack.tapsLeft > 0) {
+    return { type: 'tap_pack' };
+  }
+
+  // Buy next available upgrade if we can afford it
+  const nextIdx = S.upgrades.purchased.length;
+  if (nextIdx < config.UPGRADE_TREE.length) {
+    const upg = config.UPGRADE_TREE[nextIdx];
+    if (S.coins >= upg.cost) return { type: 'buy_upgrade', id: upg.id };
+  }
+
+  return null;
+}
+
+// Runs a full simulation and returns a detailed report.
+function simulate(configOverrides = {}, seed = 42, maxVirtualMs = 10 * 60 * 1000) {
+  const rng    = mulberry32(seed);
+  const config = createConfig(configOverrides);
+  let   S      = createState(config);
+
+  // Kick off the first pack
+  ({ state: S } = applyAction(S, config, { type: 'spawn_pack', charge: false }, rng));
+
+  const log = [];
+  const upgradeAt = {};   // id → virtualNow when purchased
+  const TICK_MS = 500;    // simulate in 500ms steps
+
+  let prevCoins    = S.coins;
+  let prevNow      = 0;
+  const coinsPerMinuteAt = {};  // snapshot coins/min when each upgrade is bought
+
+  for (let t = 0; t < maxVirtualMs; t += TICK_MS) {
+    // Player action each step
+    const action = optimalStrategy(S, config);
+    if (action) {
+      const { state: newS, events } = applyAction(S, config, action, rng);
+      S = newS;
+      for (const ev of events) {
+        if (ev.type === 'upgrade_bought') {
+          upgradeAt[ev.id] = S.virtualNow;
+          const elapsed = S.virtualNow / 60000;
+          const earned  = S.coins - config.STARTING_COINS +
+            config.UPGRADE_TREE.slice(0, S.upgrades.purchased.length)
+              .reduce((s, u) => s + u.cost, 0);
+          coinsPerMinuteAt[ev.id] = elapsed > 0 ? earned / elapsed : 0;
+        }
+      }
+    }
+
+    const { state: newS, events } = tick(S, config, TICK_MS, rng);
+    S = newS;
+
+    for (const ev of events) {
+      if (ev.type === 'sell_complete') {
+        log.push({ t: S.virtualNow, type: 'sell', coins: S.coins });
+      }
+    }
+  }
+
+  // Coins-per-minute averaged over last 2 minutes
+  const recentSells = log.filter(e => e.t > maxVirtualMs - 2 * 60 * 1000);
+  const coinsInLast2min = recentSells.reduce((s, e) => s + getEffects(config, S.upgrades.purchased).coinValue, 0);
+  const coinsPerMin     = coinsInLast2min / 2;
+
+  return {
+    config,
+    S,
+    upgradeAt,
+    coinsPerMinuteAt,
+    finalCoins:      S.coins,
+    flowersSold:     S.flowersSold,
+    packsOpened:     S.packsOpened,
+    coinsPerMin,
+    upgradePurchased: S.upgrades.purchased,
+    virtualMs:       S.virtualNow,
+  };
+}
+
+// ── Output helpers ────────────────────────────────────────────────────────
+function fmt(ms)  { return `${(ms / 60000).toFixed(1)} min`; }
+function fmtN(n)  { return n.toLocaleString('en-US'); }
+
+function renderTable(rows, cols) {
+  const html = [
+    '<table>',
+    '<tr>' + cols.map(c => `<th>${c.label}</th>`).join('') + '</tr>',
+    ...rows.map(row =>
+      '<tr>' + cols.map(c => `<td>${row[c.key] ?? ''}</td>`).join('') + '</tr>'
+    ),
+    '</table>',
+  ];
+  return html.join('\n');
+}
+
+// ── Run functions ─────────────────────────────────────────────────────────
+window.runBaseline = function() {
+  log('Running baseline (10 min simulation) …');
+  const r = simulate({}, 42, 10 * 60 * 1000);
+
+  const rows = r.config.UPGRADE_TREE.map(upg => ({
+    upgrade: upg.id,
+    actor:   upg.actor,
+    cost:    `💰 ${fmtN(upg.cost)}`,
+    boughtAt: r.upgradeAt[upg.id] != null ? fmt(r.upgradeAt[upg.id]) : '—',
+    coinsMin: r.coinsPerMinuteAt[upg.id] != null
+      ? `${r.coinsPerMinuteAt[upg.id].toFixed(1)}/min`
+      : '—',
+  }));
+
+  const fx = getEffects(r.config, r.upgradePurchased);
+
+  output(`
+    <h1>Baseline – 10 min optimal play</h1>
+    <p class="note">Seed: 42 · Tick: 500ms · Strategy: sort immediately, buy when affordable</p>
+    ${renderTable(rows, [
+      { key: 'upgrade', label: 'Upgrade' },
+      { key: 'actor',   label: 'Actor' },
+      { key: 'cost',    label: 'Cost' },
+      { key: 'boughtAt', label: 'Bought at' },
+      { key: 'coinsMin', label: 'Coins/min after' },
+    ])}
+    <table>
+      <tr><th>Metric</th><th>Value</th></tr>
+      <tr><td>Final coins</td><td class="good">${fmtN(r.finalCoins)}</td></tr>
+      <tr><td>Flowers sold</td><td>${fmtN(r.flowersSold)}</td></tr>
+      <tr><td>Packs opened</td><td>${fmtN(r.packsOpened)}</td></tr>
+      <tr><td>Coins/min (last 2 min)</td><td class="${r.coinsPerMin > 50 ? 'good' : 'warn'}">${r.coinsPerMin.toFixed(1)}</td></tr>
+      <tr><td>Final buildBaseMs</td><td>${fx.buildBaseMs}ms</td></tr>
+      <tr><td>Final sellBaseMs</td><td>${fx.sellBaseMs}ms</td></tr>
+      <tr><td>Final coinValue</td><td>${fx.coinValue}</td></tr>
+    </table>
+    <p class="note">Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min</p>
+  `);
+  log('Done.');
+};
+
+window.runUpgradeScan = function() {
+  log('Scanning upgrade cost multipliers (0.5× – 2.0×) …');
+
+  // Try several global cost multipliers and see how long each upgrade takes to reach
+  const multipliers = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+  const results     = [];
+
+  for (const m of multipliers) {
+    const config = createConfig();
+    const tree   = config.UPGRADE_TREE.map(u => ({ ...u, cost: Math.round(u.cost * m) }));
+    const r = simulate({ UPGRADE_TREE: tree }, 42, 15 * 60 * 1000);
+
+    const boughtAll = r.upgradePurchased.length === config.UPGRADE_TREE.length;
+    const lastUpg   = r.upgradePurchased[r.upgradePurchased.length - 1];
+    results.push({
+      multiplier: `${m}×`,
+      boughtAll:  boughtAll ? '✓' : `${r.upgradePurchased.length}/9`,
+      lastBought: lastUpg ? fmt(r.upgradeAt[lastUpg]) : '—',
+      finalCoins: fmtN(r.finalCoins),
+      coinsMin:   r.coinsPerMin.toFixed(1),
+    });
+  }
+
+  output(`
+    <h1>Upgrade Cost Scan – 15 min optimal play</h1>
+    <p class="note">Multiplies all upgrade costs by the factor shown.</p>
+    ${renderTable(results, [
+      { key: 'multiplier', label: 'Cost ×' },
+      { key: 'boughtAll',  label: 'All 9 bought?' },
+      { key: 'lastBought', label: 'Last upgrade at' },
+      { key: 'finalCoins', label: 'Final coins' },
+      { key: 'coinsMin',   label: 'Coins/min (last 2 min)' },
+    ])}
+    <p class="note">Look for: all 9 bought comfortably within 10–12 min, last 2 min near 200/min.</p>
+  `);
+  log('Done.');
+};
+
+window.runFullGame = function() {
+  log('Running full game arc (30 min) …');
+
+  // Sample coins/min at 5-minute intervals
+  const config   = createConfig();
+  const rng      = mulberry32(42);
+  let   S        = createState(config);
+
+  ({ state: S } = applyAction(S, config, { type: 'spawn_pack', charge: false }, rng));
+
+  const snapshots = [];
+  const TICK_MS   = 250;
+  let   lastSnap  = 0;
+
+  // Track coin flow: coins earned per minute window
+  let windowCoins = 0;
+  let windowStart = 0;
+
+  for (let t = 0; t < 30 * 60 * 1000; t += TICK_MS) {
+    const action = optimalStrategy(S, config);
+    if (action) {
+      const { state: newS } = applyAction(S, config, action, rng);
+      S = newS;
+    }
+
+    const { state: newS, events } = tick(S, config, TICK_MS, rng);
+    S = newS;
+
+    for (const ev of events) {
+      if (ev.type === 'sell_complete') {
+        windowCoins += ev.coinValue;
+      }
+    }
+
+    // Snapshot every minute
+    if (S.virtualNow - lastSnap >= 60000) {
+      const elapsed = S.virtualNow / 60000;
+      snapshots.push({
+        time:      `${elapsed.toFixed(0)} min`,
+        upgrades:  S.upgrades.purchased.length,
+        coins:     fmtN(S.coins),
+        cpm:       (windowCoins).toFixed(1),
+        flowers:   S.flowersSold,
+      });
+      windowCoins = 0;
+      lastSnap    = S.virtualNow;
+    }
+  }
+
+  output(`
+    <h1>Full Game Arc – 30 min optimal play</h1>
+    <p class="note">Coins/min = earned in that 1-minute window (not cumulative).</p>
+    ${renderTable(snapshots, [
+      { key: 'time',     label: 'Time' },
+      { key: 'upgrades', label: 'Upgrades' },
+      { key: 'coins',    label: 'Coins total' },
+      { key: 'cpm',      label: 'Coins/min' },
+      { key: 'flowers',  label: 'Flowers sold' },
+    ])}
+    <p class="note">Target: ~6/min (0–5 min) · ~40/min (10–15 min) · ~200/min (25–30 min)</p>
+  `);
+  log('Done.');
+};
+
+// ── DOM helpers ───────────────────────────────────────────────────────────
+function output(html) {
+  document.getElementById('output').innerHTML = html;
+}
+
+function log(msg) {
+  const el = document.getElementById('log');
+  el.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+  el.scrollTop = el.scrollHeight;
+}
+
+// Auto-run baseline on load
+window.addEventListener('load', () => runBaseline());
+</script>
+</body>
+</html>

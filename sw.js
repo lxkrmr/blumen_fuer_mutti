@@ -1,6 +1,6 @@
 // Service Worker – network-first, offline fallback
-const CACHE = 'knack-v1';
-const ASSETS = ['/', '/index.html', '/icon.svg', '/manifest.json'];
+const CACHE = 'bfm-v2';
+const ASSETS = ['/', '/index.html', '/engine.js', '/icon.svg', '/manifest.json'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
