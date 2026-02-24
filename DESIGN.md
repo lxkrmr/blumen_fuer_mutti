@@ -401,12 +401,40 @@ Three alpacas, three story milestones. Each unlocks individually with a Bruno-fo
 
 ---
 
+### Intro sequence
+
+Shown on first launch and after reset (no save state exists). Harry introduces the business idea and the roles.
+
+**Trigger:** `currentScreen = 'intro'` when `localStorage` has no save data.
+
+**Navigation:** Tap anywhere to advance. Skip button top right jumps straight to the game.
+
+**Format:** One line per slide (Bruno format). Harry avatar + text, centered. Progress dots at bottom.
+
+**Slides (DE · EN):**
+
+| # | DE | EN |
+|---|---|---|
+| 1 | Ihr seid also zusammen. Harry beobachtet das. | So you're together. Harry is watching. |
+| 2 | Andauernd: „Wenn wir auf der Alpaka-Farm leben …" Wo Alpaka-Farm? Wo? | Always: "When we live on the alpaca farm …" Where alpaca farm? Where? |
+| 3 | Jemand muss handeln. Ich bin dieser Jemand. | Someone must act. I am that someone. |
+| 4 | Die Blumen. Ihr habt euch gefreut. Das ist die Idee. | The flowers. You were both so happy. That's the idea. |
+| 5 | Du sortierst. Ich baue. Mutti verkauft. Familiengeschäft. | You sort. I build. Mutti sells. Family business. |
+| 6 | Hier ist dein erstes Pack. Von mir. Alle Teile für eine Blume. | Here is your first pack. From me. Every part for one flower. |
+
+**After last tap:** Harry Pack spawns. Game begins.
+
+**Harry Pack:** Special first pack. Contains exactly the parts for one complete flower: 1 Circle, 8 Hearts, 3 Stems, 2 Leaves. No coin deduction. Implemented as `spawnHarryPack()`.
+
+---
+
 ### Screen
 
-**Two screens: game screen + shop screen.**
+**Three screens: intro · game · shop.**
 
 | Screen | Content |
 |---|---|
+| **Intro screen** | Harry's onboarding slides · tap to advance · skip button top right |
 | **Game screen** | Indicator (top) · shop icon (top right, same height as indicator center) · current pack / pieces (middle) · 4 bins (bottom) |
 | **Shop screen** | Linear upgrade tree · 9 upgrades · locked items show ??? · "Spiel den selben Song nochmal" reset at bottom |
 
@@ -444,6 +472,7 @@ Three alpacas, three story milestones. Each unlocks individually with a Bruno-fo
 | Shop screen (icon → own screen, linear skill tree, locked items show ???) | ✅ |
 | Shop icon top right (next to indicator, same vertical center) | ✅ |
 | Reset as "Spiel den selben Song nochmal" (👽🎷) at shop bottom – red confirmation line, whole item tappable | ✅ |
+| Intro sequence (Harry · 6 slides · skip button · Harry Pack) | ❌ |
 | Upgrade 1 – Player: Schere | ❌ future |
 | Upgrade 2 – Harry: Gummi-Daumen | ❌ future |
 | Upgrade 3 – Mutti: Großhändler | ❌ future |
@@ -558,6 +587,9 @@ Three alpacas, three story milestones. Each unlocks individually with a Bruno-fo
 | **Mini pack icon as canvas drawing, not emoji** | 🛍 is used for the shop button – using it also in the header created symbol collision. A tiny canvas-drawn pack (same gradient + heat seal as the full pack) is consistent and unambiguous. |
 | **Header shows packs opened + flowers sold** | Two counters that matter for economy calibration. `packsOpened` tracks input rate, `flowersSold` tracks output rate. Together they make the pack-to-flower conversion ratio visible at a glance during testing. |
 | **`spawnPack(charge)` separates spawn from payment** | Boot needs a pack but shouldn't charge – it's a continuation of the last session. Auto-order charges because it's a new purchase. A `charge = true` default parameter keeps the distinction explicit without duplicating the function. |
+| **Harry introduces the game, not a UI tutorial** | No tooltips, no arrows, no highlights. Harry tells the story and hands over the first pack. The player learns by doing – one complete flower's worth of parts, all shapes present. |
+| **Harry Pack as tutorial vehicle** | Exactly 14 parts (1+8+3+2) = one complete flower. Player sees all four shapes in one session, Harry builds immediately after, Mutti starts selling. The full loop plays out before the second pack arrives. |
+| **Skip button for returning players** | After a reset, the player knows the game. Forcing the intro again would feel patronising. Skip respects their time. |
 
 ---
 

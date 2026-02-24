@@ -90,6 +90,7 @@ const STRINGS = {
     shop_reset_name:    'Spiel den selben Song nochmal',
     shop_reset_desc:    'Die Cantina Band spielt immer weiter. Du auch.',
     shop_reset_confirm: 'Du willst wirklich das Spiel neu starten?',
+    intro_skip:         'Überspringen',
     actor_player:       'Du',
     actor_harry:        'Harry',
     actor_mutti:        'Mutti',
@@ -109,10 +110,31 @@ const STRINGS = {
     shop_reset_name:    'Play the Same Song',
     shop_reset_desc:    'The Cantina Band never stops. Neither do you.',
     shop_reset_confirm: 'You really want to restart the game?',
+    intro_skip:         'Skip',
     actor_player:       'You',
     actor_harry:        'Harry',
     actor_mutti:        'Mutti',
   },
+};
+
+// Intro slide texts – one line per slide, Harry voice, Bruno format.
+const INTRO_SLIDES = {
+  de: [
+    'Ihr seid also zusammen. Harry beobachtet das.',
+    'Andauernd: „Wenn wir auf der Alpaka-Farm leben …" Wo Alpaka-Farm? Wo?',
+    'Jemand muss handeln. Ich bin dieser Jemand.',
+    'Die Blumen. Ihr habt euch gefreut. Das ist die Idee.',
+    'Du sortierst. Ich baue. Mutti verkauft. Familiengeschäft.',
+    'Hier ist dein erstes Pack. Von mir. Alle Teile für eine Blume.',
+  ],
+  en: [
+    'So you\'re together. Harry is watching.',
+    'Always: "When we live on the alpaca farm …" Where alpaca farm? Where?',
+    'Someone must act. I am that someone.',
+    'The flowers. You were both so happy. That\'s the idea.',
+    'You sort. I build. Mutti sells. Family business.',
+    'Here is your first pack. From me. Every part for one flower.',
+  ],
 };
 
 let lang = localStorage.getItem('bfm-lang') ||
@@ -355,6 +377,25 @@ function formatCoins(n) {
 function fillRRect(x, y, w, h, r)   { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();   }
 function strokeRRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.stroke(); }
 
+// Splits text into lines that fit within maxWidth at the current ctx.font.
+// Returns array of strings.
+function wrapText(text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let   line  = '';
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
 // ── Haptics ───────────────────────────────────────────────────────────────
 function haptic(pattern) {
   if (navigator.vibrate) navigator.vibrate(pattern);
@@ -364,6 +405,9 @@ function haptic(pattern) {
 let currentScreen = 'mine';   // 'mine' | 'shop'
 
 // Button bounds – set each frame during draw, used by hitTest
+let introSlide      = 0;
+let introSkipBounds = null;
+
 let langBtnBounds   = null;
 let shopBtnBounds   = null;     // shop icon in mine screen
 let shopBackBounds  = null;     // back button in shop screen
@@ -495,8 +539,8 @@ function openPack() {
       id:         pieceIdCounter++,
       color:      { hex: piece.color },
       shape:      piece.shape,
-      targetX:    PLAY_CX + jitter(zones[i].dx),
-      targetY:    PLAY_CY + jitter(zones[i].dy),
+      targetX:    PLAY_CX + jitter(zones[i % zones.length].dx),
+      targetY:    PLAY_CY + jitter(zones[i % zones.length].dy),
       flyStart:   now,
       phase:      'flying',
       sortStart:  0,
@@ -737,6 +781,14 @@ function inRect(x, y, rx, ry, rw, rh) {
 }
 
 function hitTest(x, y, now) {
+  // Intro screen – skip button or tap anywhere to advance
+  if (currentScreen === 'intro') {
+    if (introSkipBounds && inRect(x, y, introSkipBounds.x, introSkipBounds.y, introSkipBounds.w, introSkipBounds.h)) {
+      return { type: 'intro_skip' };
+    }
+    return { type: 'intro_next' };
+  }
+
   // Lang button
   if (langBtnBounds && inRect(x, y, langBtnBounds.x, langBtnBounds.y, langBtnBounds.w, langBtnBounds.h)) {
     return { type: 'lang' };
@@ -894,6 +946,11 @@ function handleTap({ x, y }) {
   const hit = hitTest(x, y, now);
   if (!hit) return;
   switch (hit.type) {
+    case 'intro_next':
+      if (introSlide < INTRO_SLIDES.de.length - 1) { introSlide++; }
+      else                                          { finishIntro(); }
+      break;
+    case 'intro_skip':  finishIntro();                            break;
     case 'lang':        toggleLang();                             break;
     case 'pack':        tapPack();                                break;
     case 'shop_open':   currentScreen = 'shop';                  break;
@@ -1259,7 +1316,7 @@ function drawPack(now) {
   ctx.translate(PLAY_CX, PLAY_CY);
   ctx.rotate(pack.angle);
   ctx.scale(enterSc * wobbleSc, enterSc * wobbleSc);
-  drawFoilBag(ctx, bw, bh, progress, now);
+  drawFoilBag(ctx, bw, bh, progress, now, state.pack.harry || false);
   ctx.restore();
 }
 
@@ -1311,7 +1368,7 @@ function drawMiniPack(x, y, h) {
 
 // Draws an opaque foil bag centered at (0, 0) in the current transform space.
 // Deforms and glows as progress (0→1) increases.
-function drawFoilBag(ctx, bw, bh, progress, now) {
+function drawFoilBag(ctx, bw, bh, progress, now, harry = false) {
   const bx = -bw / 2, by = -bh / 2;
   const r  = 8;
   const deform = progress * bw * 0.12;
@@ -1338,25 +1395,38 @@ function drawFoilBag(ctx, bw, bh, progress, now) {
     ctx.closePath();
   };
 
-  // Glow aura – pulses faster as damage increases
-  if (progress > 0) {
-    const pulse = 0.6 + 0.4 * Math.sin(now / (220 - progress * 120));
+  // Glow aura – pulses faster as damage increases; Harry pack has a resting pink glow
+  if (progress > 0 || harry) {
+    const pulse = 0.6 + 0.4 * Math.sin(now / (harry && progress === 0 ? 1400 : (220 - progress * 120)));
     ctx.save();
-    ctx.shadowColor = `rgba(140,185,255,${0.7 * pulse})`;
-    ctx.shadowBlur  = progress * 32 * pulse;
-    ctx.strokeStyle = `rgba(140,185,255,${progress * 0.45 * pulse})`;
-    ctx.lineWidth   = 2.5;
+    if (harry) {
+      ctx.shadowColor = `rgba(244,143,177,${(progress > 0 ? 0.7 : 0.45) * pulse})`;
+      ctx.shadowBlur  = (progress > 0 ? progress * 32 : 14) * pulse;
+      ctx.strokeStyle = `rgba(244,143,177,${(progress > 0 ? progress * 0.45 : 0.25) * pulse})`;
+    } else {
+      ctx.shadowColor = `rgba(140,185,255,${0.7 * pulse})`;
+      ctx.shadowBlur  = progress * 32 * pulse;
+      ctx.strokeStyle = `rgba(140,185,255,${progress * 0.45 * pulse})`;
+    }
+    ctx.lineWidth = 2.5;
     bagPath();
     ctx.stroke();
     ctx.restore();
   }
 
-  // Main fill – dark metallic gradient
+  // Main fill – dark metallic gradient (warm rose tones for Harry pack)
   const grad = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
-  grad.addColorStop(0.00, '#1e2e44');
-  grad.addColorStop(0.25, '#253550');
-  grad.addColorStop(0.55, '#1b2a3e');
-  grad.addColorStop(1.00, '#131e30');
+  if (harry) {
+    grad.addColorStop(0.00, '#2e1a20');
+    grad.addColorStop(0.25, '#38202a');
+    grad.addColorStop(0.55, '#2a1820');
+    grad.addColorStop(1.00, '#1a0e14');
+  } else {
+    grad.addColorStop(0.00, '#1e2e44');
+    grad.addColorStop(0.25, '#253550');
+    grad.addColorStop(0.55, '#1b2a3e');
+    grad.addColorStop(1.00, '#131e30');
+  }
   bagPath();
   ctx.fillStyle = grad;
   ctx.fill();
@@ -1366,14 +1436,14 @@ function drawFoilBag(ctx, bw, bh, progress, now) {
   bagPath();
   ctx.clip();
   const hGrad = ctx.createLinearGradient(bx, by, bx + bw * 0.32, by);
-  hGrad.addColorStop(0, 'rgba(255,255,255,0.07)');
+  hGrad.addColorStop(0, harry ? 'rgba(244,143,177,0.10)' : 'rgba(255,255,255,0.07)');
   hGrad.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = hGrad;
   ctx.fillRect(bx, by, bw * 0.32, bh);
   ctx.restore();
 
   // Heat seal at top
-  ctx.fillStyle = 'rgba(200,215,255,0.08)';
+  ctx.fillStyle = harry ? 'rgba(244,143,177,0.10)' : 'rgba(200,215,255,0.08)';
   ctx.beginPath();
   ctx.roundRect(bx + 2, by, bw - 4, 15, [r, r, 0, 0]);
   ctx.fill();
@@ -1418,11 +1488,28 @@ function drawFoilBag(ctx, bw, bh, progress, now) {
 
   // Bag outline
   bagPath();
-  ctx.strokeStyle = progress > 0
-    ? `rgba(140,185,255,${0.22 + progress * 0.38})`
-    : 'rgba(255,255,255,0.10)';
+  if (harry) {
+    ctx.strokeStyle = progress > 0
+      ? `rgba(244,143,177,${0.30 + progress * 0.38})`
+      : 'rgba(244,143,177,0.30)';
+  } else {
+    ctx.strokeStyle = progress > 0
+      ? `rgba(140,185,255,${0.22 + progress * 0.38})`
+      : 'rgba(255,255,255,0.10)';
+  }
   ctx.lineWidth = 1.5;
   ctx.stroke();
+
+  // Harry's personal touch – cat emoji centered on the pack face
+  if (harry) {
+    const fontSize = Math.round(bh * 0.38);
+    ctx.font         = `${fontSize}px system-ui`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha  = 0.85;
+    ctx.fillText('🐱', 0, bh * 0.06);
+    ctx.globalAlpha  = 1;
+  }
 }
 
 function drawPieces(now, dragOnly = false) {
@@ -1750,13 +1837,140 @@ function drawUpgradeItem(upg, iy, px, iw, isPurchased, isNext, isLocked) {
   return iy + ih;
 }
 
+// ── Intro sequence ────────────────────────────────────────────────────────
+
+// Spawns a pack with exactly the parts for one complete flower (1+8+3+2).
+// Used as the first pack so the player sees all shapes in one session.
+function spawnHarryPack() {
+  spawnPack(false);         // sets up state.pack, no charge
+  state.pack.harry = true;  // marks it for special visual treatment
+
+  const spread    = BAG_PX * 0.17;
+  const pieceSize = BAG_PX * 0.58;
+
+  // Exact recipe, shuffled so shapes mix visually
+  const shapeIds = [
+    ...Array(1).fill('circle'),
+    ...Array(8).fill('heart'),
+    ...Array(3).fill('stem'),
+    ...Array(2).fill('leaf'),
+  ];
+  for (let i = shapeIds.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shapeIds[i], shapeIds[j]] = [shapeIds[j], shapeIds[i]];
+  }
+
+  // 4-4-3-3 grid layout for 14 pieces
+  const layout = [
+    [-1.5, -1.3], [-0.5, -1.3], [ 0.5, -1.3], [ 1.5, -1.3],
+    [-1.5, -0.3], [-0.5, -0.3], [ 0.5, -0.3], [ 1.5, -0.3],
+    [-1.0,  0.7], [ 0.0,  0.7], [ 1.0,  0.7],
+    [-1.0,  1.7], [ 0.0,  1.7], [ 1.0,  1.7],
+  ];
+
+  state.pack.pieces = layout.map(([nx, ny], i) => {
+    const shapeId = shapeIds[i];
+    const shape   = SHAPES.find(s => s.id === shapeId);
+    return {
+      shape,
+      color:  shapeToColor(shapeId),
+      x:      nx * spread + (Math.random() - 0.5) * spread * 0.3,
+      y:      ny * spread + (Math.random() - 0.5) * spread * 0.3,
+      size:   pieceSize,
+      angle:  (Math.random() - 0.5) * 0.5,
+    };
+  });
+}
+
+function finishIntro() {
+  introSlide    = 0;
+  currentScreen = 'mine';
+  spawnHarryPack();
+}
+
+function drawIntro(now) {
+  introSkipBounds = null;
+
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, W, H);
+
+  // Harry avatar
+  ctx.font         = '72px system-ui';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🐱', W / 2, H * 0.30);
+
+  // Slide text – wrapped, centered block
+  const text    = INTRO_SLIDES[lang][introSlide];
+  const maxW    = W - 64;
+  const lineH   = 28;
+  ctx.font      = '17px system-ui';
+  ctx.fillStyle = TEXT_HI;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const lines   = wrapText(text, maxW);
+  const blockH  = lines.length * lineH;
+  const blockY  = H * 0.52 - blockH / 2;
+  lines.forEach((line, i) => {
+    ctx.fillText(line, W / 2, blockY + i * lineH + lineH / 2);
+  });
+
+  // Last slide: mini Harry Pack as visual gesture
+  if (introSlide === INTRO_SLIDES.de.length - 1) {
+    const scale  = 0.55;
+    const mbw    = BAG_PX * 0.72 * scale;
+    const mbh    = BAG_PX * 1.05 * scale;
+    const packCY = H * 0.70;
+
+    ctx.save();
+    ctx.translate(W / 2, packCY);
+    drawFoilBag(ctx, mbw, mbh, 0, now, true);
+    ctx.restore();
+  }
+
+  // Progress dots
+  const n        = INTRO_SLIDES.de.length;
+  const dotR     = 3;
+  const dotGap   = 14;
+  const dotY     = H - 55;
+  const dotStart = W / 2 - (n - 1) * dotGap / 2;
+  for (let i = 0; i < n; i++) {
+    ctx.beginPath();
+    ctx.arc(dotStart + i * dotGap, dotY, dotR, 0, Math.PI * 2);
+    ctx.fillStyle   = i === introSlide ? TEXT_HI : 'rgba(255,255,255,0.2)';
+    ctx.globalAlpha = 1;
+    ctx.fill();
+  }
+
+  // Skip button (top right)
+  const skipLabel = t('intro_skip');
+  ctx.font        = '12px system-ui';
+  const sw = ctx.measureText(skipLabel).width + 20;
+  const sh = 26, sx = W - sw - 14, sy = 14;
+  ctx.strokeStyle = BORDER;
+  ctx.lineWidth   = 1;
+  ctx.globalAlpha = 0.5;
+  strokeRRect(sx, sy, sw, sh, 5);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle    = TEXT_DIM;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(skipLabel, sx + sw / 2, sy + sh / 2);
+
+  introSkipBounds = { x: sx, y: sy, w: sw, h: sh };
+
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'alphabetic';
+}
+
 // ── Game loop ─────────────────────────────────────────────────────────────
 function loop(now) {
   update(now);
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
-  if (currentScreen === 'shop') drawShop(now);
-  else                          drawMine(now);
+  if      (currentScreen === 'intro') drawIntro(now);
+  else if (currentScreen === 'shop')  drawShop(now);
+  else                                drawMine(now);
   requestAnimationFrame(loop);
 }
 
@@ -1779,13 +1993,14 @@ function saveState() {
   localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
 }
 
+// Returns true if state was loaded, false if no save exists (first launch / post-reset).
 function loadState() {
   const raw = localStorage.getItem(SAVE_KEY);
-  if (!raw) return;
+  if (!raw) return false;
 
   try {
     const saveData = JSON.parse(raw);
-    if (!saveData) return;
+    if (!saveData) return false;
 
     state.bins              = saveData.bins          || SHAPES.map(s => ({ shape: s, pieces: [] }));
     flowers.buildQueue      = saveData.buildQueue    || [];
@@ -1798,8 +2013,10 @@ function loadState() {
     sparschein.balance      = saveData.sparscheinBalance  || 0;
     sparschein.paymentCount = saveData.sparscheinPayments || 0;
 
+    return true;
   } catch (e) {
     console.error('Failed to load state', e);
+    return false;
   }
 }
 
@@ -1809,10 +2026,16 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
-loadState();
-checkBuildTrigger(); // restart build timer if flowers were building
-startSellTimer();    // restart sell timer if stock was waiting
-spawnPack(false);    // boot: pack is continuation of last session, no charge
+const hasState = loadState();
+if (hasState) {
+  // Returning player – resume where they left off
+  checkBuildTrigger();
+  startSellTimer();
+  spawnPack(false);
+} else {
+  // First launch or post-reset – show intro, Harry Pack spawns at the end
+  currentScreen = 'intro';
+}
 requestAnimationFrame(loop);
 </script>
 
