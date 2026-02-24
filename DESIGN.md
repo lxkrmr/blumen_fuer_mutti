@@ -467,12 +467,15 @@ Shown on first launch and after reset (no save state exists). Harry introduces t
 | Coin badge (💰 N) at outer ring bottom | ✅ |
 | "Harry baut X Blumen" + "Mutti verkauft …" labels | ✅ |
 | Bag visual (opaque surprise bag, Option C) | ✅ |
-| Pack counter (mini pack icon + N) + flower sold counter (🌸 N) in header center – dev aids for economy calibration | ✅ |
+| Pack counter (mini pack icon + N) + flower sold counter (🌸 N) in header center | ✅ |
 | Pack economy (Harry auto-orders, starting capital, coin cost) | ✅ |
 | Shop screen (icon → own screen, linear skill tree, locked items show ???) | ✅ |
 | Shop icon top right (next to indicator, same vertical center) | ✅ |
 | Reset as "Spiel den selben Song nochmal" (👽🎷) at shop bottom – red confirmation line, whole item tappable | ✅ |
-| Intro sequence (Harry · 6 slides · skip button · Harry Pack) | ❌ |
+| Intro sequence (Harry · 6 slides · skip button · Harry Pack) | ✅ |
+| Harry Pack – warm rose visual, 🐱 on pack, mini preview on last intro slide | ✅ |
+| Purchased upgrades show name + description (not just "Gekauft ✓") | ✅ |
+| `'mine'` → `'main'` screen name (UL cleanup) | ✅ |
 | Upgrade 1 – Player: Schere | ❌ future |
 | Upgrade 2 – Harry: Gummi-Daumen | ❌ future |
 | Upgrade 3 – Mutti: Großhändler | ❌ future |
@@ -585,8 +588,12 @@ Shown on first launch and after reset (no save state exists). Harry introduces t
 | **Red confirmation line instead of button** | A separate "Neu starten" button overlapped the description and added visual noise. A red question ("Du willst wirklich das Spiel neu starten?") as part of the item is cleaner – the whole item is the tap target. Red is appropriate here: destructive action, not game feedback or sorting. |
 | **Shop icon next to indicator, not next to bins** | The bins area is already dense. The indicator area has unused space to the right. Shop icon at same vertical center as the indicator feels visually anchored and leaves the bins uncluttered. |
 | **Mini pack icon as canvas drawing, not emoji** | 🛍 is used for the shop button – using it also in the header created symbol collision. A tiny canvas-drawn pack (same gradient + heat seal as the full pack) is consistent and unambiguous. |
-| **Header shows packs opened + flowers sold** | Two counters that matter for economy calibration. `packsOpened` tracks input rate, `flowersSold` tracks output rate. Together they make the pack-to-flower conversion ratio visible at a glance during testing. |
+| **Header shows packs opened + flowers sold** | Regular game UI, not a dev tool. `packsOpened` shows how much you've done; `flowersSold` shows what Mutti has achieved. Together they tell the session story at a glance. |
 | **`spawnPack(charge)` separates spawn from payment** | Boot needs a pack but shouldn't charge – it's a continuation of the last session. Auto-order charges because it's a new purchase. A `charge = true` default parameter keeps the distinction explicit without duplicating the function. |
+| **Harry Pack as special first pack** | Warm rose gradient, pink glow, 🐱 on the face. Distinct from all other packs. The visual difference signals "this is a gift" before the player even opens it. |
+| **Mini Harry Pack on last intro slide** | Shows the player what's coming before they tap. The pack already pulses on the slide – the transition into the game feels like a continuation, not a jump. |
+| **Purchased upgrades show full text** | The flavor text is part of the game's personality. Hiding it after purchase would lose the story. Dimmed but readable – you bought it, you can still enjoy what it says. |
+| **`'mine'` → `'main'`** | `'mine'` was a knack! leftover with no meaning in BfM. `'main'` is neutral and correct. UL stays clean. |
 | **Harry introduces the game, not a UI tutorial** | No tooltips, no arrows, no highlights. Harry tells the story and hands over the first pack. The player learns by doing – one complete flower's worth of parts, all shapes present. |
 | **Harry Pack as tutorial vehicle** | Exactly 14 parts (1+8+3+2) = one complete flower. Player sees all four shapes in one session, Harry builds immediately after, Mutti starts selling. The full loop plays out before the second pack arrives. |
 | **Skip button for returning players** | After a reset, the player knows the game. Forcing the intro again would feel patronising. Skip respects their time. |
@@ -671,4 +678,7 @@ Shown on first launch and after reset (no save state exists). Harry introduces t
 - *Feb 24:* Symbol collision: 🛍 can't do double duty as shop icon and pack counter. Replaced counter with a mini canvas-drawn pack – consistent with the game's visual language and unambiguous. Dev counters (packs opened + flowers sold) show both sides of the economy ratio in the header.
 - *Feb 24:* Reframing a dev tool as in-game content: the ↺ reset button became "Spiel den selben Song nochmal" with a Cantina Band / Family Guy reference. Same function, but now it's a deliberate moment. Red confirmation text replaces a separate button – cleaner layout, honest about consequence.
 - *Feb 24:* Shop icon placement: top-right next to the indicator is less crowded than bottom-right next to the bins. The indicator area has natural breathing room; the bin row does not.
+- *Feb 24:* PIECE_ZONES had only 12 entries; Harry Pack has 14 pieces. `zones[i]` was silently undefined for i≥12. Fix: `i % zones.length`. Always wrap zone/pool indices when piece count can exceed pool size.
+- *Feb 24:* "Dev tool" framing is temporary by definition. Once a UI element earns its place in the game, remove the dev label – both in code comments and in DESIGN.md. The header counters graduated from calibration aid to game UI.
+- *Feb 24:* Stale screen names accumulate technical debt and confuse new readers. `'mine'` had no meaning in BfM – one sed pass cleaned all 7 occurrences including i18n keys and comments.
 - *Feb 24:* Boot bug: `spawnPack()` was deducting coins unconditionally, including on reload. Root cause: one function doing two things (spawn + charge). Fix: `charge = true` default parameter – boot calls `spawnPack(false)`, auto-order uses the default. When a function has side effects that shouldn't always apply, a parameter is cleaner than splitting into two functions.

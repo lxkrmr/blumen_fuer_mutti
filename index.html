@@ -433,7 +433,7 @@ const state = {
   bins:     SHAPES.map(s => ({ shape: s, pieces: [] })),
 };
 
-// Dev counters – packs opened + flowers sold, useful for economy calibration
+// Counters – packs opened + flowers sold, shown in header
 let packsOpened  = 0;
 let flowersSold  = 0;
 
@@ -1206,7 +1206,7 @@ function drawHeader() {
   ctx.fillStyle = TEXT_HI;
   ctx.fillText('M', 22 + bw + hw, HEADER_H / 2);
 
-  // Pack + flower counters – center of header, dev aid for economy calibration
+  // Pack + flower counters – center of header
   ctx.font = '11px system-ui';
   const miniH       = 11;   // icon height matches font cap-height
   const iconGap     = 4;    // space between icon and its number
