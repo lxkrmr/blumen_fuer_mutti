@@ -79,7 +79,7 @@ const STRINGS = {
     lang_toggle:        'EN',
     building_one:       'Harry baut 1 Blume …',
     building_many:      (n) => `Harry baut ${n} Blumen …`,
-    building_idle_mine: 'teile sortieren um blumen zu erschaffen',
+    building_idle_main: 'teile sortieren um blumen zu erschaffen',
     mutti_selling:      'Mutti verkauft …',
     shop_title:         'Shop',
     shop_back:          '← Zurück',
@@ -99,7 +99,7 @@ const STRINGS = {
     lang_toggle:        'DE',
     building_one:       'Harry is building 1 flower …',
     building_many:      (n) => `Harry is building ${n} flowers …`,
-    building_idle_mine: 'sort parts to grow flowers',
+    building_idle_main: 'sort parts to grow flowers',
     mutti_selling:      'Mutti is selling …',
     shop_title:         'Shop',
     shop_back:          '← Back',
@@ -402,14 +402,14 @@ function haptic(pattern) {
 }
 
 // Screen state
-let currentScreen = 'mine';   // 'mine' | 'shop'
+let currentScreen = 'main';   // 'main' | 'shop' | 'intro'
 
 // Button bounds – set each frame during draw, used by hitTest
 let introSlide      = 0;
 let introSkipBounds = null;
 
 let langBtnBounds   = null;
-let shopBtnBounds   = null;     // shop icon in mine screen
+let shopBtnBounds   = null;     // shop icon in main screen
 let shopBackBounds  = null;     // back button in shop screen
 let shopBuyBtns     = [];       // [{ id, x, y, w, h }] – buy buttons in shop
 let shopResetBounds = null;     // reset item at bottom of shop
@@ -799,7 +799,7 @@ function hitTest(x, y, now) {
     return { type: 'shop_reset' };
   }
 
-  // Shop button (mine screen)
+  // Shop button (main screen)
   if (shopBtnBounds && inRect(x, y, shopBtnBounds.x, shopBtnBounds.y, shopBtnBounds.w, shopBtnBounds.h)) {
     return { type: 'shop_open' };
   }
@@ -818,7 +818,7 @@ function hitTest(x, y, now) {
 
 
   // Game screen only – skip piece/pack/bin interactions when in shop
-  if (currentScreen !== 'mine') return null;
+  if (currentScreen !== 'main') return null;
 
   // Pieces (reverse so topmost is checked first)
   if (state.phase === 'pieces') {
@@ -853,7 +853,7 @@ function hitTest(x, y, now) {
 let lastTouchEnd = 0;
 
 function initDrag(coords) {
-  if (currentScreen !== 'mine') return;
+  if (currentScreen !== 'main') return;
   const now = performance.now();
   const hit = hitTest(coords.x, coords.y, now);
   if (!hit || hit.type !== 'piece') return;
@@ -954,7 +954,7 @@ function handleTap({ x, y }) {
     case 'lang':        toggleLang();                             break;
     case 'pack':        tapPack();                                break;
     case 'shop_open':   currentScreen = 'shop';                  break;
-    case 'shop_back':   currentScreen = 'mine';
+    case 'shop_back':   currentScreen = 'main';
                         shopBackBounds  = null;
                         shopBuyBtns     = [];
                         shopResetBounds = null;                   break;
@@ -1177,7 +1177,7 @@ function drawHarryIndicator(now) {
   let harryLabel;
   if (flowers.buildQueue.length > 1)     harryLabel = t('building_many', flowers.buildQueue.length);
   else if (flowers.buildQueue.length === 1) harryLabel = t('building_one');
-  else                                  harryLabel = t('building_idle_mine');
+  else                                  harryLabel = t('building_idle_main');
 
   ctx.fillStyle    = TEXT_DIM;
   ctx.textBaseline = 'alphabetic';
@@ -1253,7 +1253,7 @@ function drawLangButton() {
   ctx.fillText(label, bx + 10, by + bh / 2);
 }
 
-function drawMine(now) {
+function drawMain(now) {
   drawHeader();
   drawHarryIndicator(now);
   drawPack(now);
@@ -1265,7 +1265,7 @@ function drawMine(now) {
 
 // Shop icon – circle to the right of the bins
 function drawShopButton(_now) {
-  // Clear shop-only bounds so they don't fire in mine mode
+  // Clear shop-only bounds so they don't fire in main screen
   shopBackBounds  = null;
   shopBuyBtns     = [];
   shopResetBounds = null;
@@ -1881,7 +1881,7 @@ function spawnHarryPack() {
 
 function finishIntro() {
   introSlide    = 0;
-  currentScreen = 'mine';
+  currentScreen = 'main';
   spawnHarryPack();
 }
 
@@ -1967,7 +1967,7 @@ function loop(now) {
   ctx.fillRect(0, 0, W, H);
   if      (currentScreen === 'intro') drawIntro(now);
   else if (currentScreen === 'shop')  drawShop(now);
-  else                                drawMine(now);
+  else                                drawMain(now);
   requestAnimationFrame(loop);
 }
 
