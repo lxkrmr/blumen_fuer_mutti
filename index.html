@@ -1776,32 +1776,29 @@ function drawUpgradeItem(upg, iy, px, iw, isPurchased, isNext, isLocked) {
   ctx.textAlign    = 'left';
   ctx.fillText(name, px + 10 + alw + 8, iy + 16);
 
-  // Description (next only)
-  if (isNext) {
+  // Description – shown for purchased and next items (locked stays ???)
+  if (isNext || isPurchased) {
     ctx.font         = '11px system-ui';
     ctx.fillStyle    = TEXT_DIM;
+    ctx.globalAlpha  = isPurchased ? 0.45 : 1;
     ctx.textBaseline = 'top';
-    // Wrap to fit item width
     const maxW = iw - 20;
-    let line = '', lines = [], words = desc.split(' ');
-    for (const w of words) {
-      const test = line ? line + ' ' + w : w;
-      if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
-      else line = test;
-    }
-    if (line) lines.push(line);
-    lines.slice(0, 2).forEach((l, li) => {
+    const descLines = wrapText(desc, maxW).slice(0, 2);
+    descLines.forEach((l, li) => {
       ctx.fillText(l, px + 10, iy + 32 + li * 14);
     });
+    ctx.globalAlpha = 1;
   }
 
-  // Cost + buy button (purchased: owned badge, next: buy button)
+  // Cost + buy button (purchased: owned badge inline with name, next: buy button)
   if (isPurchased) {
     ctx.font         = '11px system-ui';
     ctx.fillStyle    = TEXT_DIM;
+    ctx.globalAlpha  = 0.5;
     ctx.textBaseline = 'middle';
     ctx.textAlign    = 'right';
-    ctx.fillText(t('shop_owned'), px + iw - 12, iy + ih / 2 + 10);
+    ctx.fillText(t('shop_owned'), px + iw - 12, iy + 16);
+    ctx.globalAlpha  = 1;
   } else {
     // Cost label
     const costLabel = `💰 ${formatCoins(upg.cost)}`;
