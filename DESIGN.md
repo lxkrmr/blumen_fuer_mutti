@@ -557,6 +557,7 @@ Three alpacas, three story milestones. Each unlocks individually with a Bruno-fo
 | **Shop icon next to indicator, not next to bins** | The bins area is already dense. The indicator area has unused space to the right. Shop icon at same vertical center as the indicator feels visually anchored and leaves the bins uncluttered. |
 | **Mini pack icon as canvas drawing, not emoji** | 🛍 is used for the shop button – using it also in the header created symbol collision. A tiny canvas-drawn pack (same gradient + heat seal as the full pack) is consistent and unambiguous. |
 | **Header shows packs opened + flowers sold** | Two counters that matter for economy calibration. `packsOpened` tracks input rate, `flowersSold` tracks output rate. Together they make the pack-to-flower conversion ratio visible at a glance during testing. |
+| **`spawnPack(charge)` separates spawn from payment** | Boot needs a pack but shouldn't charge – it's a continuation of the last session. Auto-order charges because it's a new purchase. A `charge = true` default parameter keeps the distinction explicit without duplicating the function. |
 
 ---
 
@@ -638,3 +639,4 @@ Three alpacas, three story milestones. Each unlocks individually with a Bruno-fo
 - *Feb 24:* Symbol collision: 🛍 can't do double duty as shop icon and pack counter. Replaced counter with a mini canvas-drawn pack – consistent with the game's visual language and unambiguous. Dev counters (packs opened + flowers sold) show both sides of the economy ratio in the header.
 - *Feb 24:* Reframing a dev tool as in-game content: the ↺ reset button became "Spiel den selben Song nochmal" with a Cantina Band / Family Guy reference. Same function, but now it's a deliberate moment. Red confirmation text replaces a separate button – cleaner layout, honest about consequence.
 - *Feb 24:* Shop icon placement: top-right next to the indicator is less crowded than bottom-right next to the bins. The indicator area has natural breathing room; the bin row does not.
+- *Feb 24:* Boot bug: `spawnPack()` was deducting coins unconditionally, including on reload. Root cause: one function doing two things (spawn + charge). Fix: `charge = true` default parameter – boot calls `spawnPack(false)`, auto-order uses the default. When a function has side effects that shouldn't always apply, a parameter is cleaner than splitting into two functions.

@@ -443,14 +443,16 @@ function genPieces() {
   });
 }
 
-function spawnPack() {
+function spawnPack(charge = true) {
   state.phase    = 'pack';
   state.pieces   = [];
   state.selected = null;
 
-  // Deduct pack cost – economy always net positive by design
-  flowers.coins = Math.max(0, flowers.coins - BAG_COST);
-  saveState();
+  // Deduct pack cost – only when auto-ordering mid-game, not on boot/reload
+  if (charge) {
+    flowers.coins = Math.max(0, flowers.coins - BAG_COST);
+    saveState();
+  }
 
   const taps = getEffects().bagTaps;
   state.pack = {
@@ -1810,7 +1812,7 @@ if ('serviceWorker' in navigator) {
 loadState();
 checkBuildTrigger(); // restart build timer if flowers were building
 startSellTimer();    // restart sell timer if stock was waiting
-spawnPack();
+spawnPack(false);    // boot: pack is continuation of last session, no charge
 requestAnimationFrame(loop);
 </script>
 
