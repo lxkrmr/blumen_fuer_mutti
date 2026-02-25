@@ -61,6 +61,14 @@ The project maintains a glossary in `DESIGN.md` under **Ubiquitous Language**. T
 - Works > perfect
 - **Comments explain why, not what** – mark sections or describe non-obvious intent. Never describe what old code used to do or what was removed. That belongs in git history, not in comments.
 
+### Architecture
+- **Three layers, strict order: Data → Calculations → Side effects**
+- **Data** – plain state and config objects. No logic, no I/O.
+- **Calculations** – pure functions. No I/O, no clock, no canvas. RNG is passed in as a parameter, never called directly. Given the same inputs, always produce the same outputs.
+- **Side effects** – canvas, localStorage, haptics, rAF, DOM events. React to events returned by calculations. Never leak into the calculation layer.
+- **Randomness is a parameter, not a call** – pass `rng` into pure functions. The caller decides the source (`Math.random` in production, seeded PRNG in tests/trainers).
+- **Prefer data over state** – if something can be represented as a pre-computed array (e.g. a shuffled deck) instead of tracked per-tick state, do that. Shuffle bags beat leaky buckets.
+
 ### AI behavior
 - **Questions get answers** – if the human asks a question, answer it. Don't just start doing things.
 - **Dialogue over assumptions** – if something doesn't make sense, ask. Don't silently interpret and execute.
