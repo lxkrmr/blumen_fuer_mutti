@@ -176,7 +176,7 @@ const UPGRADE_TREE = [
     name: { de: 'Großhändler',           en: 'Wholesaler' },
     desc: { de: 'Ein Großhändler hat euch entdeckt. Harry ist nervös bei Verträgen.',
             en: 'A wholesaler noticed you. Harry is nervous around contracts.' },
-    effect: fx => { fx.bagShards = 5; },
+    effect: fx => { fx.bagShards = 7; fx.grosshaendlerPack = true; },
   },
   {
     id: 'staubsauger', actor: 'player', cost: 150,
@@ -209,9 +209,9 @@ const UPGRADE_TREE = [
   {
     id: 'harryLabel', actor: 'harry', cost: 1500,
     name: { de: "Harry's eigenes Label", en: "Harry's Own Label" },
-    desc: { de: 'Wer braucht einen Brand Deal wenn man selbst die Brand ist.',
-            en: 'Who needs a brand deal when you are the brand.' },
-    effect: fx => { fx.coinValue = Math.round(fx.coinValue * 2.0); },
+    desc: { de: 'Harry hat sein eigenes Label gegründet. Die Tüten sind warmrosa und riechen leicht nach Katze.',
+            en: "Harry started his own label. The packs are warm rose and smell faintly of cat." },
+    effect: fx => { fx.bagShards = 14; fx.harryLabelPack = true; },
   },
   {
     id: 'bobbyZuwachs', actor: 'mutti', cost: 2500,
@@ -1098,7 +1098,7 @@ function drawPack(now) {
   ctx.translate(PLAY_CX, PLAY_CY);
   ctx.rotate(packVisual.angle);
   ctx.scale(enterSc * wobbleSc, enterSc * wobbleSc);
-  drawFoilBag(ctx, bw, bh, progress, now, S.pack.harryPack);
+  drawFoilBag(ctx, bw, bh, progress, now, S.pack.packType);
   ctx.restore();
 }
 
@@ -1142,7 +1142,9 @@ function drawMiniPack(x, y, h) {
 }
 
 // Draws an opaque foil bag centered at (0, 0) in the current transform space.
-function drawFoilBag(ctx, bw, bh, progress, now, harry = false) {
+function drawFoilBag(ctx, bw, bh, progress, now, packType = 'starter') {
+  const isHarry = packType === 'harry';
+  const isGross = packType === 'grosshaendler';
   const bx = -bw / 2, by = -bh / 2;
   const r  = 8;
   const deform = progress * bw * 0.12;
@@ -1169,13 +1171,17 @@ function drawFoilBag(ctx, bw, bh, progress, now, harry = false) {
   };
 
   // Glow aura
-  if (progress > 0 || harry) {
-    const pulse = 0.6 + 0.4 * Math.sin(now / (harry && progress === 0 ? 1400 : (220 - progress * 120)));
+  if (progress > 0 || isHarry || isGross) {
+    const pulse = 0.6 + 0.4 * Math.sin(now / (isHarry && progress === 0 ? 1400 : (220 - progress * 120)));
     ctx.save();
-    if (harry) {
+    if (isHarry) {
       ctx.shadowColor = `rgba(244,143,177,${(progress > 0 ? 0.7 : 0.45) * pulse})`;
       ctx.shadowBlur  = (progress > 0 ? progress * 32 : 14) * pulse;
       ctx.strokeStyle = `rgba(244,143,177,${(progress > 0 ? progress * 0.45 : 0.25) * pulse})`;
+    } else if (isGross) {
+      ctx.shadowColor = `rgba(181,134,74,${(progress > 0 ? 0.7 : 0.35) * pulse})`;
+      ctx.shadowBlur  = (progress > 0 ? progress * 32 : 10) * pulse;
+      ctx.strokeStyle = `rgba(181,134,74,${(progress > 0 ? progress * 0.45 : 0.20) * pulse})`;
     } else {
       ctx.shadowColor = `rgba(140,185,255,${0.7 * pulse})`;
       ctx.shadowBlur  = progress * 32 * pulse;
@@ -1189,11 +1195,16 @@ function drawFoilBag(ctx, bw, bh, progress, now, harry = false) {
 
   // Main fill
   const grad = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
-  if (harry) {
+  if (isHarry) {
     grad.addColorStop(0.00, '#2e1a20');
     grad.addColorStop(0.25, '#38202a');
     grad.addColorStop(0.55, '#2a1820');
     grad.addColorStop(1.00, '#1a0e14');
+  } else if (isGross) {
+    grad.addColorStop(0.00, '#2a1e0e');
+    grad.addColorStop(0.25, '#33240f');
+    grad.addColorStop(0.55, '#251a0b');
+    grad.addColorStop(1.00, '#1a1008');
   } else {
     grad.addColorStop(0.00, '#1e2e44');
     grad.addColorStop(0.25, '#253550');
@@ -1209,14 +1220,14 @@ function drawFoilBag(ctx, bw, bh, progress, now, harry = false) {
   bagPath();
   ctx.clip();
   const hGrad = ctx.createLinearGradient(bx, by, bx + bw * 0.32, by);
-  hGrad.addColorStop(0, harry ? 'rgba(244,143,177,0.10)' : 'rgba(255,255,255,0.07)');
+  hGrad.addColorStop(0, isHarry ? 'rgba(244,143,177,0.10)' : isGross ? 'rgba(181,134,74,0.10)' : 'rgba(255,255,255,0.07)');
   hGrad.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = hGrad;
   ctx.fillRect(bx, by, bw * 0.32, bh);
   ctx.restore();
 
   // Heat seal at top
-  ctx.fillStyle = harry ? 'rgba(244,143,177,0.10)' : 'rgba(200,215,255,0.08)';
+  ctx.fillStyle = isHarry ? 'rgba(244,143,177,0.10)' : isGross ? 'rgba(181,134,74,0.10)' : 'rgba(200,215,255,0.08)';
   ctx.beginPath();
   ctx.roundRect(bx + 2, by, bw - 4, 15, [r, r, 0, 0]);
   ctx.fill();
@@ -1261,10 +1272,14 @@ function drawFoilBag(ctx, bw, bh, progress, now, harry = false) {
 
   // Bag outline
   bagPath();
-  if (harry) {
+  if (isHarry) {
     ctx.strokeStyle = progress > 0
       ? `rgba(244,143,177,${0.30 + progress * 0.38})`
       : 'rgba(244,143,177,0.30)';
+  } else if (isGross) {
+    ctx.strokeStyle = progress > 0
+      ? `rgba(181,134,74,${0.30 + progress * 0.38})`
+      : 'rgba(181,134,74,0.25)';
   } else {
     ctx.strokeStyle = progress > 0
       ? `rgba(140,185,255,${0.22 + progress * 0.38})`
@@ -1273,14 +1288,14 @@ function drawFoilBag(ctx, bw, bh, progress, now, harry = false) {
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Harry's personal touch – cat emoji on the bag face
-  if (harry) {
+  // Emoji on bag face – Großhändler gets 🚛, Harry's Label gets 🐱
+  if (isHarry || isGross) {
     const fontSize = Math.round(bh * 0.38);
     ctx.font         = `${fontSize}px system-ui`;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
     ctx.globalAlpha  = 0.85;
-    ctx.fillText('🐱', 0, bh * 0.06);
+    ctx.fillText(isHarry ? '🐱' : '🚛', 0, bh * 0.06);
     ctx.globalAlpha  = 1;
   }
 }
@@ -1609,7 +1624,7 @@ function drawIntro(now) {
 
     ctx.save();
     ctx.translate(W / 2, packCY);
-    drawFoilBag(ctx, mbw, mbh, 0, now, true);
+    drawFoilBag(ctx, mbw, mbh, 0, now, 'harry');
     ctx.restore();
   }
 

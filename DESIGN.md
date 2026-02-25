@@ -124,7 +124,7 @@ The bag is an **opaque foil pouch** (metallic, dark – Option C visual). Conten
 | Pack type | Parts | Packs per flower | Visual | Unlocked by |
 |---|---|---|---|---|
 | Starter pack | 4 | 3.5 (carry-over) | Dark foil pouch | – |
-| Großhändler pack | 7 | 2 (exact) | Dark foil pouch (larger) | Upgrade 3 – Großhändler |
+| Großhändler pack | 7 | 2 (exact) | Kraft brown `#b5864a`, amber glow, 🚛 | Upgrade 3 – Großhändler |
 | Harry's Label pack | 14 | 1 (exact) | Warm rose, 🐱, smells faintly of cat | Upgrade 8 – Harry's eigenes Label |
 
 | Property | Meaning |
@@ -627,7 +627,7 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 | `'mine'` → `'main'` screen name (UL cleanup) | ✅ |
 | Upgrade 1 – Player: Schere | ❌ future |
 | Upgrade 2 – Harry: Gummi-Daumen | ❌ future |
-| Upgrade 3 – Mutti: Großhändler (engine: 7 parts/pack) | ❌ future (engine done, UI/playtesting pending) |
+| Upgrade 3 – Mutti: Großhändler (7 parts/pack, kraft brown, 🚛) | ✅ |
 | Milestone 1: Land kaufen (auf Kredit) + Bruno zieht ein | ❌ future |
 | Upgrade 4 – Player: Staubsauger | ❌ future |
 | Upgrade 5 – Harry: Harry goes TikTok | ❌ future |
@@ -710,6 +710,9 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 | **Pack evolution replaces, not stacks** | Each pack upgrade (Großhändler, Harry's Label) fully replaces the previous pack type. Simpler mental model, cleaner progression story. |
 | **Harry's eigenes Label as pack upgrade** | Reframed from "coin value increase" to a pack upgrade: Harry's own branded packs, 14 parts (exactly 1 flower), warm rose visual. Net profit rises through pack efficiency (more parts per coin) rather than direct coin value change. The Harry Pack from the intro becomes the product – the gift becomes the business. |
 | **Pack sizes: 4 → 7 → 14** | Starter 4: enough to sort but no flow. Großhändler 7: two clean packs per flower, no carry-over. Harry's Label 14: one pack = one flower, maximum flow. Each step doubles or halves the packs-per-flower count cleanly. |
+| **`packType` string over `harryPack` boolean** | `'starter' \| 'grosshaendler' \| 'harry'` is extensible without adding more booleans. Each new pack type is just a new string value. The draw function switches on it cleanly. |
+| **Starter pack plain, no emoji** | Decoration is earned. The plain foil pouch is the baseline. Großhändler gets 🚛, Harry's Label gets 🐱. Each upgrade adds personality – the starter has none by design. |
+| **Großhändler pack: kraft brown + 🚛** | Kraft brown `#b5864a` reads as industrial/wholesale. Contrasts with starter (dark blue foil) and Harry's Label (warm rose). 🚛 signals delivery/bulk. Color story: mystery → business → personal. |
 | **Qualität-Upgrade applies immediately** | No per-flower value tracking. All flowers sold after the upgrade earn the new rate. Clean and fair. |
 | **Schere as passive permanent upgrade** | Tap reduction is a flow improvement, not a consumable. You buy it once and the game permanently feels better. |
 | **Game ends happily with alpaca farm** | Clear win condition. No soft resets, no prestige loops (for now). The game has a destination. |
@@ -853,5 +856,8 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 - *Feb 25:* Sorting is the core fidget mechanic. Pack opening is friction, not fun. This reframes the starter pack: 3 parts is intentionally small – just enough to tease the mechanic. Upgrades (Großhändler, Harry's Label) progressively increase sorting time per pack. Schere removes opening friction as the first unlock because it addresses the most annoying early friction.
 - *Feb 25:* Harry's eigenes Label reframed from coin-value upgrade to pack upgrade. The Harry Pack from the intro (gift) becomes the product (business). 14 parts = exactly 1 flower guaranteed. Net profit rises through pack efficiency, not coin value. Flavor text: *Harry started his own label. The packs are warm rose and smell faintly of cat.*
 - *Feb 25:* Iterator pattern for the shuffle bag: `takePack` is a stateless function, `deck` is the iterator's internal cursor stored in state. The "carry-over" is not a separate concept – it's whatever remains in `deck` between calls. No played-deck tracking needed.
+- *Feb 25:* The shell has its own UPGRADE_TREE (with name/desc for rendering) passed to `createConfig` as an override. This fully replaces engine.js defaults. Both must be kept in sync – a change to an upgrade effect in engine.js has no effect if the shell overrides it.
+- *Feb 25:* Changing an upgrade's effect semantically (coin multiplier → pack type flag) can corrupt old save states. A player who had `harryLabel` purchased saw all packs render as harry packs after the change. Lesson: when an upgrade effect changes meaning, old saves must be cleared or migrated.
+- *Feb 25:* `packType: 'starter' | 'grosshaendler' | 'harry'` replaces `harryPack: boolean`. String union is more extensible and self-documenting than growing booleans. Draw function switches cleanly on a single value.
 - *Feb 25:* Pack sizes settled: 4 (starter) → 7 (Großhändler) → 14 (Harry's Label). Großhändler 7 divides 14 exactly – 2 clean packs per flower, zero carry-over. Harry's Label 14 = one pack, one flower. Starter 4 is intentionally small: tease the mechanic, not flow. Odds problem solved entirely by shuffle bag – no probability tuning needed.
 - *Feb 25:* Playtested shuffle bag. Bins now tend to fill and drain together – all four emptying at roughly the same time. This creates a satisfying "clean sweep" moment that pure random odds never produced. Random odds caused one or two bins to grow unchecked while others starved. Balanced distribution feels noticeably better.

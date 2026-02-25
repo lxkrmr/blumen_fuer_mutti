@@ -93,7 +93,8 @@ export function getEffects(config, purchasedIds) {
     coinValue:        10,
     staubsauger:      false,
     dinoSparschwein:  false,
-    harryLabelPack:   false,
+    grosshaendlerPack: false,
+    harryLabelPack:    false,
   };
 
   for (const id of purchasedIds) {
@@ -173,7 +174,7 @@ export function createState(config) {
       tapsRequired: config.BAG_TAPS_DEFAULT,
       tapsLeft:     config.BAG_TAPS_DEFAULT,
       generatedPieces: [],       // pieces inside the pack, not yet in play
-      harryPack:    false,
+      packType:     'starter',
     },
 
     deck:          [],           // shuffle bag – remaining shape-ids, topped up when low
@@ -335,15 +336,19 @@ function spawnPackInternal(state, config, rng, charge, fromSort = false) {
   const { pack: shapeIds, deck } = takePack(state.deck, config.RECIPE_DECK, count, rng);
   state.deck = deck;
 
+  const packType = fx.harryLabelPack    ? 'harry'
+                 : fx.grosshaendlerPack ? 'grosshaendler'
+                 : 'starter';
+
   state.pack = {
     tapsRequired:    taps,
     tapsLeft:        taps,
     generatedPieces: piecesFromShapeIds(shapeIds, config, state, rng),
-    harryPack:       fx.harryLabelPack,
+    packType,
   };
   state.phase = 'pack';
   // fromSort: shell should delay the pack enter animation to let piece sort-out finish
-  events.push({ type: 'pack_spawned', count, taps, harryPack: fx.harryLabelPack, fromSort });
+  events.push({ type: 'pack_spawned', count, taps, packType, fromSort });
 
   return events;
 }
@@ -426,10 +431,10 @@ export function applyAction(state, config, action, rng) {
         tapsRequired:    1,
         tapsLeft:        1,
         generatedPieces: pieces,
-        harryPack:       true,
+        packType:        'harry',
       };
       state.phase = 'pack';
-      events.push({ type: 'pack_spawned', count: pieces.length, taps: 1, harryPack: true });
+      events.push({ type: 'pack_spawned', count: pieces.length, taps: 1, packType: 'harry' });
       break;
     }
 
