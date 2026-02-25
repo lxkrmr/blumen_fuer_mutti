@@ -1674,6 +1674,7 @@ const SAVE_KEY = 'bfm-save';
 
 function saveState() {
   const data = {
+    deck:               S.deck,
     bins:               S.bins,
     buildQueue:         S.buildQueue,
     stock:              S.stock,
@@ -1696,6 +1697,7 @@ function loadState() {
     const d = JSON.parse(raw);
     if (!d) return false;
 
+    S.deck                   = d.deck          || [];
     S.bins                   = d.bins         || config.SHAPES.map(s => ({ shape: s, pieces: [] }));
     S.buildQueue             = d.buildQueue    || [];
     S.stock                  = d.stock         || [];

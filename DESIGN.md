@@ -593,11 +593,11 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 
 | What | Status |
 |---|---|
-| Bag appears (always small for now, upgrades scale later) | ✅ |
+| Bag appears, 4 parts starter pack | ✅ |
 | Multi-tap open (N taps by size) | ✅ |
 | Damage feedback: wobble + rattle + drift + glow | ✅ |
 | Opens into parts with defined shapes | ✅ |
-| Shape spawn probability weighted by recipe | ✅ (replaced by shuffle bag – not yet implemented) |
+| Shuffle bag piece distribution (guaranteed recipe balance, no droughts, deck persisted) | ✅ |
 | Drag & drop sorting by shape | ✅ |
 | Wrong sort → stays at drop position + shake | ✅ |
 | 4 bins as color queues (recipe-based capacity) | ✅ |
@@ -627,14 +627,14 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 | `'mine'` → `'main'` screen name (UL cleanup) | ✅ |
 | Upgrade 1 – Player: Schere | ❌ future |
 | Upgrade 2 – Harry: Gummi-Daumen | ❌ future |
-| Upgrade 3 – Mutti: Großhändler | ❌ future |
+| Upgrade 3 – Mutti: Großhändler (engine: 7 parts/pack) | ❌ future (engine done, UI/playtesting pending) |
 | Milestone 1: Land kaufen (auf Kredit) + Bruno zieht ein | ❌ future |
 | Upgrade 4 – Player: Staubsauger | ❌ future |
 | Upgrade 5 – Harry: Harry goes TikTok | ❌ future |
 | Upgrade 6 – Mutti: Bobby-Tuning | ❌ future |
 | Milestone 2: Haus kaufen (auf Kredit) + Hildegard zieht ein | ❌ future |
 | Upgrade 7 – Player: Dino-Sparschwein (horizontal rotating) | ❌ future |
-| Upgrade 8 – Harry: Harry's eigenes Label | ❌ future |
+| Upgrade 8 – Harry: Harry's eigenes Label (engine: 14 parts/pack, warm rose visual) | ❌ future (engine done, UI/playtesting pending) |
 | Upgrade 9 – Mutti: Bobby-Zuwachs (Unimog or Speedboat) | ❌ future |
 | Finale: Schlüssel zum Herzen + Theodor zieht ein + closing screen | ❌ future |
 
@@ -642,7 +642,7 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 
 ## Next steps
 
-1. **Economy calibration via trainer** – add human-pace mode to `trainer.html` (~6 s/pack), run upgrade cost scan, tune prices for 6→40→200 coins/min arc
+1. **Economy calibration via trainer** – build `trainer.html` with human-pace mode (~6 s/pack), run upgrade cost scan, tune prices for 6→40→200 coins/min arc. Pack sizes now settled (4→7→14) so trainer can model the full upgrade arc.
 2. **Feel tuning** – tap ranges, build time, sell time *(ongoing)*
 3. **Milestone screens** – Land kaufen (Berge/Meer choice), Haus wählen, Bruno intro card
 4. **Dino-Sparschwein visual** – horizontally rotating dino animation in shop + coin badge
@@ -651,6 +651,7 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 
 ## Open questions
 
+- [x] Shape distribution drought – solved by shuffle bag ✓
 - [ ] `FLOWER_COIN_VALUE` = 10 – needs playtesting to calibrate against bag cost
 - [ ] `SELL_BASE_MS` = 8000ms – needs playtesting (shorter than build time feels right so far)
 - [ ] Starting capital = 100 (placeholder) – real value after bag cost is defined
@@ -853,3 +854,4 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 - *Feb 25:* Harry's eigenes Label reframed from coin-value upgrade to pack upgrade. The Harry Pack from the intro (gift) becomes the product (business). 14 parts = exactly 1 flower guaranteed. Net profit rises through pack efficiency, not coin value. Flavor text: *Harry started his own label. The packs are warm rose and smell faintly of cat.*
 - *Feb 25:* Iterator pattern for the shuffle bag: `takePack` is a stateless function, `deck` is the iterator's internal cursor stored in state. The "carry-over" is not a separate concept – it's whatever remains in `deck` between calls. No played-deck tracking needed.
 - *Feb 25:* Pack sizes settled: 4 (starter) → 7 (Großhändler) → 14 (Harry's Label). Großhändler 7 divides 14 exactly – 2 clean packs per flower, zero carry-over. Harry's Label 14 = one pack, one flower. Starter 4 is intentionally small: tease the mechanic, not flow. Odds problem solved entirely by shuffle bag – no probability tuning needed.
+- *Feb 25:* Playtested shuffle bag. Bins now tend to fill and drain together – all four emptying at roughly the same time. This creates a satisfying "clean sweep" moment that pure random odds never produced. Random odds caused one or two bins to grow unchecked while others starved. Balanced distribution feels noticeably better.

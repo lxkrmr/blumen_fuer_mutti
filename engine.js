@@ -23,13 +23,22 @@ export function mulberry32(seed) {
 // The trainer varies config to find good values.
 
 export function createConfig(overrides = {}) {
+  // RECIPE_DECK derived from FLOWER_RECIPE – single source of truth.
+  // If the trainer overrides FLOWER_RECIPE, the deck automatically follows.
+  const recipe = overrides.FLOWER_RECIPE ?? { circle: 1, heart: 8, stem: 3, leaf: 2 };
+  const recipeDeck = Object.entries(recipe).flatMap(([id, n]) => Array(n).fill(id));
+
   const base = {
     // Economy
     BAG_COST:       1,
     STARTING_COINS: 50,
 
     // Flower recipe
-    FLOWER_RECIPE: { circle: 1, heart: 8, stem: 3, leaf: 2 },
+    FLOWER_RECIPE: recipe,
+
+    // Shuffle bag deck – 14 shape-id cards matching the recipe exactly.
+    // Consumed sequentially; topped up with a fresh shuffled copy when low.
+    RECIPE_DECK: recipeDeck,
 
     // Timings (ms)
     BUILD_BASE_MS: 20000,
@@ -37,7 +46,7 @@ export function createConfig(overrides = {}) {
     TIMER_VARIANCE: 0.30,   // ±15% → (1 - v/2) to (1 - v/2 + v)
 
     // Bag
-    BAG_SHARDS_DEFAULT: 3,
+    BAG_SHARDS_DEFAULT: 4,
     BAG_TAPS_DEFAULT:   5,
 
     // Pieces
@@ -46,12 +55,6 @@ export function createConfig(overrides = {}) {
       { id: 'heart',  label: '♥' },
       { id: 'stem',   label: '|' },
       { id: 'leaf',   label: '❧' },
-    ],
-    SHAPE_WEIGHTS: [
-      { id: 'circle', w:  1 },
-      { id: 'heart',  w:  8 },
-      { id: 'stem',   w:  3 },
-      { id: 'leaf',   w:  2 },
     ],
 
     // Sparschein
@@ -65,12 +68,12 @@ export function createConfig(overrides = {}) {
     UPGRADE_TREE: [
       { id: 'schere',          actor: 'player', cost:   15, effect: fx => { fx.bagTaps = 1; } },
       { id: 'gummiDaumen',    actor: 'harry',  cost:   40, effect: fx => { fx.buildBaseMs = 12000; } },
-      { id: 'grosshaendler',  actor: 'mutti',  cost:   80, effect: fx => { fx.bagShards = 5; } },
+      { id: 'grosshaendler',  actor: 'mutti',  cost:   80, effect: fx => { fx.bagShards = 7; } },
       { id: 'staubsauger',    actor: 'player', cost:  150, effect: fx => { fx.staubsauger = true; } },
       { id: 'harryTikTok',    actor: 'harry',  cost:  300, effect: fx => { fx.coinValue = Math.round(fx.coinValue * 1.8); } },
       { id: 'bobbyTuning',    actor: 'mutti',  cost:  500, effect: fx => { fx.sellBaseMs = 4000; } },
       { id: 'dinoSparschwein',actor: 'player', cost:  800, effect: fx => { fx.dinoSparschwein = true; } },
-      { id: 'harryLabel',     actor: 'harry',  cost: 1500, effect: fx => { fx.coinValue = Math.round(fx.coinValue * 2.0); } },
+      { id: 'harryLabel',     actor: 'harry',  cost: 1500, effect: fx => { fx.bagShards = 14; fx.harryLabelPack = true; } },
       { id: 'bobbyZuwachs',   actor: 'mutti',  cost: 2500, effect: fx => { fx.sellBaseMs = 2000; } },
     ],
   };
@@ -83,13 +86,14 @@ export function createConfig(overrides = {}) {
 // Applies each upgrade's effect(fx) in order – later upgrades may build on earlier ones.
 export function getEffects(config, purchasedIds) {
   const fx = {
-    bagTaps:         config.BAG_TAPS_DEFAULT,
-    bagShards:       config.BAG_SHARDS_DEFAULT,
-    buildBaseMs:     config.BUILD_BASE_MS,
-    sellBaseMs:      config.SELL_BASE_MS,
-    coinValue:       10,
-    staubsauger:     false,
-    dinoSparschwein: false,
+    bagTaps:          config.BAG_TAPS_DEFAULT,
+    bagShards:        config.BAG_SHARDS_DEFAULT,
+    buildBaseMs:      config.BUILD_BASE_MS,
+    sellBaseMs:       config.SELL_BASE_MS,
+    coinValue:        10,
+    staubsauger:      false,
+    dinoSparschwein:  false,
+    harryLabelPack:   false,
   };
 
   for (const id of purchasedIds) {
@@ -124,28 +128,39 @@ export function shapeToColor(shapeId, rng) {
   }
 }
 
-// ── Weighted random shape ─────────────────────────────────────────────────
-function randomShape(config, rng) {
-  const total = config.SHAPE_WEIGHTS.reduce((s, e) => s + e.w, 0);
-  let roll    = rng() * total;
-  for (const sw of config.SHAPE_WEIGHTS) {
-    roll -= sw.w;
-    if (roll <= 0) return config.SHAPES.find(s => s.id === sw.id);
+// ── Shuffle bag ───────────────────────────────────────────────────────────
+// Fisher-Yates shuffle. Pure – does not mutate input, rng passed in.
+function shuffle(array, rng) {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
   }
-  return config.SHAPES[config.SHAPES.length - 1];
+  return result;
+}
+
+// Draws n shape-ids from the deck. Tops up with a freshly shuffled recipe copy
+// when the deck runs low. Returns the drawn ids and the remaining deck.
+// Pure – deck and recipe are not mutated.
+function takePack(deck, recipe, n, rng) {
+  let cards = [...deck];
+  while (cards.length < n)
+    cards = [...cards, ...shuffle([...recipe], rng)];
+  return {
+    pack: cards.slice(0, n),
+    deck: cards.slice(n),
+  };
 }
 
 // ── Piece generation ──────────────────────────────────────────────────────
+// Converts shape-ids from the shuffle bag into full piece objects with colors.
 // pieceIdCounter lives in state so parallel trainer simulations don't interfere.
-function genPieces(config, state, rng, count) {
-  return Array.from({ length: count }, () => {
-    const shape = randomShape(config, rng);
-    return {
-      id:    state.pieceIdCounter++,
-      shape: shape,
-      color: shapeToColor(shape.id, rng),
-    };
-  });
+function piecesFromShapeIds(shapeIds, config, state, rng) {
+  return shapeIds.map(shapeId => ({
+    id:    state.pieceIdCounter++,
+    shape: config.SHAPES.find(s => s.id === shapeId),
+    color: shapeToColor(shapeId, rng),
+  }));
 }
 
 // ── State ─────────────────────────────────────────────────────────────────
@@ -160,6 +175,8 @@ export function createState(config) {
       generatedPieces: [],       // pieces inside the pack, not yet in play
       harryPack:    false,
     },
+
+    deck:          [],           // shuffle bag – remaining shape-ids, topped up when low
 
     pendingPieces: [],           // pieces in play, awaiting sort
 
@@ -314,15 +331,19 @@ function spawnPackInternal(state, config, rng, charge, fromSort = false) {
   const count = fx.bagShards;
   const taps  = fx.bagTaps;
 
+  // Draw pieces from the shuffle bag – guarantees recipe distribution over time
+  const { pack: shapeIds, deck } = takePack(state.deck, config.RECIPE_DECK, count, rng);
+  state.deck = deck;
+
   state.pack = {
     tapsRequired:    taps,
     tapsLeft:        taps,
-    generatedPieces: genPieces(config, state, rng, count),
-    harryPack:       false,
+    generatedPieces: piecesFromShapeIds(shapeIds, config, state, rng),
+    harryPack:       fx.harryLabelPack,
   };
   state.phase = 'pack';
   // fromSort: shell should delay the pack enter animation to let piece sort-out finish
-  events.push({ type: 'pack_spawned', count, taps, harryPack: false, fromSort });
+  events.push({ type: 'pack_spawned', count, taps, harryPack: fx.harryLabelPack, fromSort });
 
   return events;
 }
