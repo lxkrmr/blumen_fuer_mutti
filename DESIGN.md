@@ -117,11 +117,20 @@ The basis: a simple motor task with low cognitive load keeps the Default Mode Ne
 
 The bag is an **opaque foil pouch** (metallic, dark – Option C visual). Contents are unknown until opened. Surprise is part of the fun – no dark pattern because only in-game coins are at stake and the economy never lets you lose.
 
+**Pack opening is friction, not the fun.** The core fidget mechanic is sorting. Opening packs is a small ritual gate before the player gets to sort. Starter packs are intentionally small – just enough to tease the mechanic, not enough to give flow. Upgrades progressively unlock more sorting time per pack.
+
+**Pack evolution – each upgrade replaces the previous pack type:**
+
+| Pack type | Parts | Packs per flower | Visual | Unlocked by |
+|---|---|---|---|---|
+| Starter pack | 4 | 3.5 (carry-over) | Dark foil pouch | – |
+| Großhändler pack | 7 | 2 (exact) | Dark foil pouch (larger) | Upgrade 3 – Großhändler |
+| Harry's Label pack | 14 | 1 (exact) | Warm rose, 🐱, smells faintly of cat | Upgrade 8 – Harry's eigenes Label |
+
 | Property | Meaning |
 |---|---|
-| **Size** | Visual size of the bag – currently always small (upgrades will scale this) |
-| **Parts** | 3 parts per bag currently (Tüten-Quantität upgrade increases this) |
-| **Taps** | 5 taps to open baseline – Schere upgrade: Basic 3 taps, Profi 1 tap |
+| **Parts** | 4 → 7 → 14 as upgrades unlock. |
+| **Taps** | 5 taps to open baseline – Schere upgrade reduces to 1 tap. |
 
 **Damage feedback:**
 - **Wobble** – scale punch on each tap
@@ -140,14 +149,38 @@ Sorting is by **shape**. Color follows shape – the same shape always has the s
 | \| Stem | tall rounded rectangle, vertical | Mittelgrün `#52b788` ±variation |
 | ❧ Leaf | pointed oval, horizontal | Dunkelgrün `#1e4d2b` ±variation |
 
-**Shape spawn probability** matches the flower recipe ratios so supply meets demand:
+**Shape distribution – shuffle bag.**
 
-| Shape | Recipe | Probability |
-|---|---|---|
-| Circle | 1 / 14 | 7.1% |
-| Heart | 8 / 14 | 57.1% |
-| Stem | 3 / 14 | 21.4% |
-| Leaf | 2 / 14 | 14.3% |
+Pure random odds cause droughts: with recipe-ratio probabilities and a 3-part pack, there is only a 20% chance of seeing a circle and 37% chance of seeing a leaf per pack. Players get stuck waiting for rare shapes.
+
+The fix: a **shuffle bag** (the Tetris 7-bag system). The deck is an array of 14 cards – exactly the recipe. It is shuffled once, then consumed card by card as packs are drawn. When the deck runs low, a fresh shuffled deck is appended. No piece is ever discarded. Droughts are impossible by design.
+
+```
+Deck (14 cards): [ ◯ ♥ ♥ ♥ ♥ ♥ ♥ ♥ ♥ | | | ❧ ❧ ]
+Shuffle:         [ ♥ ❧ | ♥ ♥ ◯ ♥ | ♥ ♥ ❧ | ♥ ♥ ]
+Pack of 3:         ♥ ❧ |    (deck now has 11 left)
+Pack of 3:         ♥ ♥ ◯    (deck now has 8 left)
+...
+Deck runs low → append fresh shuffled deck, continue
+```
+
+Guaranteed over every 14 draws: exactly 1 circle, 8 hearts, 3 stems, 2 leaves.
+
+**Implementation:** pure function, rng passed as parameter.
+
+```javascript
+function takePack(deck, recipe, n, rng) {
+  let cards = [...deck]
+  while (cards.length < n)
+    cards = [...cards, ...shuffle([...recipe], rng)]
+  return {
+    pack: cards.slice(0, n),
+    deck: cards.slice(n)
+  }
+}
+```
+
+`deck` lives in state as a plain array. `takePack` is a pure calculation – no side effects.
 
 ### Flower (built by Harry)
 
@@ -210,6 +243,9 @@ One circle at center top. Always visible.
 ### Data model
 
 ```javascript
+// Shuffle bag deck – consumed array, topped up when low
+deck = [ 'heart', 'leaf', 'circle', ... ]  // cards remaining
+
 // Bins: queues of consumed parts (colors stored)
 bins = {
   circle: [{ color: '...' }],
@@ -254,7 +290,7 @@ Measured playtest session (Feb 23, relaxed pace):
 | Time | 5:08 min (~5.13 min) |
 | Flowers built | 8 |
 | **Packs per minute** | **~9.7** |
-| **Packs per flower** | **~6.25** (theoretical min: 14/3 = 4.67 – ~34% waste from probability variance) |
+| **Packs per flower** | **~6.25** with old random odds (34% waste). Shuffle bag + new pack sizes: starter 3.5, Großhändler 2, Harry's Label 1. |
 | **Flowers per minute** | **~1.56** |
 
 Derived at `BAG_COST = 1`, `FLOWER_COIN_VALUE = 10`:
@@ -278,7 +314,7 @@ Harry automatically orders the next surprise bag as soon as the play area is emp
 
 **Bag type: Surprise bag (standard)**
 - Visually opaque (Option C – foil pouch). Contents unknown until opened.
-- Randomly sized (small → jackpot), weighted toward small/medium early game.
+- Pack size fixed per pack type – increases via upgrades (Großhändler, Harry's Label).
 - Cheap. Always affordable given the economy design.
 
 No targeted/transparent bags in the base game – upgrades improve quantity and quality instead.
@@ -326,7 +362,7 @@ Player chooses: romantic or modern. Cosmetic – taste and replayability.
 | # | Actor | Upgrade | Effect |
 |---|---|---|---|
 | 7 | Player | **Dino-Sparschwein** | Horizontally rotating dino piggy bank (Brainrot reference). Per flower sold, a share goes in. After X payments → absurdly high interest payout. *It spins. Nobody understands why it yields so much. Brainrot.* |
-| 8 | Harry | **Harry's eigenes Label** | Coin value per flower increases further. *Who needs a brand deal when you are the brand.* |
+| 8 | Harry | **Harry's eigenes Label** | Replaces Großhändler packs with Harry's own branded packs: 14 parts (exactly 1 flower guaranteed), warm rose visual, slightly cheaper than Großhändler → net profit rises. *Harry started his own label. The packs are warm rose and smell faintly of cat.* |
 | 9 | Mutti | **Bobby-Zuwachs** | Second vehicle, determined by land choice. Berge → Unimog. Meer → Speedboat. Maximum delivery speed. |
 
 → **Finale: Schlüssel zum Herzen 🔑**
@@ -561,7 +597,7 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 | Multi-tap open (N taps by size) | ✅ |
 | Damage feedback: wobble + rattle + drift + glow | ✅ |
 | Opens into parts with defined shapes | ✅ |
-| Shape spawn probability weighted by recipe | ✅ |
+| Shape spawn probability weighted by recipe | ✅ (replaced by shuffle bag – not yet implemented) |
 | Drag & drop sorting by shape | ✅ |
 | Wrong sort → stays at drop position + shake | ✅ |
 | 4 bins as color queues (recipe-based capacity) | ✅ |
@@ -622,10 +658,10 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 - [ ] Upgrade prices and order in skill tree – need balancing once base economy loop is playable
 - [ ] Dino-Sparschwein: what % per flower goes into the piggy bank? After how many payments → interest? How much interest?
 - [ ] Staubsauger: what radius feels right? How strong is the pull?
-- [ ] Großhändler: how many parts per big pack? How much more expensive vs. standard pack?
+- [x] Großhändler: 7 parts per pack ✓
 - [ ] Alpaca farm phase prices – all 5 phases TBD (after economy calibration)
 - [x] Alpaca names and personalities – Bruno, Hildegard, Theodor ✓
-- [ ] Harry's eigenes Label flavor text – final wording TBD
+- [x] Harry's eigenes Label flavor text – *Harry started his own label. The packs are warm rose and smell faintly of cat.* ✓
 - [ ] Feel tuning – build time 20s right? Fan spread 70° right? Needs playtesting.
 
 ---
@@ -666,6 +702,13 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 | **Harry auto-orders bags, no manual trigger** | Removes friction from the core loop. Player never waits for a new bag – Harry just handles it. |
 | **Starting capital solves bootstrap** | Player starts with enough coins. Economy is always self-sustaining by design – not by luck. |
 | **Progression via 3 orthogonal axes** | Schere (open speed), Quantität (parts per bag), Qualität (value per flower). Each feels different, all compound. |
+| **Sorting is the core fidget, not pack opening** | Pack opening is a ritual gate – a small friction before the player gets to sort. Sorting is the satisfying, repetitive, low-cognitive-load action. Upgrades should maximise sorting time per session. |
+| **Starter pack small by design** | 3 parts is intentionally unsatisfying. Just enough to tease the mechanic, not enough to give flow. The tension is the point – it makes the first upgrades feel like relief. |
+| **Schere as the first unlock** | Removes the most annoying friction first (tap count to open). Players earn relief from the thing that bothers them most before anything else. |
+| **Shuffle bag instead of random odds** | Pure random odds cause droughts for rare shapes (20% chance of a circle per 3-part pack). Shuffle bag guarantees recipe distribution over every 14 draws. Implemented as a pure function: `takePack(deck, recipe, n, rng)` returns `{ pack, deck }`. No side effects, no per-shape state. |
+| **Pack evolution replaces, not stacks** | Each pack upgrade (Großhändler, Harry's Label) fully replaces the previous pack type. Simpler mental model, cleaner progression story. |
+| **Harry's eigenes Label as pack upgrade** | Reframed from "coin value increase" to a pack upgrade: Harry's own branded packs, 14 parts (exactly 1 flower), warm rose visual. Net profit rises through pack efficiency (more parts per coin) rather than direct coin value change. The Harry Pack from the intro becomes the product – the gift becomes the business. |
+| **Pack sizes: 4 → 7 → 14** | Starter 4: enough to sort but no flow. Großhändler 7: two clean packs per flower, no carry-over. Harry's Label 14: one pack = one flower, maximum flow. Each step doubles or halves the packs-per-flower count cleanly. |
 | **Qualität-Upgrade applies immediately** | No per-flower value tracking. All flowers sold after the upgrade earn the new rate. Clean and fair. |
 | **Schere as passive permanent upgrade** | Tap reduction is a flow improvement, not a consumable. You buy it once and the game permanently feels better. |
 | **Game ends happily with alpaca farm** | Clear win condition. No soft resets, no prestige loops (for now). The game has a destination. |
@@ -803,3 +846,10 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 - *Feb 24:* Boot bug: `spawnPack()` was deducting coins unconditionally, including on reload. Root cause: one function doing two things (spawn + charge). Fix: `charge = true` default parameter – boot calls `spawnPack(false)`, auto-order uses the default. When a function has side effects that shouldn't always apply, a parameter is cleaner than splitting into two functions.
 - *Feb 24:* Architecture refactor: Data / Calculations / Side effects as three layers. `engine.js` (pure functions, virtual clock, seeded RNG, events as return values) + shell in `index.html` (renderer, haptics, persistence, real clock) + `trainer.html` (headless simulator). Key insight: `events` returned as data, not emitted imperatively – the caller decides what to do with them. Visual timer animations (arc progress) use real-time start timestamps in the shell, decoupled from engine virtual clock.
 - *Feb 24:* Economy insight from trainer: "packs per flower" is determined by Harry's build rate vs. player sorting rate, not by probability distribution alone. At simulation pace (30 packs/min), Harry is bottleneck → ~10 packs/flower → break-even economy. At human pace (~10 packs/min), player is bottleneck → ~3.3 packs/flower → net positive economy. Economy calibration must model human sorting pace, not instant-optimal. Trainer needs a "human pace" mode (e.g., 6 seconds per pack) for meaningful upgrade price calibration.
+- *Feb 25:* Pure random odds cause shape droughts: 20% chance of circle per 3-part pack, 37% chance of leaf. Players get stuck. Humans are bad at intuiting probabilities – even N=20 packs don't guarantee all shapes. The fix is not odds-tuning but a different distribution model.
+- *Feb 25:* Shuffle bag (Tetris 7-bag system) solves droughts. The deck is the recipe as an array (14 cards). Shuffle once, consume sequentially, top up when low. Pure function `takePack(deck, recipe, n, rng) → { pack, deck }`. No per-shape state, no side effects. `deck` lives in state as a plain array – the carry-over is implicit.
+- *Feb 25:* Pack divisibility: LCM(14, 3) = 42. With pack of 3 and deck of 14, a pack occasionally spans two decks (carry-over). This is handled naturally by the `while (deck.length < n)` top-up logic – no cards are ever discarded. Pack sizes that divide 14 evenly (2, 7, 14) avoid carry-over entirely.
+- *Feb 25:* Sorting is the core fidget mechanic. Pack opening is friction, not fun. This reframes the starter pack: 3 parts is intentionally small – just enough to tease the mechanic. Upgrades (Großhändler, Harry's Label) progressively increase sorting time per pack. Schere removes opening friction as the first unlock because it addresses the most annoying early friction.
+- *Feb 25:* Harry's eigenes Label reframed from coin-value upgrade to pack upgrade. The Harry Pack from the intro (gift) becomes the product (business). 14 parts = exactly 1 flower guaranteed. Net profit rises through pack efficiency, not coin value. Flavor text: *Harry started his own label. The packs are warm rose and smell faintly of cat.*
+- *Feb 25:* Iterator pattern for the shuffle bag: `takePack` is a stateless function, `deck` is the iterator's internal cursor stored in state. The "carry-over" is not a separate concept – it's whatever remains in `deck` between calls. No played-deck tracking needed.
+- *Feb 25:* Pack sizes settled: 4 (starter) → 7 (Großhändler) → 14 (Harry's Label). Großhändler 7 divides 14 exactly – 2 clean packs per flower, zero carry-over. Harry's Label 14 = one pack, one flower. Starter 4 is intentionally small: tease the mechanic, not flow. Odds problem solved entirely by shuffle bag – no probability tuning needed.
