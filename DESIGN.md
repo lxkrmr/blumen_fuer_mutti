@@ -2,7 +2,7 @@
 
 Game idea, design decisions, and learnings. Living document – updated as the project evolves.
 
-→ See also: [CLAUDE.md](CLAUDE.md) (AI rules) · [README](README.md) (public)
+→ See also: [AGENTS.md](AGENTS.md) (AI rules) · [README](README.md) (public)
 
 ---
 
