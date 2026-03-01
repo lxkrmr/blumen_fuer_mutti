@@ -1,158 +1,158 @@
-# Blumen für Mutti – Agent Rules
+# Blumen für Mutti — AGENT Rules
 
-Rules and context for any coding agent working on this project.
+This file defines how coding agents must work in this repository.
 
-→ Game idea, decisions, and learnings: [DESIGN.md](DESIGN.md)  
-→ Public project statement: [README.md](README.md)
+Related docs:
+- Process + decisions: [DESIGN.md](DESIGN.md)
+- Public statement: [README.md](README.md)
 
 ---
 
-## Project Snapshot
+## 1) Project Context
 
-**Blumen für Mutti** (logo: **B♥M**) is a fidget sorting game.
+**Blumen für Mutti** (B♥M) is a fidget sorting game.
 
-Harry the cat wants to build Klemmbaustein flowers for his Mutti, but he has no thumbs. The player opens Packs and sorts Pieces into Bins. Harry builds flowers in the background and ties bouquets. Mutti sends hearts.
-
-Core loop: open Packs → sort Pieces by shape into Bins → Harry builds flowers.  
+Player loop: open Packs → sort Pieces into Bins → Harry builds flowers.  
 Progression: **10 flowers = 1 bouquet = 1 ♥ from Mutti**.
 
-Started: February 20, 2026  
-Tech: Vanilla HTML/CSS/JS + Canvas, no dependencies, installable PWA.
+Tech: Vanilla HTML/CSS/JS + Canvas, no framework, no build tools, installable PWA.
 
 ---
 
-## Documentation
+## 2) Documentation Contract
 
-| File | Purpose |
+| File | Role |
 |---|---|
-| **AGENTS.md** | Agent operating rules and constraints |
-| **DESIGN.md** | Process, decisions, open questions, learnings (living) |
-| **README.md** | Public-facing project statement (stable) |
+| `AGENTS.md` | Agent operating rules |
+| `DESIGN.md` | Living process (decisions, open questions, learnings) |
+| `README.md` | Stable public statement |
 
-Rule of thumb: **README is a statement. DESIGN.md is a process.**
+Rule of thumb: **README states; DESIGN explains.**
 
 ---
 
-## Rule Priority
+## 3) Rule Priority
 
-When rules conflict, use this order:
-1. Safety and platform/system rules
-2. Direct user request
-3. Project rules in this file
+If rules conflict, follow this order:
+1. Safety / platform / system constraints
+2. Explicit user instruction
+3. This `AGENTS.md`
 4. Style preferences
 
 ---
 
-## Hard Constraints
+## 4) Hard Constraints
 
 ### Git
-The human handles Git. Do not commit, push, branch, rebase, or merge.
+The human handles Git. Agents must not commit, push, branch, merge, or rebase.
 
 ### Server
-The human starts servers. Do not run `python3 -m http.server` or similar.
+The human starts servers. Agents must not run local server commands.
 
 ### Language
-- **Code and comments:** English
-- **AGENTS.md and README:** English
-- **In-game text:** via i18n (DE + EN)
+- Code + code comments: English
+- `AGENTS.md` + `README.md`: English
+- In-game text: i18n only (DE + EN)
 
-### No system-specific content
-Do not place absolute paths, usernames, or local IPs in shareable files.
-
----
-
-## Ubiquitous Language (UL)
-
-`DESIGN.md` contains the UL glossary and is the single source of truth.
-
-- Use UL terms exactly in code, comments, docs, and conversation
-- Do not introduce synonyms or legacy names
-- If a new concept appears: define it in `DESIGN.md` first, then use it
-- During cleanup: detect and fix terminology drift immediately
+### Shareable content
+Do not add machine-specific details (absolute paths, usernames, local IPs) to shareable files.
 
 ---
 
-## Architecture Rules
+## 5) Ubiquitous Language (UL)
 
-Strict flow: **Data → Calculations → Side effects**
+The UL glossary in `DESIGN.md` is the single source of truth.
 
-- **Data:** plain state/config objects only (no logic, no I/O)
-- **Calculations:** pure functions only (no I/O, no clock, no canvas)
-- **Side effects:** canvas, localStorage, haptics, rAF, DOM events
-
-Randomness rule:
-- Randomness is a parameter, not a direct call
-- Pass `rng` into pure functions
-- Caller chooses source (`Math.random` in production, seeded PRNG in tests/trainers)
-
-Prefer data over mutable per-tick state (for example: shuffled Pack sequences over leaky buckets).
+Agents must:
+- use UL terms exactly
+- avoid synonyms/legacy terms
+- define new concepts in `DESIGN.md` before usage
+- fix terminology drift during cleanup
 
 ---
 
-## Code Style
+## 6) Architecture (strict)
+
+Flow: **Data → Calculations → Side effects**
+
+- **Data:** plain objects only (no logic, no I/O)
+- **Calculations:** pure functions only (no I/O, no time, no canvas)
+- **Side effects:** canvas, DOM events, localStorage, haptics, rAF
+
+Randomness policy:
+- Randomness is an input, not an internal call
+- pass `rng` into pure functions
+- caller selects source (`Math.random` production, seeded PRNG tests/trainers)
+
+Prefer data-driven structures over mutable per-tick state.
+
+---
+
+## 7) Coding Style
 
 - Simple > clever
 - Readable > short
 - Works > perfect
 - Comments explain **why**, not **what**
-- Do not comment removed/old behavior (Git history is the place for that)
+- Never describe removed behavior in comments (Git history is the source)
 
 ---
 
-## Agent Behavior
+## 8) Agent Behavior
 
-- Answer questions directly before doing anything else
-- Ask when uncertain; do not silently assume
-- The human navigates priorities
-- If asking multiple questions, number them `(1)`, `(2)`, `(3)`
+- Answer questions directly before taking action
+- Ask when unclear; do not silently assume
+- Human decides priorities/navigation
+- Number multi-question blocks: `(1)`, `(2)`, `(3)`
 
-Completion behavior:
-- Do not push the next task
-- End with: **"Ich bin bereit – Nächstes in DESIGN.md: [item]"** and wait
-
----
-
-## Workflow (always in this order)
-
-1. **Plan** → write decisions in `DESIGN.md` first
-2. **Implement** → only after explicit user go-ahead
-3. **Review** → wait for technical/functional feedback
-4. **Clean up** → update `DESIGN.md`, remove stale notes, refactor if needed
-5. **Learnings** → decide if reusable in skill docs
-6. **Agent rules** → decide if `AGENTS.md` or skill rules should be updated
-7. **Brain dump (optional)** → capture durable insights in `../braind_dump/`
-
-### Fast path for tiny changes
-For trivial non-behavioral edits (typos, wording, link fixes, pure renames), planning can be short and inline in chat.
+At completion:
+- do not push next tasks
+- end with: **"Ich bin bereit – Nächstes in DESIGN.md: [item]"**
 
 ---
 
-## Screenshot Rules (browser-tools)
+## 9) Workflow (mandatory order)
 
-- Ask before taking screenshots
-- Human drives interaction; agent captures only on request
-- One screenshot per request; then discuss
-- Setup note: if needed, start Chrome with  
-  `node ~/.pi/agent/skills/pi-skills/browser-tools/browser-start.js`
+1. **Plan** — capture decisions in `DESIGN.md`
+2. **Implement** — only after explicit user go-ahead
+3. **Review** — wait for technical/functional feedback
+4. **Clean up** — sync docs, remove stale notes, refactor where useful
+5. **Learnings** — note reusable patterns for skills/docs
+6. **Agent rules** — update `AGENTS.md` / skills if needed
+7. **Brain dump (optional)** — capture durable insights in `../braind_dump/`
 
----
-
-## Definition of Done (DoD)
-
-Before claiming completion:
-- Requested change is implemented
-- Related references/links are updated
-- `DESIGN.md` is synced where relevant
-- No stale terminology vs UL glossary
-- No accidental rule violations
+### Fast path
+For tiny non-behavioral changes (typos, wording, links, pure renames), use lightweight inline planning.
 
 ---
 
-## Standard Features
+## 10) Screenshots (browser-tools)
 
-| Feature | Details |
+- ask before screenshotting
+- human drives interaction
+- take one screenshot per explicit request, then discuss
+
+Optional startup command if needed:
+`node ~/.pi/agent/skills/pi-skills/browser-tools/browser-start.js`
+
+---
+
+## 11) Definition of Done
+
+Before declaring done, verify:
+- requested change is implemented
+- related references are updated
+- `DESIGN.md` is updated where relevant
+- UL terms are consistent
+- no rule violations were introduced
+
+---
+
+## 12) Standard Features
+
+| Feature | Requirement |
 |---|---|
-| **i18n** | Auto-detect via `navigator.language`, language toggle, persisted in `localStorage` |
-| **PWA** | Installable, offline-capable via Service Worker (network-first) |
-| **Phone frame** | Canvas 430×932px, centered, `border-radius: 12px` |
-| **Colors** | GitHub Dark Colorblind palette (blue/orange). Never green/red for gameplay feedback/sorting. Green allowed for decorative plant elements only |
+| i18n | Auto-detect via `navigator.language`, manual toggle, persisted in `localStorage` |
+| PWA | Installable, offline-capable, Service Worker strategy: network-first |
+| Phone frame | Canvas 430×932, centered, `border-radius: 12px` |
+| Colors | GitHub Dark Colorblind palette (blue/orange). Never green/red for gameplay feedback. Green only for decorative plant elements |
