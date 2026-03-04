@@ -66,7 +66,7 @@ export function createConfig(overrides = {}) {
     // The shell augments each entry with name/desc for rendering (engine ignores those fields).
     // Effects mutate the fx object in order – multiplicative upgrades build on earlier ones.
     UPGRADE_TREE: [
-      { id: 'schere',          actor: 'player', cost:   15, effect: fx => { fx.bagTaps = 1; } },
+      { id: 'schere',          actor: 'player', cost:    0, unlockPacksOpened: 5, effect: fx => { fx.bagTaps = 1; } },
       { id: 'gummiDaumen',    actor: 'harry',  cost:   40, effect: fx => { fx.buildBaseMs = 12000; } },
       { id: 'grosshaendler',  actor: 'mutti',  cost:   80, effect: fx => { fx.bagShards = 7; } },
       { id: 'staubsauger',    actor: 'player', cost:  150, effect: fx => { fx.staubsauger = true; } },
@@ -444,6 +444,7 @@ export function applyAction(state, config, action, rng) {
       if (idx < 0) break;
       if (idx !== state.upgrades.purchased.length) break;  // must buy in order
       const upg = config.UPGRADE_TREE[idx];
+      if (typeof upg.unlockPacksOpened === 'number' && state.packsOpened < upg.unlockPacksOpened) break;
       if (state.coins < upg.cost) break;
 
       state.coins -= upg.cost;

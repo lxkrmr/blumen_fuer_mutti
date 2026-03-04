@@ -94,6 +94,7 @@ const STRINGS = {
     shop_owned:         'Gekauft ✓',
     shop_locked:        '???',
     shop_cant_afford:   'Zu wenig Münzen',
+    shop_unlock_packs:  (have, need) => `Öffne Packs: ${have}/${need}`,
     shop_reset_name:    'Spiel den selben Song nochmal',
     shop_reset_desc:    'Die Cantina Band spielt immer weiter. Du auch.',
     shop_reset_confirm: 'Du willst wirklich das Spiel neu starten?',
@@ -114,6 +115,7 @@ const STRINGS = {
     shop_owned:         'Owned ✓',
     shop_locked:        '???',
     shop_cant_afford:   'Not enough coins',
+    shop_unlock_packs:  (have, need) => `Open packs: ${have}/${need}`,
     shop_reset_name:    'Play the Same Song',
     shop_reset_desc:    'The Cantina Band never stops. Neither do you.',
     shop_reset_confirm: 'You really want to restart the game?',
@@ -158,10 +160,10 @@ function t(key, ...args) {
 // The engine ignores name/desc; they are used only by the renderer.
 const UPGRADE_TREE = [
   {
-    id: 'schere', actor: 'player', cost: 15,
+    id: 'schere', actor: 'player', cost: 0, unlockPacksOpened: 5,
     name: { de: 'Schere',               en: 'Scissors' },
-    desc: { de: 'Eine Schere! Tüten öffnen sich mit einem einzigen Schnitt.',
-            en: 'Scissors! Packs open with a single cut.' },
+    desc: { de: 'Harry kann sich das nicht länger mit anschauen und gönnt dir eine kurze Pause, damit du die Schere aus der Küche holen kannst.',
+            en: "Harry can’t watch this any longer and gives you a short break so you can grab the scissors from the kitchen." },
     effect: fx => { fx.bagTaps = 1; },
   },
   {
@@ -1558,14 +1560,36 @@ function drawUpgradeItem(upg, iy, px, iw, isPurchased, isNext, isLocked) {
     ctx.fillText(t('shop_owned'), px + iw - 12, iy + 16);
     ctx.globalAlpha  = 1;
   } else {
-    const costLabel = `💰 ${formatCoins(upg.cost)}`;
-    ctx.font         = '12px system-ui';
-    ctx.fillStyle    = TEXT_DIM;
-    ctx.textBaseline = 'middle';
-    ctx.textAlign    = 'right';
-    ctx.fillText(costLabel, px + iw - 80, iy + ih - 18);
+    const needsPacks = typeof upg.unlockPacksOpened === 'number';
+    const hasPacks   = !needsPacks || S.packsOpened >= upg.unlockPacksOpened;
 
-    const canAfford = S.coins >= upg.cost;
+    if (needsPacks && upg.cost === 0) {
+      const miniH = 12;
+      const miniW = Math.round(miniH * 0.72);
+      const labelX = px + iw - 80;
+      const labelY = iy + ih - 18;
+      drawMiniPack(labelX - miniW - 22, labelY - miniH / 2, miniH);
+      ctx.font         = '12px system-ui';
+      ctx.fillStyle    = TEXT_DIM;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign    = 'right';
+      ctx.fillText(`${upg.unlockPacksOpened}`, labelX, labelY);
+    } else {
+      const costLabel = `💰 ${formatCoins(upg.cost)}`;
+      ctx.font         = '12px system-ui';
+      ctx.fillStyle    = TEXT_DIM;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign    = 'right';
+      ctx.fillText(costLabel, px + iw - 80, iy + ih - 18);
+    }
+
+    if (needsPacks) {
+      ctx.font      = '11px system-ui';
+      ctx.fillStyle = hasPacks ? TEXT_DIM : acColor;
+      ctx.fillText(t('shop_unlock_packs', S.packsOpened, upg.unlockPacksOpened), px + iw - 80, iy + ih - 34);
+    }
+
+    const canAfford = S.coins >= upg.cost && hasPacks;
     const btnW = 64, btnH = 28;
     const btnX = px + iw - btnW - 10, btnY = iy + ih - btnH - 8;
 

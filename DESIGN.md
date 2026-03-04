@@ -333,7 +333,7 @@ Three actors, three upgrades each. Interlaced in a single linear skill tree. All
 
 | # | Actor | Upgrade | Effect |
 |---|---|---|---|
-| 1 | Player | **Schere** | Fewer taps to open a pack. Baseline: 5 → 1. One tier. |
+| 1 | Player | **Schere** | Intro unlock after opening 5 packs (free, no coins). Reduces pack opening taps from 5 → 1. One tier. |
 | 2 | Harry | **Gummi-Daumen** | Harry builds faster. *Cats don't rule the world only because they lack thumbs. Problem solved.* |
 | 3 | Mutti | **Großhändler** | Bigger packs – more parts, more bang per buck. *A wholesaler noticed you. Harry is nervous around contracts.* |
 
@@ -625,7 +625,7 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 | Harry Pack – warm rose visual, 🐱 on pack, mini preview on last intro slide | ✅ |
 | Purchased upgrades show name + description (not just "Gekauft ✓") | ✅ |
 | `'mine'` → `'main'` screen name (UL cleanup) | ✅ |
-| Upgrade 1 – Player: Schere | ❌ future |
+| Upgrade 1 – Player: Schere (free after 5 opened packs) | ✅ |
 | Upgrade 2 – Harry: Gummi-Daumen | ❌ future |
 | Upgrade 3 – Mutti: Großhändler (7 parts/pack, kraft brown, 🚛) | ✅ |
 | Milestone 1: Land kaufen (auf Kredit) + Bruno zieht ein | ❌ future |
@@ -646,6 +646,7 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 2. **Feel tuning** – tap ranges, build time, sell time *(ongoing)*
 3. **Milestone screens** – Land kaufen (Berge/Meer choice), Haus wählen, Bruno intro card
 4. **Dino-Sparschwein visual** – horizontally rotating dino animation in shop + coin badge
+5. **Upgrade extension: Großhändler interaction + Cutter** – test a 2-click requirement for Großhändler Pack and add a follow-up upgrade (`Cutter`) that reduces it back to 1 click. Goal: stronger progression feel through visible friction relief.
 
 ---
 
@@ -706,6 +707,7 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 | **Sorting is the core fidget, not pack opening** | Pack opening is a ritual gate – a small friction before the player gets to sort. Sorting is the satisfying, repetitive, low-cognitive-load action. Upgrades should maximise sorting time per session. |
 | **Starter pack small by design** | 3 parts is intentionally unsatisfying. Just enough to tease the mechanic, not enough to give flow. The tension is the point – it makes the first upgrades feel like relief. |
 | **Schere as the first unlock** | Removes the most annoying friction first (tap count to open). Players earn relief from the thing that bothers them most before anything else. |
+| **Schere unlock uses packs opened (5), not coins** | Intro should not compete with core liquidity. Action-gated unlock teaches progression without draining Harry's budget. Shop shows the pack requirement with the existing mini pack icon for consistency. |
 | **Shuffle bag instead of random odds** | Pure random odds cause droughts for rare shapes (20% chance of a circle per 3-part pack). Shuffle bag guarantees recipe distribution over every 14 draws. Implemented as a pure function: `takePack(deck, recipe, n, rng)` returns `{ pack, deck }`. No side effects, no per-shape state. |
 | **Pack evolution replaces, not stacks** | Each pack upgrade (Großhändler, Harry's Label) fully replaces the previous pack type. Simpler mental model, cleaner progression story. |
 | **Harry's eigenes Label as pack upgrade** | Reframed from "coin value increase" to a pack upgrade: Harry's own branded packs, 14 parts (exactly 1 flower), warm rose visual. Net profit rises through pack efficiency (more parts per coin) rather than direct coin value change. The Harry Pack from the intro becomes the product – the gift becomes the business. |
@@ -861,3 +863,4 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 - *Feb 25:* `packType: 'starter' | 'grosshaendler' | 'harry'` replaces `harryPack: boolean`. String union is more extensible and self-documenting than growing booleans. Draw function switches cleanly on a single value.
 - *Feb 25:* Pack sizes settled: 4 (starter) → 7 (Großhändler) → 14 (Harry's Label). Großhändler 7 divides 14 exactly – 2 clean packs per flower, zero carry-over. Harry's Label 14 = one pack, one flower. Starter 4 is intentionally small: tease the mechanic, not flow. Odds problem solved entirely by shuffle bag – no probability tuning needed.
 - *Feb 25:* Playtested shuffle bag. Bins now tend to fill and drain together – all four emptying at roughly the same time. This creates a satisfying "clean sweep" moment that pure random odds never produced. Random odds caused one or two bins to grow unchecked while others starved. Balanced distribution feels noticeably better.
+- *Mar 4:* Intro economy guardrail: Schere no longer costs coins. It unlocks after 5 opened packs (`unlockPacksOpened`) and can then be bought for 0. This keeps early liquidity for Harry while still teaching upgrade progression. Shop UI now shows the requirement with the existing mini pack icon and an `Open packs X/Y` progress line.
