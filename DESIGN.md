@@ -620,6 +620,7 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 | Pack economy (Harry auto-orders, starting capital, coin cost) | ✅ |
 | Shop screen (icon → own screen, linear skill tree, locked items show ???) | ✅ |
 | Shop icon top right (next to indicator, same vertical center) | ✅ |
+| Main screen next-upgrade banner (name + requirement/progress, highlights when buyable) | ✅ |
 | Reset as "Spiel den selben Song nochmal" (👽🎷) at shop bottom – red confirmation line, whole item tappable | ✅ |
 | Intro sequence (Harry · 6 slides · skip button · Harry Pack) | ✅ |
 | Harry Pack – warm rose visual, 🐱 on pack, mini preview on last intro slide | ✅ |
@@ -864,3 +865,5 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 - *Feb 25:* Pack sizes settled: 4 (starter) → 7 (Großhändler) → 14 (Harry's Label). Großhändler 7 divides 14 exactly – 2 clean packs per flower, zero carry-over. Harry's Label 14 = one pack, one flower. Starter 4 is intentionally small: tease the mechanic, not flow. Odds problem solved entirely by shuffle bag – no probability tuning needed.
 - *Feb 25:* Playtested shuffle bag. Bins now tend to fill and drain together – all four emptying at roughly the same time. This creates a satisfying "clean sweep" moment that pure random odds never produced. Random odds caused one or two bins to grow unchecked while others starved. Balanced distribution feels noticeably better.
 - *Mar 4:* Intro economy guardrail: Schere no longer costs coins. It unlocks after 5 opened packs (`unlockPacksOpened`) and can then be bought for 0. This keeps early liquidity for Harry while still teaching upgrade progression. Shop UI now shows the requirement with the existing mini pack icon and an `Open packs X/Y` progress line.
+- *Mar 4:* Discovery moved to the main screen: the next upgrade is now always visible in a subtle banner below the indicator labels. It shows upgrade name + current requirement progress (`packs` or `coins`) and pulses in actor color when buyable, so the shop becomes a destination for purchase instead of discovery.
+- *Mar 4:* Banner stability follow-up: dynamic Y-position caused a visible jump when the "Mutti is selling" line appeared/disappeared. Fix: reserve two label lines and keep the banner in a fixed slot (`labelBaseY + 26`) to keep the layout calm.

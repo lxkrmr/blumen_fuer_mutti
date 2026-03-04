@@ -102,6 +102,10 @@ const STRINGS = {
     actor_player:       'Du',
     actor_harry:        'Harry',
     actor_mutti:        'Mutti',
+    next_upgrade_label: (name) => `Nächstes Upgrade: ${name}`,
+    next_upgrade_packs: (have, need) => `Öffne Packs: ${have}/${need}`,
+    next_upgrade_coins: (have, need) => `💰 ${formatCoins(have)}/${formatCoins(need)}`,
+    next_upgrade_ready: 'Jetzt im Shop verfügbar',
   },
   en: {
     lang_toggle:        'DE',
@@ -123,6 +127,10 @@ const STRINGS = {
     actor_player:       'You',
     actor_harry:        'Harry',
     actor_mutti:        'Mutti',
+    next_upgrade_label: (name) => `Next upgrade: ${name}`,
+    next_upgrade_packs: (have, need) => `Open packs: ${have}/${need}`,
+    next_upgrade_coins: (have, need) => `💰 ${formatCoins(have)}/${formatCoins(need)}`,
+    next_upgrade_ready: 'Available in shop',
   },
 };
 
@@ -1044,11 +1052,65 @@ function drawLangButton() {
 function drawMain(now) {
   drawHeader();
   drawHarryIndicator(now);
+  drawNextUpgradeBanner(now);
   drawPack(now);
   drawBins(now);
   drawPieces(now, false);
   drawPieces(now, true);
   drawShopButton(now);
+}
+
+function drawNextUpgradeBanner(now) {
+  const nextIdx = S.upgrades.purchased.length;
+  const upg = config.UPGRADE_TREE[nextIdx];
+  if (!upg) return;
+
+  const needsPacks = typeof upg.unlockPacksOpened === 'number';
+  const hasPacks = !needsPacks || S.packsOpened >= upg.unlockPacksOpened;
+  const hasCoins = S.coins >= upg.cost;
+  const canBuy = hasPacks && hasCoins;
+
+  const labelBaseY = INDICATOR_CY + INDICATOR_OUTER_R + 30;
+  const by = labelBaseY + 26; // fixed slot: reserve space for two indicator label lines
+
+  const bw = W - 46;
+  const bh = 38;
+  const bx = (W - bw) / 2;
+
+  const pulse = canBuy ? 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(now / 400)) : 0;
+  const acColor = ACTOR_COLOR[upg.actor];
+
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  fillRRect(bx, by, bw, bh, 9);
+
+  if (canBuy) {
+    ctx.strokeStyle = acColor;
+    ctx.globalAlpha = 0.45 + pulse * 0.45;
+    ctx.lineWidth = 1.5;
+  } else {
+    ctx.strokeStyle = BORDER;
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 1;
+  }
+  strokeRRect(bx, by, bw, bh, 9);
+  ctx.globalAlpha = 1;
+
+  ctx.font = 'bold 11px system-ui';
+  ctx.fillStyle = TEXT_HI;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(t('next_upgrade_label', upg.name[lang]), W / 2, by + 14);
+
+  let status;
+  if (!hasPacks)      status = t('next_upgrade_packs', S.packsOpened, upg.unlockPacksOpened);
+  else if (!hasCoins) status = t('next_upgrade_coins', S.coins, upg.cost);
+  else                status = t('next_upgrade_ready');
+
+  ctx.font = '11px system-ui';
+  ctx.fillStyle = canBuy ? acColor : TEXT_DIM;
+  ctx.fillText(status, W / 2, by + 30);
+
+  ctx.textAlign = 'left';
 }
 
 function drawShopButton(_now) {
