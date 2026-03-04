@@ -643,12 +643,13 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 
 ## Next steps
 
-1. **Economy calibration via trainer** – build `trainer.html` with human-pace mode (~6 s/pack), run upgrade cost scan, tune prices for 6→40→200 coins/min arc. Pack sizes now settled (4→7→14) so trainer can model the full upgrade arc.
-2. **Feel tuning** – tap ranges, build time, sell time *(ongoing)*
-3. **Milestone screens** – Land kaufen (Berge/Meer choice), Haus wählen, Bruno intro card
-4. **Dino-Sparschwein visual** – horizontally rotating dino animation in shop + coin badge
-5. **Upgrade extension: Großhändler interaction + Cutter** – test a 2-click requirement for Großhändler Pack and add a follow-up upgrade (`Cutter`) that reduces it back to 1 click. Goal: stronger progression feel through visible friction relief.
-6. **Mini-game exploration (later)** – evaluate a small Harry or Mutti mini-game concept after core economy/progression tuning is stable.
+1. **Implement remaining upgrades, one by one (priority)** – continue strictly in progression order and finish each upgrade before moving on: Upgrade 2 (Gummi-Daumen), 4 (Staubsauger), 5 (Harry goes TikTok), 6 (Bobby-Tuning), 7 (Dino-Sparschwein), 8 (Harry's eigenes Label UI/playtesting), 9 (Bobby-Zuwachs).
+2. **Per-upgrade validation pass** – after each implemented upgrade: verify effect, UI visibility, i18n text, save/load behavior, and trainer compatibility.
+3. **Economy calibration via trainer (after upgrade pass)** – run upgrade cost scan and "run until all upgrades" to tune for 6→40→200 coins/min arc with the finalized upgrade behavior.
+4. **Feel tuning (later)** – tap ranges, build time, sell time.
+5. **Milestone screens (later)** – Land kaufen (Berge/Meer choice), Haus wählen, Bruno intro card.
+6. **Upgrade extension: Großhändler interaction + Cutter (later)** – 2-click Großhändler Pack + Cutter relief upgrade.
+7. **Mini-game exploration (later)** – evaluate a small Harry or Mutti mini-game concept after core economy/progression tuning is stable.
 
 ---
 
@@ -868,3 +869,4 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 - *Mar 4:* Intro economy guardrail: Schere no longer costs coins. It unlocks after 5 opened packs (`unlockPacksOpened`) and can then be bought for 0. This keeps early liquidity for Harry while still teaching upgrade progression. Shop UI now shows the requirement with the existing mini pack icon and an `Open packs X/Y` progress line.
 - *Mar 4:* Discovery moved to the main screen: the next upgrade is now always visible in a subtle banner below the indicator labels. It shows upgrade name + current requirement progress (`packs` or `coins`) and pulses in actor color when buyable, so the shop becomes a destination for purchase instead of discovery.
 - *Mar 4:* Banner stability follow-up: dynamic Y-position caused a visible jump when the "Mutti is selling" line appeared/disappeared. Fix: reserve two label lines and keep the banner in a fixed slot (`labelBaseY + 26`) to keep the layout calm.
+- *Mar 4:* Trainer usability update: added a dedicated "Run Until All Upgrades" action in `trainer.html` so long-run progression timing is visible in the trainer UI (not only via ad-hoc terminal scripts). The run also reports minimum coin floor; economy stays non-negative by design (pack charge clamps at 0, upgrades require sufficient coins).

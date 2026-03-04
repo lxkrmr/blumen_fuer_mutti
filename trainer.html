@@ -38,6 +38,7 @@
   <button onclick="runBaseline()">Run Baseline</button>
   <button onclick="runUpgradeScan()">Scan Upgrade Costs</button>
   <button onclick="runFullGame()">Full Game Arc</button>
+  <button onclick="runUntilAllUpgrades()">Run Until All Upgrades</button>
 </div>
 
 <div id="output"></div>
@@ -51,8 +52,19 @@ import {
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
-// Simple strategy: sort all pieces immediately, buy upgrade when affordable.
+// Simple strategy: sort all pieces immediately, buy the next upgrade only when all
+// requirements are met (coins + optional action gate like packs opened).
 function optimalStrategy(S, config) {
+  // Buy next available upgrade if all requirements are met.
+  // Do this first so upgrades are not starved by the always-available sort/tap loop.
+  const nextIdx = S.upgrades.purchased.length;
+  if (nextIdx < config.UPGRADE_TREE.length) {
+    const upg = config.UPGRADE_TREE[nextIdx];
+    const packsOk = typeof upg.unlockPacksOpened !== 'number' || S.packsOpened >= upg.unlockPacksOpened;
+    const coinsOk = S.coins >= upg.cost;
+    if (packsOk && coinsOk) return { type: 'buy_upgrade', id: upg.id };
+  }
+
   // Sort the first pending piece into the correct bin
   if (S.phase === 'pieces' && S.pendingPieces.length > 0) {
     const piece = S.pendingPieces[0];
@@ -65,18 +77,13 @@ function optimalStrategy(S, config) {
     return { type: 'tap_pack' };
   }
 
-  // Buy next available upgrade if we can afford it
-  const nextIdx = S.upgrades.purchased.length;
-  if (nextIdx < config.UPGRADE_TREE.length) {
-    const upg = config.UPGRADE_TREE[nextIdx];
-    if (S.coins >= upg.cost) return { type: 'buy_upgrade', id: upg.id };
-  }
-
   return null;
 }
 
 // Runs a full simulation and returns a detailed report.
-function simulate(configOverrides = {}, seed = 42, maxVirtualMs = 10 * 60 * 1000) {
+function simulate(configOverrides = {}, seed = 42, maxVirtualMs = 10 * 60 * 1000, options = {}) {
+  const { stopWhenAllUpgrades = false } = options;
+
   const rng    = mulberry32(seed);
   const config = createConfig(configOverrides);
   let   S      = createState(config);
@@ -87,10 +94,11 @@ function simulate(configOverrides = {}, seed = 42, maxVirtualMs = 10 * 60 * 1000
   const log = [];
   const upgradeAt = {};   // id → virtualNow when purchased
   const TICK_MS = 500;    // simulate in 500ms steps
-
-  let prevCoins    = S.coins;
-  let prevNow      = 0;
   const coinsPerMinuteAt = {};  // snapshot coins/min when each upgrade is bought
+
+  let minCoins = S.coins;
+  let minCoinsAt = 0;
+  let allBoughtAt = null;
 
   for (let t = 0; t < maxVirtualMs; t += TICK_MS) {
     // Player action each step
@@ -115,15 +123,28 @@ function simulate(configOverrides = {}, seed = 42, maxVirtualMs = 10 * 60 * 1000
 
     for (const ev of events) {
       if (ev.type === 'sell_complete') {
-        log.push({ t: S.virtualNow, type: 'sell', coins: S.coins });
+        log.push({ t: S.virtualNow, type: 'sell', coinValue: ev.coinValue });
       }
+    }
+
+    if (S.coins < minCoins) {
+      minCoins = S.coins;
+      minCoinsAt = S.virtualNow;
+    }
+
+    if (stopWhenAllUpgrades && S.upgrades.purchased.length === config.UPGRADE_TREE.length) {
+      allBoughtAt = S.virtualNow;
+      break;
     }
   }
 
-  // Coins-per-minute averaged over last 2 minutes
-  const recentSells = log.filter(e => e.t > maxVirtualMs - 2 * 60 * 1000);
-  const coinsInLast2min = recentSells.reduce((s, e) => s + getEffects(config, S.upgrades.purchased).coinValue, 0);
-  const coinsPerMin     = coinsInLast2min / 2;
+  const simEndMs = S.virtualNow;
+
+  // Coins-per-minute averaged over the last up-to-2 minutes of simulated time
+  const windowMs = Math.min(2 * 60 * 1000, simEndMs || 1);
+  const recentSells = log.filter(e => e.t > simEndMs - windowMs);
+  const coinsInWindow = recentSells.reduce((s, e) => s + e.coinValue, 0);
+  const coinsPerMin   = coinsInWindow / (windowMs / 60000);
 
   return {
     config,
@@ -134,8 +155,12 @@ function simulate(configOverrides = {}, seed = 42, maxVirtualMs = 10 * 60 * 1000
     flowersSold:     S.flowersSold,
     packsOpened:     S.packsOpened,
     coinsPerMin,
+    minCoins,
+    minCoinsAt,
+    allBoughtAt,
+    allBought: S.upgrades.purchased.length === config.UPGRADE_TREE.length,
     upgradePurchased: S.upgrades.purchased,
-    virtualMs:       S.virtualNow,
+    virtualMs:       simEndMs,
   };
 }
 
@@ -251,7 +276,6 @@ window.runFullGame = function() {
 
   // Track coin flow: coins earned per minute window
   let windowCoins = 0;
-  let windowStart = 0;
 
   for (let t = 0; t < 30 * 60 * 1000; t += TICK_MS) {
     const action = optimalStrategy(S, config);
@@ -297,6 +321,38 @@ window.runFullGame = function() {
     <p class="note">Target: ~6/min (0–5 min) · ~40/min (10–15 min) · ~200/min (25–30 min)</p>
   `);
   log('Done.');
+};
+
+window.runUntilAllUpgrades = function() {
+  const MAX_MIN = 240;
+  log(`Running until all upgrades are bought (max ${MAX_MIN} min) …`);
+
+  const r = simulate({}, 42, MAX_MIN * 60 * 1000, { stopWhenAllUpgrades: true });
+  const missing = r.config.UPGRADE_TREE
+    .map(u => u.id)
+    .filter(id => !r.upgradePurchased.includes(id));
+
+  output(`
+    <h1>Run Until All Upgrades</h1>
+    <p class="note">Seed: 42 · Stops early when all upgrades are bought or after ${MAX_MIN} simulated minutes.</p>
+    <table>
+      <tr><th>Metric</th><th>Value</th></tr>
+      <tr><td>All upgrades bought</td><td class="${r.allBought ? 'good' : 'warn'}">${r.allBought ? '✓ yes' : 'no'}</td></tr>
+      <tr><td>Time reached</td><td>${fmt(r.virtualMs)}</td></tr>
+      <tr><td>All bought at</td><td>${r.allBoughtAt != null ? fmt(r.allBoughtAt) : '—'}</td></tr>
+      <tr><td>Upgrades bought</td><td>${r.upgradePurchased.length}/${r.config.UPGRADE_TREE.length}</td></tr>
+      <tr><td>Missing upgrades</td><td>${missing.length ? missing.join(', ') : 'none'}</td></tr>
+      <tr><td>Minimum coins</td><td>${fmtN(r.minCoins)} at ${fmt(r.minCoinsAt)}</td></tr>
+      <tr><td>Final coins</td><td>${fmtN(r.finalCoins)}</td></tr>
+      <tr><td>Flowers sold</td><td>${fmtN(r.flowersSold)}</td></tr>
+      <tr><td>Packs opened</td><td>${fmtN(r.packsOpened)}</td></tr>
+    </table>
+    <p class="note">Coins are clamped at 0 on pack purchase and upgrades require enough coins, so negative balance is impossible.</p>
+  `);
+
+  log(r.allBought
+    ? `Done. All upgrades bought at ${fmt(r.allBoughtAt)}.`
+    : `Done. Not all upgrades bought within ${MAX_MIN} min.`);
 };
 
 // ── DOM helpers ───────────────────────────────────────────────────────────
