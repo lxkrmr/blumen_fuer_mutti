@@ -648,6 +648,7 @@ Target arc: Block 1 ≈ 6/min · Block 2 ≈ 40/min · Block 3 ≈ 200/min.
 3. **Milestone screens** – Land kaufen (Berge/Meer choice), Haus wählen, Bruno intro card
 4. **Dino-Sparschwein visual** – horizontally rotating dino animation in shop + coin badge
 5. **Upgrade extension: Großhändler interaction + Cutter** – test a 2-click requirement for Großhändler Pack and add a follow-up upgrade (`Cutter`) that reduces it back to 1 click. Goal: stronger progression feel through visible friction relief.
+6. **Mini-game exploration (later)** – evaluate a small Harry or Mutti mini-game concept after core economy/progression tuning is stable.
 
 ---
 
